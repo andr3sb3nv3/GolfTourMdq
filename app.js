@@ -12,7 +12,7 @@ var UI = Object.assign({ tab: 'posiciones', cancha: null, canchaLb: 'general',
   metrica: 'stableford', hoyo: 0, vistaTc: 'bruto', editando: null, ingreso: 'entrar',
   jugador: null }, leerLS(LS.ui, {}));
 
-var sincronizando = false, ultimoError = '', reloj = null;
+var sincronizando = false, ultimoError = '', reloj = null, promptInstalar = null;
 
 function leerLS(k, def) { try { var v = localStorage.getItem(k); return v ? JSON.parse(v) : def; } catch (e) { return def; } }
 function guardarLS(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
@@ -205,6 +205,31 @@ function salir() {
   pintar();
 }
 
+/* ============ instalación en el celular ============ */
+window.addEventListener('beforeinstallprompt', function (e) {
+  e.preventDefault(); promptInstalar = e; refrescarInstalar();
+});
+window.addEventListener('appinstalled', function () { promptInstalar = null; refrescarInstalar(); });
+function yaInstalada() {
+  try { return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true; }
+  catch (e) { return false; }
+}
+function esIOS() { return /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream; }
+function bloqueInstalar() {
+  if (yaInstalada()) return '';
+  if (promptInstalar) return '<div class="instalar" id="bloque-instalar">' +
+    '<span>📲 Tenela como app en el celular</span>' +
+    '<button class="btn pri" data-acc="instalar">Instalar</button></div>';
+  if (esIOS()) return '<div class="instalar" id="bloque-instalar"><span>📲 Para tenerla como app: tocá ' +
+    '<b>Compartir</b> abajo y después <b>Agregar a pantalla de inicio</b>.</span></div>';
+  return '<div class="instalar" id="bloque-instalar"><span>📲 Para tenerla como app: menú del navegador ' +
+    '(⋮ o ⋯) → <b>Instalar aplicación</b> o <b>Agregar a pantalla de inicio</b>.</span></div>';
+}
+function refrescarInstalar() {
+  var n = document.getElementById('bloque-instalar');
+  if (n) n.outerHTML = bloqueInstalar();   // se cambia solo ese bloque para no borrar lo que estés tipeando
+}
+
 /* ============ pantalla de ingreso ============ */
 function vistaIngreso() {
   var alta = UI.ingreso === 'alta';
@@ -213,6 +238,7 @@ function vistaIngreso() {
     '<p>Mar del Plata · 3 canchas</p></div></div>';
   if (!API) h += '<div class="error">La app todavía no está conectada a la planilla. ' +
     'Falta pegar la URL del Apps Script en <b>config.js</b>.</div>';
+  h += bloqueInstalar();
   h += '<section class="card"><div class="tabsdos">' +
     '<button data-acc="modo" data-v="entrar" aria-pressed="' + (!alta) + '">Entrar</button>' +
     '<button data-acc="modo" data-v="alta" aria-pressed="' + alta + '">Primera vez</button></div>' +
@@ -485,7 +511,7 @@ function vistaPerfil() {
     var n = 0; for (var i = 0; i < 18; i++) n += golpesHoyo(hcpJuego(y), Number(c.si[i]) || (i + 1));
     return esc(c.nombre) + ': ' + n;
   }).join(' · ');
-  return '<div class="pila"><section class="card">' +
+  return '<div class="pila">' + bloqueInstalar() + '<section class="card">' +
     '<div class="perfil-cab"><div class="perfil-foto' + claseEq(y) + '">' +
     (y.fotoId ? '<img src="https://drive.google.com/thumbnail?id=' + esc(y.fotoId) + '&sz=w320" alt="">' : esc(inicial(y))) + '</div>' +
     '<div><h2 class="' + claseTxt(y).trim() + '">' + esc(y.nombre) + '</h2>' +
@@ -553,6 +579,13 @@ document.addEventListener('click', function (ev) {
   if (a === 'salir') { if (confirm('¿Cerrar sesión en este celular?')) salir(); return; }
   if (a === 'sync') { sincronizar(); return; }
   if (a === 'probar') { probarConexion(b); return; }
+  if (a === 'instalar') {
+    if (!promptInstalar) return;
+    promptInstalar.prompt();
+    promptInstalar.userChoice.then(function () { promptInstalar = null; refrescarInstalar(); },
+                                   function () { promptInstalar = null; refrescarInstalar(); });
+    return;
+  }
   if (a === 'info') { alert(textoInfo()); return; }
   if (!E) return;
 
