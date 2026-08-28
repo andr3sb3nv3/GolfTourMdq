@@ -75,6 +75,21 @@ function configurar() {
   return 'ok';
 }
 
+/**
+ * MIGRACIÓN — correr UNA sola vez, después de pegar esta versión del código.
+ * Agrega la columna "formato" a la pestaña Canchas sin tocar nada de lo cargado.
+ * NO correr configurar() de nuevo: eso borra jugadores y tarjetas.
+ */
+function migrarFormato() {
+  var hoja = SpreadsheetApp.openById(SS_ID).getSheetByName('Canchas');
+  var cab = hoja.getRange(1, 1, 1, hoja.getLastColumn()).getValues()[0];
+  if (cab.indexOf('formato') >= 0) return 'Ya estaba migrada, no se tocó nada.';
+  hoja.insertColumnAfter(4);                       // queda entre "confirmada" y "par1"
+  hoja.getRange(1, 5).setValue('formato').setFontWeight('bold').setBackground('#EDF0E8');
+  limpiarCache();
+  return 'Listo: columna "formato" agregada.';
+}
+
 /* ============================================================
    ENTRADAS HTTP
    ============================================================ */
