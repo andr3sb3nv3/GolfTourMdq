@@ -9,7 +9,7 @@ var SES = leerLS(LS.ses, null);          // { token, matricula }
 var E   = leerLS(LS.est, null);          // último estado conocido del servidor
 var COLA = leerLS(LS.cola, []);          // golpes pendientes de sincronizar
 var UI = Object.assign({ tab: 'posiciones', cancha: null, canchaLb: 'general',
-  metrica: 'stableford', hoyo: 0, vistaTc: 'bruto', editando: null, ingreso: 'entrar',
+  metrica: 'neto', hoyo: 0, vistaTc: 'bruto', editando: null, ingreso: 'entrar',
   jugador: null }, leerLS(LS.ui, {}));
 
 var sincronizando = false, ultimoError = '', reloj = null, promptInstalar = null;
@@ -121,8 +121,9 @@ function ordenar(lista) {
 }
 function valorMetrica(a) {
   if (UI.metrica === 'stableford') return { b: a.pts, s: 'puntos' };
-  if (UI.metrica === 'neto') return { b: signo(a.vsParNeto), s: 'neto ' + a.neto };
-  return { b: signo(a.vsPar), s: 'bruto ' + a.bruto };
+  // Medal play neto: manda el total de golpes netos; al lado, cómo va contra el par
+  if (UI.metrica === 'neto') return { b: a.neto, s: signo(a.vsParNeto) + ' neto' };
+  return { b: a.bruto, s: signo(a.vsPar) + ' bruto' };
 }
 
 /* ============ red ============ */
@@ -281,6 +282,35 @@ function textoError(e) {
   return t[e] || ('Algo falló: ' + e);
 }
 
+/* ============ conducción: capitanes y subcapitanes ============ */
+// Los dos mejores handicaps son capitanes; el 3.º y el 4.º, subcapitanes.
+// Las duplas de conducción quedan 1.º con 4.º y 2.º con 3.º.
+function conduccion() {
+  var orden = E.jugadores.slice().sort(function (a, b) {
+    return (Number(a.handicap) || 99) - (Number(b.handicap) || 99);
+  });
+  if (orden.length < 4) return null;
+  return {
+    duplaA: { capitan: orden[0], sub: orden[3] },
+    duplaB: { capitan: orden[1], sub: orden[2] },
+    orden: orden
+  };
+}
+function bloqueConduccion() {
+  var c = conduccion();
+  if (!c) return '<div class="aviso"><span>👥</span><span>Con menos de 4 jugadores registrados todavía no se pueden definir capitanes.</span></div>';
+  function dupla(d, k) {
+    return '<div><div class="k">Dupla ' + k + '</div>' +
+      '<div class="v">' + esc(d.capitan.nombre) + ' <em>' + esc(d.capitan.handicap) + '</em>' +
+      '<br><span class="hint">con ' + esc(d.sub.nombre) + ' · hcp ' + esc(d.sub.handicap) + '</span></div></div>';
+  }
+  return '<section class="card"><div class="sec-tit"><h2>Conducción</h2>' +
+    '<span class="eyebrow">por handicap</span></div>' +
+    '<div class="destacados">' + dupla(c.duplaA, 1) + dupla(c.duplaB, 2) + '</div>' +
+    '<div class="candado"><span>🏌️</span><span>Capitanes: los dos mejores handicaps. Subcapitanes: el tercero y el cuarto. ' +
+    'Se arma 1.º con 4.º y 2.º con 3.º. Se recalcula solo a medida que cargan sus handicaps.</span></div></section>';
+}
+
 /* ============ vistas ============ */
 function chipsCancha(sel, acc, conGeneral) {
   var h = '<div class="seg" role="group">';
@@ -294,16 +324,17 @@ function chipsCancha(sel, acc, conGeneral) {
 function vistaPosiciones() {
   var lista = ordenar(acumulado(UI.canchaLb));
   var c = UI.canchaLb === 'general' ? null : cancha(UI.canchaLb);
-  var titulo = c ? esc(c.nombre) + ' · Día ' + c.dia : esc(E.torneo.nombre) + ' · las 3 vueltas';
+  var titulo = (c ? esc(c.nombre) + ' · Día ' + c.dia : esc(E.torneo.nombre) + ' · las 3 vueltas') +
+    (UI.metrica === 'neto' ? ' · Medal Play' : '');
   var max = 1; lista.forEach(function (a) { if (UI.metrica === 'stableford' && a.pts > max) max = a.pts; });
 
   var h = '<div class="pila">' + chipsCancha(UI.canchaLb, 'lb-cancha', true) + panelEquipos(UI.canchaLb) +
     '<div class="seg" role="group">' +
-    '<button data-acc="metrica" data-v="stableford" aria-pressed="' + (UI.metrica === 'stableford') + '">Stableford</button>' +
-    '<button data-acc="metrica" data-v="neto" aria-pressed="' + (UI.metrica === 'neto') + '">Neto</button>' +
-    '<button data-acc="metrica" data-v="bruto" aria-pressed="' + (UI.metrica === 'bruto') + '">Bruto</button></div>' +
+    '<button data-acc="metrica" data-v="neto" aria-pressed="' + (UI.metrica === 'neto') + '">Medal neto</button>' +
+    '<button data-acc="metrica" data-v="bruto" aria-pressed="' + (UI.metrica === 'bruto') + '">Bruto</button>' +
+    '<button data-acc="metrica" data-v="stableford" aria-pressed="' + (UI.metrica === 'stableford') + '">Stableford</button></div>' +
     '<section class="card lb"><div class="lb-cab"><h2>' + titulo + '</h2><span class="eyebrow">' +
-    (UI.metrica === 'stableford' ? 'puntos' : (UI.metrica === 'neto' ? 'vs par neto' : 'vs par bruto')) + '</span></div>';
+    (UI.metrica === 'stableford' ? 'puntos' : (UI.metrica === 'neto' ? 'golpes netos' : 'golpes brutos')) + '</span></div>';
 
   if (!lista.filter(function (a) { return a.thru > 0; }).length) {
     h += '<p class="vacio">Todavía no hay golpes cargados.<br>Andá a <b>Cargar</b> y arrancá por el hoyo 1.</p>';
@@ -348,7 +379,10 @@ function panelEquipos(cid) {
   var estado = a.pts === r.pts ? 'empatados' :
     (a.pts > r.pts ? nombreEquipo('azul') + ' arriba por ' + (a.pts - r.pts)
                    : nombreEquipo('rojo') + ' arriba por ' + (r.pts - a.pts));
-  return '<section class="card"><div class="lb-cab"><h2>Copa Ryder</h2><span class="eyebrow">' + esc(estado) + '</span></div>' +
+  var c = cid === 'general' ? null : cancha(cid);
+  var fmt = { foursomes: 'Foursomes', fourball: 'Four-ball', singles: 'Singles' }[(c && c.formato) || ''] || '';
+  return '<section class="card"><div class="lb-cab"><h2>Ryder Cup</h2><span class="eyebrow">' +
+    esc(fmt ? fmt + ' · ' + estado : estado) + '</span></div>' +
     '<div class="marcador-eq">' +
     '<div class="lado"><b class="txt-azul">' + a.pts + '</b><span class="txt-azul">' + esc(nombreEquipo('azul')) + '</span>' +
     '<i>' + a.n + ' jugadores' + (a.jugando ? ' · ' + a.jugando + ' con tarjeta' : '') + '</i></div>' +
@@ -459,7 +493,8 @@ function vistaJugadores() {
         : '<span class="eyebrow" title="Solo lo edita su dueño">🔒</span>') +
       '</div>';
   });
-  return h + '</section><div class="aviso"><span>🎯</span><span>Cada uno entra con su matrícula y su contraseña y aparece acá automáticamente. Nadie edita los datos ni la tarjeta de otro, el organizador tampoco.</span></div></div>';
+  h += '</section>' + bloqueConduccion();
+  return h + '<div class="aviso"><span>🎯</span><span>Cada uno entra con su matrícula y su contraseña y aparece acá automáticamente. Nadie edita los datos ni la tarjeta de otro, el organizador tampoco.</span></div></div>';
 }
 
 function vistaCanchas() {
@@ -491,6 +526,13 @@ function vistaCanchas() {
         (c.confirmada ? '✓ Tarjeta oficial' : 'Marcar como tarjeta oficial') + '</button>' +
         '<span class="hint" style="flex:1;min-width:180px">El índice va del 1 al 18: 1 es el hoyo más difícil.</span></div>';
     }
+    h += '<div class="grid2" style="grid-template-columns:1fr"><div class="campo">' +
+      '<label>Formato de equipos de esta jornada</label><div class="pick-eq">' +
+      [['', 'Sin definir'], ['foursomes', 'Foursomes'], ['fourball', 'Four-ball'], ['singles', 'Singles']]
+        .map(function (f) {
+          return '<button data-acc="formato" data-v="' + c.id + '" data-i="' + f[0] + '"' +
+            ' aria-pressed="' + ((c.formato || '') === f[0]) + '"' + (admin ? '' : ' disabled') + '>' + f[1] + '</button>';
+        }).join('') + '</div></div></div>';
     h += '</section>';
   });
 
@@ -602,6 +644,7 @@ document.addEventListener('click', function (ev) {
   else if (a === 'mas' || a === 'menos' || a === 'set' || a === 'borrar') { anotarGolpe(a, v); return; }
   else if (a === 'abrir-cancha') { UI.editando = (UI.editando === v ? null : v); }
   else if (a === 'confirmar') { var c = cancha(v); accionar({ accion: 'cancha', id: v, confirmada: !c.confirmada }); return; }
+  else if (a === 'formato') { accionar({ accion: 'cancha', id: v, formato: b.getAttribute('data-i') }); return; }
   else if (a === 'mi-equipo') { accionar({ accion: 'perfil', equipo: v }); return; }
   else if (a === 'reset') { if (confirm('Esto borra TODAS las tarjetas de las 3 canchas. ¿Seguro?')) accionar({ accion: 'borrar' }); return; }
   else if (a === 'exportar') { exportar(); return; }

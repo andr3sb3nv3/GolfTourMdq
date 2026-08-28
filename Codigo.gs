@@ -15,7 +15,7 @@ var TOKEN_DIAS = 60;         // duración de la sesión en el celular
 var HOJAS = {
   Config:    ['clave', 'valor'],
   Jugadores: ['matricula', 'nombre', 'apodo', 'handicap', 'equipo', 'rol', 'club', 'fotoId', 'hash', 'alta', 'ultimoAcceso'],
-  Canchas:   ['id', 'dia', 'nombre', 'confirmada'],   // + par1..par18 + si1..si18
+  Canchas:   ['id', 'dia', 'nombre', 'confirmada', 'formato'],   // + par1..par18 + si1..si18
   Tarjetas:  ['cancha', 'matricula'],                 // + h1..h18 + actualizado
   Log:       ['fecha', 'matricula', 'accion', 'detalle']
 };
@@ -47,8 +47,8 @@ function configurar() {
     ['torneo',      'Golf Tour Mdq'],
     ['sede',        'Mar del Plata'],
     ['edicion',     '2026'],
-    ['equipoAzul',  'Azul'],
-    ['equipoRojo',  'Rojo'],
+    ['equipoAzul',  'Team Europe'],
+    ['equipoRojo',  'Team USA'],
     ['claveViaje',  'MDQ2026'],
     ['salt',        Utilities.getUuid()]
   ]);
@@ -62,10 +62,11 @@ function configurar() {
   var catedral = { par: [4,3,5,4,3,4,5,3,4, 4,4,3,5,3,4,4,4,4],
                    si:  [3,13,1,11,15,7,5,17,9, 14,8,16,4,18,6,10,2,12] };
 
+  // el formato de equipos de cada día se define el mismo día; arranca vacío
   var canchas = [
-    ['acantilados', 1, 'Acantilados Golf', false].concat(provAcan.par, provAcan.si),
-    ['miramar',     2, 'Miramar Links',    false].concat(provMira.par, provMira.si),
-    ['catedral',    3, 'La Catedral',      true ].concat(catedral.par, catedral.si)
+    ['acantilados', 1, 'Acantilados Golf', false, ''].concat(provAcan.par, provAcan.si),
+    ['miramar',     2, 'Miramar Links',    false, ''].concat(provMira.par, provMira.si),
+    ['catedral',    3, 'La Catedral',      true , ''].concat(catedral.par, catedral.si)
   ];
   ss.getSheetByName('Canchas').getRange(2, 1, canchas.length, canchas[0].length).setValues(canchas);
 
@@ -203,7 +204,9 @@ function estadoCrudo() {
     canchas: leer('Canchas').map(function (c) {
       var par = [], si = [];
       for (var i = 1; i <= 18; i++) { par.push(Number(c['par' + i]) || 4); si.push(Number(c['si' + i]) || i); }
-      return { id: c.id, dia: Number(c.dia), nombre: c.nombre, confirmada: c.confirmada === true || c.confirmada === 'TRUE', par: par, si: si };
+      return { id: c.id, dia: Number(c.dia), nombre: c.nombre,
+               confirmada: c.confirmada === true || c.confirmada === 'TRUE',
+               formato: c.formato || '', par: par, si: si };
     }).sort(function (a, b) { return a.dia - b.dia; }),
     tarjetas: leer('Tarjetas').map(function (t) {
       var h = [];
@@ -280,8 +283,9 @@ function guardarCancha(p) {
   if (!fila) return { ok: false, error: 'no_encontrada' };
   if (p.nombre) hoja.getRange(fila, 3).setValue(String(p.nombre));
   if (p.confirmada !== undefined) hoja.getRange(fila, 4).setValue(!!p.confirmada);
-  if (p.par && p.par.length === 18) hoja.getRange(fila, 5, 1, 18).setValues([p.par.map(Number)]);
-  if (p.si && p.si.length === 18) hoja.getRange(fila, 23, 1, 18).setValues([p.si.map(Number)]);
+  if (p.formato !== undefined) hoja.getRange(fila, 5).setValue(String(p.formato || ''));
+  if (p.par && p.par.length === 18) hoja.getRange(fila, 6, 1, 18).setValues([p.par.map(Number)]);
+  if (p.si && p.si.length === 18) hoja.getRange(fila, 24, 1, 18).setValues([p.si.map(Number)]);
   anotar(sesion(p.token).matricula, 'cancha', p.id);
   limpiarCache();
   return { ok: true, estado: estadoCrudo() };
