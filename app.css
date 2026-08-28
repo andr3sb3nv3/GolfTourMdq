@@ -286,3 +286,18 @@ img.av{object-fit:cover;padding:0;background:var(--panel2)}
 .p-hoyos i.u{background:var(--eq-rojo);border-color:var(--eq-rojo);color:#fff}
 .p-hoyos i.e{background:var(--eq-azul);border-color:var(--eq-azul);color:#fff}
 .p-hoyos i.h{background:var(--linea2);border-color:var(--linea2);color:#fff}
+
+/* ---------- modo testeo ---------- */
+.cab-der{display:flex;align-items:center;gap:7px;min-width:0}
+.chip-test{border:1px solid var(--linea);background:var(--panel);border-radius:999px;
+  padding:6px 10px;font-size:11.5px;font-weight:700;letter-spacing:.03em;color:var(--tinta2);
+  white-space:nowrap;box-shadow:var(--sombra)}
+.chip-test.on{background:var(--oro-suave);border-color:var(--oro);color:#4A3708}
+.barra-estado.test{background:#F3E8FF;color:#4A2A6B;border-bottom-color:#8B5CF6}
+.fotos{display:flex;gap:7px;flex-wrap:wrap;margin-top:8px}
+.fotos .subir{margin-top:0}
+@media(max-width:400px){
+  .btn-perfil{max-width:42%}
+  .chip-test{padding:6px 8px;font-size:11px}
+}
+.p-hoyos i.fin{opacity:.28}

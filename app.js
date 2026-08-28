@@ -13,6 +13,8 @@ var UI = Object.assign({ tab: 'posiciones', cancha: null, canchaLb: 'general',
   jugador: null }, leerLS(LS.ui, {}));
 
 var sincronizando = false, ultimoError = '', reloj = null, promptInstalar = null;
+var TEST = leerLS('gtm-test-on', false);
+var PROD = null;                     // acá se guarda el estado real mientras estás en testeo
 
 function leerLS(k, def) { try { var v = localStorage.getItem(k); return v ? JSON.parse(v) : def; } catch (e) { return def; } }
 function guardarLS(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
@@ -39,7 +41,10 @@ function cancha(id) {
   return null;
 }
 function canchaActual() { return cancha(UI.cancha) || (E && E.canchas[0]) || null; }
-function yo() { return SES ? jugador(SES.matricula) : null; }
+function yo() {
+  if (TEST) return jugador(UI.yoTest) || (E && E.jugadores[0]) || null;
+  return SES ? jugador(SES.matricula) : null;
+}
 function esAdmin() { var y = yo(); return !!y && y.rol === 'admin'; }
 function puedeEditar(mat) { var y = yo(); return !!y && String(mat) === String(y.matricula); }
 function nombreEquipo(k) { return (E && E.equipos && E.equipos[k] && E.equipos[k].nombre) || (k === 'azul' ? 'Azul' : 'Rojo'); }
@@ -47,6 +52,7 @@ function claseEq(j) { return j && j.equipo === 'azul' ? ' eq-azul' : (j && j.equ
 function claseTxt(j) { return j && j.equipo === 'azul' ? ' txt-azul' : (j && j.equipo === 'rojo' ? ' txt-rojo' : ''); }
 function avatar(j, extra) {
   var c = 'av' + claseEq(j) + (extra ? ' ' + extra : '');
+  if (j && j.foto) return '<img class="' + c + '" src="' + j.foto + '" alt="">';
   if (j && j.fotoId) return '<img class="' + c + '" src="https://drive.google.com/thumbnail?id=' + esc(j.fotoId) + '&sz=w160" alt="">';
   return '<span class="' + c + '">' + esc(inicial(j)) + '</span>';
 }
@@ -147,7 +153,7 @@ function pedir(cuerpo) {
   }, function () { throw new Error('sin_conexion'); });
 }
 function traerEstado() {
-  if (!SES) return Promise.resolve();
+  if (TEST || !SES) return Promise.resolve();
   return pedir({ accion: 'estado', token: SES.token }).then(function (res) {
     if (res && res.ok) { adoptar(res.estado); ultimoError = ''; }
     else if (res && res.error === 'sesion_vencida') salir();
@@ -161,7 +167,7 @@ function adoptar(estado) {
   if (!UI.cancha || !cancha(UI.cancha)) UI.cancha = E.canchas[0] ? E.canchas[0].id : null;
 }
 function sincronizar() {
-  if (sincronizando || !navigator.onLine || !SES || !COLA.length) return Promise.resolve();
+  if (TEST || sincronizando || !navigator.onLine || !SES || !COLA.length) return Promise.resolve();
   sincronizando = true; pintar();
   var lote = COLA.slice(0, 40);
   var grupos = {};
@@ -196,7 +202,38 @@ function sincronizar() {
     pintar();
   });
 }
+function accionarTest(c) {
+  var y = yo();
+  if (c.accion === 'perfil') {
+    ['nombre', 'apodo', 'club'].forEach(function (k) { if (c[k] !== undefined) y[k] = c[k]; });
+    if (c.handicap !== undefined) y.handicap = Number(c.handicap) || 0;
+    if (c.equipo) y.equipo = c.equipo;
+    if (c.fotoId === '') { delete y.foto; y.fotoId = ''; }
+  } else if (c.accion === 'foto') { y.foto = c.foto; }
+  else if (c.accion === 'cancha') {
+    var cc = cancha(c.id);
+    if (cc) {
+      if (c.nombre) cc.nombre = c.nombre;
+      if (c.confirmada !== undefined) cc.confirmada = c.confirmada;
+      if (c.formato !== undefined) cc.formato = c.formato;
+      if (c.par) cc.par = c.par;
+      if (c.si) cc.si = c.si;
+    }
+  } else if (c.accion === 'equipos') {
+    if (c.azul) E.equipos.azul.nombre = c.azul;
+    if (c.rojo) E.equipos.rojo.nombre = c.rojo;
+  } else if (c.accion === 'partidos') {
+    E.partidos = (E.partidos || []).filter(function (m) { return m.cancha !== c.cancha; })
+      .concat((c.lista || []).map(function (m, k) {
+        return { id: c.cancha + '-' + (k + 1), cancha: c.cancha, formato: c.formato, usa: m.usa, eur: m.eur };
+      }));
+  } else if (c.accion === 'borrar') { E.tarjetas = []; E.tarjetasEquipo = []; }
+  E.sello = new Date().toISOString();
+  guardarTest(); pintar();
+  return Promise.resolve({ ok: true });
+}
 function accionar(cuerpo) {
+  if (TEST) return accionarTest(cuerpo);
   cuerpo.token = SES && SES.token;
   return pedir(cuerpo).then(function (res) {
     if (res && res.ok) { adoptar(res.estado); ultimoError = ''; }
@@ -266,6 +303,7 @@ function vistaIngreso() {
     (alta ? 'Crear mi acceso' : 'Entrar') + '</button>' +
     '<span class="hint">Se guarda la sesión en este celular: entrás una vez y listo.</span>' +
     '<button class="btn fin" data-acc="probar">Probar la conexión con la planilla</button>' +
+    '<button class="btn fin" data-acc="test-entrar">🧪 Entrar en modo testeo (datos de prueba)</button>' +
     '</div></section></div>';
   return h;
 }
@@ -285,6 +323,131 @@ function textoError(e) {
     sin_api: 'La app no está conectada a la planilla todavía.'
   };
   return t[e] || ('Algo falló: ' + e);
+}
+
+/* ============ modo testeo ============ */
+var APELLIDOS = ['Urtubey', 'Benvenuto', 'Benítez Cruz', 'Socas', 'Bergadá', 'Beccar Varela',
+                 'Caputo', 'Santamarina', 'Arizu', 'Viboud', 'Paz', 'Gazzera'];
+
+function golpeFicticio(par, hcp) {
+  var extra = hcp / 18;                       // golpes de más esperados por hoyo
+  var r = Math.random(), d;
+  if (r < 0.05) d = -1;                       // birdie
+  else if (r < 0.45) d = 0;                   // par
+  else if (r < 0.85) d = 1;                   // bogey
+  else d = 2;                                 // doble
+  if (Math.random() < extra * 0.5) d += 1;    // los de handicap alto pinchan más seguido
+  return Math.max(1, par + d);
+}
+
+function generarTest() {
+  var base = leerLS(LS.est, null);
+  var canchas = (base && base.canchas && base.canchas.length === 3)
+    ? JSON.parse(JSON.stringify(base.canchas))
+    : [{ id: 'acantilados', dia: 1, nombre: 'Acantilados Golf', confirmada: false,
+         par: [4,4,3,5,4,4,3,4,4,4,3,4,5,4,3,4,4,4], si: [5,3,17,11,1,9,15,7,13,6,12,4,10,2,18,8,14,16] },
+       { id: 'miramar', dia: 2, nombre: 'Miramar Links', confirmada: false,
+         par: [4,4,3,5,4,4,3,4,5,4,3,5,4,4,3,4,5,4], si: [5,3,17,11,1,9,15,7,13,6,12,4,10,2,18,8,14,16] },
+       { id: 'catedral', dia: 3, nombre: 'La Catedral', confirmada: true,
+         par: [4,3,5,4,3,4,5,3,4,4,4,3,5,3,4,4,4,4], si: [3,13,1,11,15,7,5,17,9,14,8,16,4,18,6,10,2,12] }];
+  canchas[0].formato = 'fourball'; canchas[1].formato = 'foursomes'; canchas[2].formato = 'singles';
+
+  var jugadores = APELLIDOS.map(function (ap, i) {
+    return { matricula: String(9001 + i), nombre: ap, apodo: '',
+             handicap: Math.round((2 + Math.random() * 26) * 10) / 10,
+             equipo: i % 2 ? 'rojo' : 'azul', rol: i === 0 ? 'admin' : 'jugador',
+             club: '', fotoId: '' };
+  });
+
+  var tarjetas = [];
+  canchas.forEach(function (c) {
+    jugadores.forEach(function (j) {
+      tarjetas.push({ cancha: c.id, matricula: j.matricula,
+        hoyos: c.par.map(function (par) { return golpeFicticio(par, j.handicap); }) });
+    });
+  });
+
+  var porHcp = function (a, b) { return a.handicap - b.handicap; };
+  var usa = jugadores.filter(function (j) { return j.equipo === 'rojo'; }).sort(porHcp);
+  var eur = jugadores.filter(function (j) { return j.equipo === 'azul'; }).sort(porHcp);
+  var partidos = [], tarjetasEquipo = [];
+  canchas.forEach(function (c) {
+    var lista = [], i;
+    if (c.formato === 'singles') {
+      for (i = 0; i < Math.min(usa.length, eur.length); i++)
+        lista.push({ usa: [usa[i].matricula], eur: [eur[i].matricula] });
+    } else {
+      var pu = duplas(usa), pe = duplas(eur);
+      for (i = 0; i < Math.min(pu.length, pe.length); i++) lista.push({ usa: pu[i], eur: pe[i] });
+    }
+    lista.forEach(function (m, k) {
+      var id = c.id + '-' + (k + 1);
+      partidos.push({ id: id, cancha: c.id, formato: c.formato, usa: m.usa, eur: m.eur });
+      if (c.formato === 'foursomes') {
+        ['usa', 'eur'].forEach(function (lado) {
+          var hcp = m[lado].reduce(function (s, mat) { return s + jugador2(jugadores, mat).handicap; }, 0) / m[lado].length;
+          tarjetasEquipo.push({ partido: id, lado: lado,
+            hoyos: c.par.map(function (par) { return golpeFicticio(par, hcp * 0.7); }) });
+        });
+      }
+    });
+  });
+
+  return {
+    torneo: { nombre: 'Golf Tour Mdq', sede: 'Mar del Plata', edicion: '2026' },
+    equipos: { azul: { nombre: 'Team Europe' }, rojo: { nombre: 'Team USA' } },
+    jugadores: jugadores, canchas: canchas, tarjetas: tarjetas,
+    partidos: partidos, tarjetasEquipo: tarjetasEquipo,
+    sello: new Date().toISOString(), esTest: true
+  };
+}
+function jugador2(lista, mat) {
+  for (var i = 0; i < lista.length; i++) if (String(lista[i].matricula) === String(mat)) return lista[i];
+  return { handicap: 18 };
+}
+function guardarTest() { if (TEST) guardarLS('gtm-test-estado', E); }
+
+function entrarTest(regenerar) {
+  if (!TEST) PROD = E;
+  var guardado = regenerar ? null : leerLS('gtm-test-estado', null);
+  E = guardado || generarTest();
+  guardarLS('gtm-test-estado', E);
+  TEST = true; guardarLS('gtm-test-on', true);
+  UI.yoTest = E.jugadores[0].matricula;
+  UI.cancha = E.canchas[0].id; UI.canchaLb = 'general'; UI.canchaRyder = E.canchas[0].id;
+  UI.tab = 'posiciones'; UI.hoyo = 0;
+  guardarUI(); pintar();
+}
+function salirTest() {
+  TEST = false; guardarLS('gtm-test-on', false);
+  E = PROD || leerLS(LS.est, null);
+  UI.cancha = (E && E.canchas[0]) ? E.canchas[0].id : null;
+  UI.canchaRyder = UI.cancha; UI.tab = 'posiciones';
+  guardarUI(); pintar();
+  if (SES && navigator.onLine) traerEstado().then(pintar, function () {});
+}
+
+function vistaTesteo() {
+  var y = yo();
+  var h = '<div class="pila">' +
+    '<div class="aviso"><span>🧪</span><span><b>Base de prueba.</b> Doce jugadores inventados con las tres vueltas jugadas ' +
+    'y handicaps al azar. Todo lo que toques acá queda en este celular: no viaja a la planilla ni lo ve nadie.</span></div>' +
+    '<section class="card"><div class="sec-tit"><h2>Jugar como</h2>' +
+    '<span class="eyebrow">' + E.jugadores.length + ' jugadores</span></div><div class="login-grid">' +
+    E.jugadores.map(function (j) {
+      return '<button data-acc="test-yo" data-v="' + j.matricula + '"' +
+        (String(j.matricula) === String(UI.yoTest) ? ' style="border-color:var(--verde);box-shadow:inset 0 0 0 1px var(--verde)"' : '') +
+        '>' + avatar(j) + '<span><span class="' + claseTxt(j).trim() + '">' + esc(j.nombre) + '</span>' +
+        '<i>HCP ' + j.handicap + (j.rol === 'admin' ? ' · organizador' : '') + '</i></span></button>';
+    }).join('') + '</div>' +
+    '<div class="candado"><span>✏️</span><span>Elegís uno y con <b>Cargar</b> le cambiás los golpes hoyo por hoyo, ' +
+    'para ver cómo se mueven las posiciones y los partidos.</span></div></section>' +
+    '<section class="card"><div class="sec-tit"><h2>La base</h2></div>' +
+    '<div class="candado" style="border-top:0"><span>📋</span><span>Día 1 four-ball · Día 2 foursomes · Día 3 singles. ' +
+    'Los partidos ya están armados por handicap y las tarjetas completas.</span></div>' +
+    '<div class="acc"><button class="btn" data-acc="test-regenerar">Sortear todo de nuevo</button>' +
+    '<button class="btn pri" data-acc="test-salir">Salir del testeo</button></div></section></div>';
+  return h;
 }
 
 /* ============ match play ============ */
@@ -355,18 +518,23 @@ function calcularPartido(m) {
     }
   }
 
-  var arriba = 0, jugados = 0;
-  hoyos.forEach(function (h) {
-    if (h.usa == null || h.eur == null) return;
+  // Match play de verdad: se recorren los hoyos en orden y el partido se cierra
+  // en cuanto la ventaja es mayor que los hoyos que quedan. Lo que se juegue
+  // después (habitual entre amigos) no cuenta.
+  var arriba = 0, jugados = 0, cerradoEn = 0, k;
+  for (k = 0; k < 18; k++) {
+    if (hoyos[k].usa == null || hoyos[k].eur == null) break;
     jugados++;
-    if (h.gana === 'usa') arriba++; else if (h.gana === 'eur') arriba--;
-  });
+    if (hoyos[k].gana === 'usa') arriba++; else if (hoyos[k].gana === 'eur') arriba--;
+    if (Math.abs(arriba) > 18 - jugados) { cerradoEn = jugados; break; }
+  }
   var restan = 18 - jugados, dif2 = Math.abs(arriba);
   var r = { m: m, fmt: fmt, hoyos: hoyos, arriba: arriba, jugados: jugados, restan: restan,
-            usa: usa, eur: eur, cerrado: false, ganador: null, puntoUsa: 0, puntoEur: 0 };
+            cerradoEn: cerradoEn, usa: usa, eur: eur, cerrado: false, ganador: null,
+            puntoUsa: 0, puntoEur: 0 };
 
   if (jugados === 0) { r.texto = 'sin empezar'; return r; }
-  if (dif2 > restan) {
+  if (cerradoEn) {
     r.cerrado = true;
     r.ganador = arriba > 0 ? 'usa' : 'eur';
     r[arriba > 0 ? 'puntoUsa' : 'puntoEur'] = 1;
@@ -489,116 +657,6 @@ function panelEquipos(cid) {
     '<div class="acc" style="padding-top:10px"><button class="btn fin" data-acc="tab" data-v="ryder">Ver los partidos →</button></div></section>';
 }
 
-/* ============ conducción: capitanes y subcapitanes ============ */
-// Los dos mejores handicaps son capitanes; el 3.º y el 4.º, subcapitanes.
-// Las duplas de conducción quedan 1.º con 4.º y 2.º con 3.º.
-function conduccion() {
-  var orden = E.jugadores.slice().sort(function (a, b) {
-    return (Number(a.handicap) || 99) - (Number(b.handicap) || 99);
-  });
-  if (orden.length < 4) return null;
-  return {
-    duplaA: { capitan: orden[0], sub: orden[3] },
-    duplaB: { capitan: orden[1], sub: orden[2] },
-    orden: orden
-  };
-}
-function bloqueConduccion() {
-  var c = conduccion();
-  if (!c) return '<div class="aviso"><span>👥</span><span>Con menos de 4 jugadores registrados todavía no se pueden definir capitanes.</span></div>';
-  function dupla(d, k) {
-    return '<div><div class="k">Dupla ' + k + '</div>' +
-      '<div class="v">' + esc(d.capitan.nombre) + ' <em>' + esc(d.capitan.handicap) + '</em>' +
-      '<br><span class="hint">con ' + esc(d.sub.nombre) + ' · hcp ' + esc(d.sub.handicap) + '</span></div></div>';
-  }
-  return '<section class="card"><div class="sec-tit"><h2>Conducción</h2>' +
-    '<span class="eyebrow">por handicap</span></div>' +
-    '<div class="destacados">' + dupla(c.duplaA, 1) + dupla(c.duplaB, 2) + '</div>' +
-    '<div class="candado"><span>🏌️</span><span>Capitanes: los dos mejores handicaps. Subcapitanes: el tercero y el cuarto. ' +
-    'Se arma 1.º con 4.º y 2.º con 3.º. Se recalcula solo a medida que cargan sus handicaps.</span></div></section>';
-}
-
-/* ============ vistas ============ */
-function chipsCancha(sel, acc, conGeneral) {
-  var h = '<div class="seg" role="group">';
-  if (conGeneral) h += '<button data-acc="' + acc + '" data-v="general" aria-pressed="' + (sel === 'general') + '">General</button>';
-  E.canchas.forEach(function (c) {
-    h += '<button data-acc="' + acc + '" data-v="' + c.id + '" aria-pressed="' + (sel === c.id) + '">Día ' + c.dia + '</button>';
-  });
-  return h + '</div>';
-}
-
-function vistaPosiciones() {
-  var lista = ordenar(acumulado(UI.canchaLb));
-  var c = UI.canchaLb === 'general' ? null : cancha(UI.canchaLb);
-  var titulo = (c ? esc(c.nombre) + ' · Día ' + c.dia : esc(E.torneo.nombre) + ' · las 3 vueltas') +
-    (UI.metrica === 'neto' ? ' · Medal Play' : '');
-  var max = 1; lista.forEach(function (a) { if (UI.metrica === 'stableford' && a.pts > max) max = a.pts; });
-
-  var h = '<div class="pila">' + chipsCancha(UI.canchaLb, 'lb-cancha', true) + panelEquipos(UI.canchaLb) +
-    '<div class="seg" role="group">' +
-    '<button data-acc="metrica" data-v="neto" aria-pressed="' + (UI.metrica === 'neto') + '">Medal neto</button>' +
-    '<button data-acc="metrica" data-v="bruto" aria-pressed="' + (UI.metrica === 'bruto') + '">Bruto</button>' +
-    '<button data-acc="metrica" data-v="stableford" aria-pressed="' + (UI.metrica === 'stableford') + '">Stableford</button></div>' +
-    '<section class="card lb"><div class="lb-cab"><h2>' + titulo + '</h2><span class="eyebrow">' +
-    (UI.metrica === 'stableford' ? 'puntos' : (UI.metrica === 'neto' ? 'golpes netos' : 'golpes brutos')) + '</span></div>';
-
-  if (!lista.filter(function (a) { return a.thru > 0; }).length) {
-    h += '<p class="vacio">Todavía no hay golpes cargados.<br>Andá a <b>Cargar</b> y arrancá por el hoyo 1.</p>';
-  } else {
-    lista.forEach(function (a) {
-      var v = valorMetrica(a);
-      var ancho = (UI.metrica === 'stableford' && a.thru > 0) ? Math.round(Math.max(a.pts, 0) / max * 100) : 0;
-      var meta = ['HCP ' + (Number(a.jug.handicap) || 0)];
-      if (UI.canchaLb === 'general') meta.push(a.vueltas + (a.vueltas === 1 ? ' vuelta' : ' vueltas'));
-      if (a.thru > 0 && a.thru % 18 !== 0) meta.push('<span class="thru">hoyo ' + a.thru + '</span>');
-      else if (a.thru > 0) meta.push('completa');
-      if (a.birdies) meta.push(a.birdies + ' birdie' + (a.birdies > 1 ? 's' : ''));
-      if (a.eagles) meta.push(a.eagles + ' eagle' + (a.eagles > 1 ? 's' : ''));
-      h += '<button class="lb-row" data-acc="ver-jug" data-v="' + esc(a.jug.matricula) + '">' +
-        (ancho ? '<i class="barra" style="width:' + ancho + '%"></i>' : '') +
-        '<span class="pos' + (a.pos === 1 ? ' p1' : '') + '">' + (a.pos ? (a.empate ? '=' : '') + a.pos : '–') + '</span>' +
-        avatar(a.jug) +
-        '<span><span class="lb-nom' + claseTxt(a.jug) + '">' + esc(a.jug.nombre) + '</span>' +
-        '<span class="lb-meta">' + meta.join(' · ') + '</span></span>' +
-        '<span class="lb-val"><b>' + (a.thru ? v.b : '–') + '</b><span>' + (a.thru ? v.s : 'sin cargar') + '</span></span></button>';
-    });
-  }
-  return h + '</section></div>';
-}
-
-function totalEquipo(cid, k) {
-  var cs = (cid === 'general') ? E.canchas : E.canchas.filter(function (c) { return c.id === cid; });
-  var pts = 0, n = 0, jugando = 0;
-  E.jugadores.forEach(function (j) {
-    if (j.equipo !== k) return;
-    n++; var t = 0, hay = false;
-    cs.forEach(function (c) { var r = calc(c, j); t += r.pts; if (r.thru) hay = true; });
-    if (hay) jugando++;
-    pts += t;
-  });
-  return { pts: pts, n: n, jugando: jugando };
-}
-function panelEquipos(cid) {
-  var a = totalEquipo(cid, 'azul'), r = totalEquipo(cid, 'rojo');
-  if (!a.n && !r.n) return '';
-  var tot = a.pts + r.pts, pa = tot ? Math.round(a.pts / tot * 100) : 50;
-  var estado = a.pts === r.pts ? 'empatados' :
-    (a.pts > r.pts ? nombreEquipo('azul') + ' arriba por ' + (a.pts - r.pts)
-                   : nombreEquipo('rojo') + ' arriba por ' + (r.pts - a.pts));
-  var c = cid === 'general' ? null : cancha(cid);
-  var fmt = { foursomes: 'Foursomes', fourball: 'Four-ball', singles: 'Singles' }[(c && c.formato) || ''] || '';
-  return '<section class="card"><div class="lb-cab"><h2>Ryder Cup</h2><span class="eyebrow">' +
-    esc(fmt ? fmt + ' · ' + estado : estado) + '</span></div>' +
-    '<div class="marcador-eq">' +
-    '<div class="lado"><b class="txt-azul">' + a.pts + '</b><span class="txt-azul">' + esc(nombreEquipo('azul')) + '</span>' +
-    '<i>' + a.n + ' jugadores' + (a.jugando ? ' · ' + a.jugando + ' con tarjeta' : '') + '</i></div>' +
-    '<div class="vs">vs</div>' +
-    '<div class="lado"><b class="txt-rojo">' + r.pts + '</b><span class="txt-rojo">' + esc(nombreEquipo('rojo')) + '</span>' +
-    '<i>' + r.n + ' jugadores' + (r.jugando ? ' · ' + r.jugando + ' con tarjeta' : '') + '</i></div></div>' +
-    '<div class="barra-eq"><i class="a" style="width:' + pa + '%"></i><i class="r" style="width:' + (100 - pa) + '%"></i></div></section>';
-}
-
 function vistaRyder() {
   var cid = UI.canchaRyder || (E.canchas[0] && E.canchas[0].id);
   var c = cancha(cid);
@@ -669,6 +727,7 @@ function fmtPunto(n) { return (Math.round(n * 2) / 2).toString().replace('.5', '
 function tiraHoyos(p) {
   var h = '<div class="p-hoyos">';
   p.hoyos.forEach(function (x, k) {
+    if (p.cerradoEn && k >= p.cerradoEn) { h += '<i class="fin">' + (k + 1) + '</i>'; return; }
     var cls = x.gana === 'usa' ? 'u' : (x.gana === 'eur' ? 'e' : (x.usa != null && x.eur != null ? 'h' : ''));
     h += '<i class="' + cls + '" title="Hoyo ' + (k + 1) + '">' + (k + 1) + '</i>';
   });
@@ -856,10 +915,17 @@ function vistaPerfil() {
   }).join(' · ');
   return '<div class="pila">' + bloqueInstalar() + '<section class="card">' +
     '<div class="perfil-cab"><div class="perfil-foto' + claseEq(y) + '">' +
-    (y.fotoId ? '<img src="https://drive.google.com/thumbnail?id=' + esc(y.fotoId) + '&sz=w320" alt="">' : esc(inicial(y))) + '</div>' +
+    (y.foto ? '<img src="' + y.foto + '" alt="">'
+            : (y.fotoId ? '<img src="https://drive.google.com/thumbnail?id=' + esc(y.fotoId) + '&sz=w320" alt="">'
+                        : esc(inicial(y)))) + '</div>' +
     '<div><h2 class="' + claseTxt(y).trim() + '">' + esc(y.nombre) + '</h2>' +
     '<div class="lb-meta">Matrícula ' + esc(y.matricula) + ' · HCP ' + esc(y.handicap) +
-    ' · juega con ' + hcpJuego(y) + ' golpes · ' + esc(nombreEquipo(y.equipo)) + '</div></div></div>' +
+    ' · juega con ' + hcpJuego(y) + ' golpes · ' + esc(nombreEquipo(y.equipo)) + '</div>' +
+    '<div class="fotos">' +
+    '<label class="subir">🖼️ Galería<input type="file" accept="image/*" data-acc="ed-foto"></label>' +
+    '<label class="subir">📷 Cámara<input type="file" accept="image/*" capture="environment" data-acc="ed-foto"></label>' +
+    ((y.foto || y.fotoId) ? '<button class="btn fin" data-acc="quitar-foto">Quitar</button>' : '') +
+    '</div></div></div>' +
     '<div class="grid2">' +
     '<div class="campo"><label for="p-nom">Nombre</label><input id="p-nom" type="text" value="' + esc(y.nombre) + '" data-acc="ed-perfil" data-v="nombre"></div>' +
     '<div class="campo"><label for="p-hcp">Handicap</label><input id="p-hcp" type="number" step="0.1" value="' + esc(y.handicap) + '" data-acc="ed-perfil" data-v="handicap"></div>' +
@@ -881,6 +947,8 @@ function vistaPerfil() {
 var TABS = [['posiciones', 'Medal'], ['ryder', 'Ryder'], ['cargar', 'Cargar'], ['tarjetas', 'Tarjetas'], ['jugadores', 'Jugadores'], ['canchas', 'Canchas']];
 
 function barraEstado() {
+  if (TEST) return '<div class="barra-estado test">🧪 Modo testeo · datos inventados, no tocan la planilla' +
+    ' · <button class="btn fin" data-acc="test-salir">salir</button></div>';
   if (COLA.length && !navigator.onLine)
     return '<div class="barra-estado">📴 Sin señal · ' + COLA.length + ' golpe' + (COLA.length > 1 ? 's' : '') + ' esperando para subir</div>';
   if (sincronizando) return '<div class="barra-estado sync"><i class="girar"></i>Sincronizando…</div>';
@@ -890,18 +958,22 @@ function barraEstado() {
 }
 function pintar() {
   var app = document.getElementById('app');
-  if (!SES) { app.innerHTML = vistaIngreso(); return; }
+  if (!SES && !TEST) { app.innerHTML = vistaIngreso(); return; }
   if (!E) { app.innerHTML = '<div class="pantalla"><p class="vacio">Cargando el torneo…</p></div>'; return; }
   var y = yo();
   var vista = UI.tab === 'cargar' ? vistaCargar() : UI.tab === 'tarjetas' ? vistaTarjetas() :
     UI.tab === 'jugadores' ? vistaJugadores() : UI.tab === 'canchas' ? vistaCanchas() :
-    UI.tab === 'ryder' ? vistaRyder() : UI.tab === 'perfil' ? vistaPerfil() : vistaPosiciones();
+    UI.tab === 'ryder' ? vistaRyder() : UI.tab === 'perfil' ? vistaPerfil() :
+    UI.tab === 'testeo' ? vistaTesteo() : vistaPosiciones();
   app.innerHTML = barraEstado() + '<div class="wrap">' +
     '<div class="cab-top">' +
     '<button class="chip-estado" data-acc="info"><span class="punto' + (navigator.onLine ? ' vivo' : ' gris') + '"></span>' +
     (navigator.onLine ? 'En vivo' : 'Sin señal') + '</button>' +
+    '<div class="cab-der">' +
+    '<button class="chip-test' + (TEST ? ' on' : '') + '" ' +
+    (TEST ? 'data-acc="tab" data-v="testeo"' : 'data-acc="test-entrar"') + '>🧪 Testeo</button>' +
     '<button class="btn-perfil" data-acc="ir-perfil">' + avatar(y) +
-    '<span class="nom' + claseTxt(y) + '">' + esc(nombreCorto(y ? y.nombre : '')) + '</span></button></div>' +
+    '<span class="nom' + claseTxt(y) + '">' + esc(nombreCorto(y ? y.nombre : '')) + '</span></button></div></div>' +
     '<header class="cab"><div class="crest">GT</div><div class="tit"><h1>' + esc(E.torneo.nombre) + '</h1>' +
     '<div class="sub">' + esc(E.torneo.sede) + ' · ' + E.canchas.length + ' canchas</div></div></header>' +
     '<nav class="tabs">' + TABS.map(function (t) {
@@ -920,6 +992,11 @@ document.addEventListener('click', function (ev) {
   if (a === 'modo') { UI.ingreso = v; ultimoError = ''; pintar(); return; }
   if (a === 'entrar' || a === 'registrar') { ingresar(a === 'registrar'); return; }
   if (a === 'salir') { if (confirm('¿Cerrar sesión en este celular?')) salir(); return; }
+  if (a === 'quitar-foto') { accionar({ accion: 'perfil', fotoId: '' }); return; }
+  if (a === 'test-entrar') { entrarTest(false); return; }
+  if (a === 'test-salir') { salirTest(); return; }
+  if (a === 'test-regenerar') { if (confirm('Se sortean de nuevo handicaps, tarjetas y partidos. ¿Seguimos?')) entrarTest(true); return; }
+  if (a === 'test-yo') { UI.yoTest = v; UI.hoyo = 0; guardarUI(); pintar(); return; }
   if (a === 'sync') { sincronizar(); return; }
   if (a === 'probar') { probarConexion(b); return; }
   if (a === 'instalar') {
@@ -959,7 +1036,8 @@ document.addEventListener('change', function (ev) {
   var el = ev.target.closest('[data-acc]');
   if (!el || !E) return;
   var a = el.getAttribute('data-acc'), v = el.getAttribute('data-v'), i = Number(el.getAttribute('data-i'));
-  if (a === 'ed-perfil') { var p = { accion: 'perfil' }; p[v] = el.value.trim(); accionar(p); }
+  if (a === 'ed-foto') { if (el.files && el.files[0]) subirFoto(el.files[0]); el.value = ''; return; }
+  else if (a === 'ed-perfil') { var p = { accion: 'perfil' }; p[v] = el.value.trim(); accionar(p); }
   else if (a === 'ed-pass') { if (el.value.length >= 4) accionar({ accion: 'perfil', password: el.value }).then(function () { el.value = ''; alert('Contraseña cambiada.'); }); }
   else if (a === 'ed-cancha') { accionar({ accion: 'cancha', id: v, nombre: el.value.trim() }); }
   else if (a === 'ed-par' || a === 'ed-si') {
@@ -1055,6 +1133,12 @@ function anotarGolpe(a, v) {
     if (!t) { t = { cancha: c.id, matricula: String(y.matricula), hoyos: new Array(18).fill(null) }; E.tarjetas.push(t); }
   }
   t.hoyos[UI.hoyo] = nuevo;
+  if (TEST) {
+    guardarTest();
+    if (a === 'set' && UI.hoyo < 17) UI.hoyo++;
+    guardarUI(); pintar();
+    return;
+  }
   guardarLS(LS.est, E);
 
   // 2) se encola y se sube cuando haya señal
@@ -1087,6 +1171,26 @@ function exportar() {
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
 }
 
+function subirFoto(file) {
+  if (!file || !/^image\//.test(file.type)) { alert('Elegí una imagen.'); return; }
+  var fr = new FileReader();
+  fr.onload = function () {
+    var img = new Image();
+    img.onload = function () {
+      try {
+        var L = 320, cv = document.createElement('canvas'); cv.width = L; cv.height = L;
+        var ctx = cv.getContext('2d'), lado = Math.min(img.width, img.height);
+        ctx.drawImage(img, (img.width - lado) / 2, (img.height - lado) / 2, lado, lado, 0, 0, L, L);
+        var datos = cv.toDataURL('image/jpeg', 0.75);
+        accionar({ accion: 'foto', foto: datos });
+      } catch (e) { alert('No se pudo procesar esa imagen. Probá con otra.'); }
+    };
+    img.onerror = function () { alert('No se pudo abrir esa imagen. Probá con otra.'); };
+    img.src = fr.result;
+  };
+  fr.onerror = function () { alert('No se pudo leer el archivo.'); };
+  fr.readAsDataURL(file);
+}
 function probarConexion(boton) {
   boton.textContent = 'Probando…';
   pedir({ accion: 'ping' }).then(function (res) {
@@ -1108,7 +1212,7 @@ function textoInfo() {
 function arrancarReloj() {
   if (reloj) clearInterval(reloj);
   reloj = setInterval(function () {
-    if (document.hidden || !navigator.onLine || !SES) return;
+    if (TEST || document.hidden || !navigator.onLine || !SES) return;
     if (COLA.length) sincronizar(); else traerEstado().then(pintar, function () {});
   }, 20000);
 }
@@ -1118,8 +1222,13 @@ document.addEventListener('visibilitychange', function () {
   if (!document.hidden && SES && navigator.onLine) { sincronizar(); traerEstado().then(pintar, function () {}); }
 });
 
+if (TEST) {
+  PROD = E;
+  E = leerLS('gtm-test-estado', null) || generarTest();
+  if (!UI.yoTest) UI.yoTest = E.jugadores[0].matricula;
+}
 pintar();
-if (SES) {
+if (SES && !TEST) {
   arrancarReloj();
   sincronizar().then(function () { return traerEstado(); }).then(pintar, function () { pintar(); });
 }

@@ -134,6 +134,7 @@ function despachar(p) {
       case 'estado':    return { ok: true, estado: estado(p.token) };
       case 'golpes':    return guardarGolpes(p);
       case 'perfil':    return guardarPerfil(p);
+      case 'foto':      return guardarFoto(p);
       case 'cancha':    return guardarCancha(p);
       case 'equipos':   return guardarEquipos(p);
       case 'partidos':  return guardarPartidos(p);
@@ -322,6 +323,37 @@ function guardarPerfil(p) {
   anotar(j.matricula, 'perfil', 'actualizó su perfil');
   limpiarCache();
   return { ok: true, estado: estadoCrudo() };
+}
+
+/**
+ * Foto de perfil. Llega como data URL, se guarda en la subcarpeta "Fotos"
+ * del Drive y en la planilla queda solo el id del archivo.
+ * OJO: usa DriveApp, así que la primera vez Google pide autorizar de nuevo.
+ */
+function carpetaFotos() {
+  var padre = DriveApp.getFileById(SS_ID).getParents().next();
+  var it = padre.getFoldersByName('Fotos');
+  return it.hasNext() ? it.next() : padre.createFolder('Fotos');
+}
+function guardarFoto(p) {
+  var j = exigir(p.token);
+  var m = String(p.foto || '').match(/^data:(image\/[a-z+.-]+);base64,(.+)$/i);
+  if (!m) return { ok: false, error: 'foto_invalida' };
+
+  var blob = Utilities.newBlob(Utilities.base64Decode(m[2]), m[1], 'foto-' + j.matricula + '.jpg');
+  if (blob.getBytes().length > 3000000) return { ok: false, error: 'foto_muy_grande' };
+
+  if (j.fotoId) { try { DriveApp.getFileById(String(j.fotoId)).setTrashed(true); } catch (e) {} }
+  var archivo = carpetaFotos().createFile(blob);
+  try { archivo.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch (e) {}
+
+  var hoja = SpreadsheetApp.openById(SS_ID).getSheetByName('Jugadores');
+  var fila = buscarFila(hoja, function (v) { return String(v[0]).trim() === String(j.matricula).trim(); });
+  if (!fila) return { ok: false, error: 'no_encontrado' };
+  hoja.getRange(fila, 8).setValue(archivo.getId());
+  anotar(j.matricula, 'foto', 'subió su foto');
+  limpiarCache();
+  return { ok: true, fotoId: archivo.getId(), estado: estadoCrudo() };
 }
 
 function guardarCancha(p) {
