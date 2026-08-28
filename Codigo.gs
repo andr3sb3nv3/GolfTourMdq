@@ -17,12 +17,16 @@ var HOJAS = {
   Jugadores: ['matricula', 'nombre', 'apodo', 'handicap', 'equipo', 'rol', 'club', 'fotoId', 'hash', 'alta', 'ultimoAcceso'],
   Canchas:   ['id', 'dia', 'nombre', 'confirmada', 'formato'],   // + par1..par18 + si1..si18
   Tarjetas:  ['cancha', 'matricula'],                 // + h1..h18 + actualizado
+  Partidos:  ['id', 'cancha', 'formato', 'usa1', 'usa2', 'eur1', 'eur2'],
+  TarjetasEquipo: ['partido', 'lado'],               // + h1..h18 + actualizado
   Log:       ['fecha', 'matricula', 'accion', 'detalle']
 };
 for (var i = 1; i <= 18; i++) HOJAS.Canchas.push('par' + i);
 for (var i = 1; i <= 18; i++) HOJAS.Canchas.push('si' + i);
 for (var i = 1; i <= 18; i++) HOJAS.Tarjetas.push('h' + i);
 HOJAS.Tarjetas.push('actualizado');
+for (var i = 1; i <= 18; i++) HOJAS.TarjetasEquipo.push('h' + i);
+HOJAS.TarjetasEquipo.push('actualizado');
 
 /* ============================================================
    CONFIGURACIÓN INICIAL — correr una sola vez
@@ -80,6 +84,23 @@ function configurar() {
  * Agrega la columna "formato" a la pestaña Canchas sin tocar nada de lo cargado.
  * NO correr configurar() de nuevo: eso borra jugadores y tarjetas.
  */
+/**
+ * MIGRACIÓN 2 — crea las pestañas del match play sin tocar lo cargado.
+ */
+function migrarPartidos() {
+  var ss = SpreadsheetApp.openById(SS_ID), hechas = [];
+  ['Partidos', 'TarjetasEquipo'].forEach(function (nombre) {
+    if (ss.getSheetByName(nombre)) return;
+    var h = ss.insertSheet(nombre);
+    h.getRange(1, 1, 1, HOJAS[nombre].length).setValues([HOJAS[nombre]])
+      .setFontWeight('bold').setBackground('#EDF0E8');
+    h.setFrozenRows(1);
+    hechas.push(nombre);
+  });
+  limpiarCache();
+  return hechas.length ? 'Creadas: ' + hechas.join(', ') : 'Ya estaban, no se tocó nada.';
+}
+
 function migrarFormato() {
   var hoja = SpreadsheetApp.openById(SS_ID).getSheetByName('Canchas');
   var cab = hoja.getRange(1, 1, 1, hoja.getLastColumn()).getValues()[0];
@@ -115,6 +136,8 @@ function despachar(p) {
       case 'perfil':    return guardarPerfil(p);
       case 'cancha':    return guardarCancha(p);
       case 'equipos':   return guardarEquipos(p);
+      case 'partidos':  return guardarPartidos(p);
+      case 'golpesEquipo': return guardarGolpesEquipo(p);
       case 'borrar':    return borrarTarjetas(p);
       default:          return { ok: false, error: 'accion_desconocida' };
     }
@@ -223,6 +246,16 @@ function estadoCrudo() {
                confirmada: c.confirmada === true || c.confirmada === 'TRUE',
                formato: c.formato || '', par: par, si: si };
     }).sort(function (a, b) { return a.dia - b.dia; }),
+    partidos: leer('Partidos').map(function (m) {
+      return { id: String(m.id), cancha: m.cancha, formato: m.formato,
+               usa: [String(m.usa1 || ''), String(m.usa2 || '')].filter(Boolean),
+               eur: [String(m.eur1 || ''), String(m.eur2 || '')].filter(Boolean) };
+    }),
+    tarjetasEquipo: leer('TarjetasEquipo').map(function (t) {
+      var h = [];
+      for (var i = 1; i <= 18; i++) { var v = t['h' + i]; h.push(v === '' || v === null ? null : Number(v)); }
+      return { partido: String(t.partido), lado: t.lado, hoyos: h };
+    }),
     tarjetas: leer('Tarjetas').map(function (t) {
       var h = [];
       for (var i = 1; i <= 18; i++) { var v = t['h' + i]; h.push(v === '' || v === null ? null : Number(v)); }
@@ -321,6 +354,79 @@ function borrarTarjetas(p) {
   anotar(j.matricula, 'borrar', 'borró todas las tarjetas');
   limpiarCache();
   return { ok: true, estado: estadoCrudo() };
+}
+
+/**
+ * El organizador arma los partidos de una jornada. Reemplaza los de esa cancha.
+ * lista: [{ usa:[mat,mat], eur:[mat,mat] }]  — en singles, un solo jugador por lado.
+ */
+function guardarPartidos(p) {
+  var j = exigir(p.token, true);
+  if (!p.cancha) return { ok: false, error: 'faltan_datos' };
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var ss = SpreadsheetApp.openById(SS_ID);
+    var hoja = ss.getSheetByName('Partidos');
+    if (!hoja) return { ok: false, error: 'falta_migrar' };
+
+    // se borran los de esta cancha, de abajo hacia arriba
+    if (hoja.getLastRow() > 1) {
+      var datos = hoja.getRange(2, 1, hoja.getLastRow() - 1, hoja.getLastColumn()).getValues();
+      for (var i = datos.length - 1; i >= 0; i--) if (datos[i][1] === p.cancha) hoja.deleteRow(i + 2);
+    }
+    var fmt = String(p.formato || '');
+    (p.lista || []).forEach(function (m, k) {
+      var usa = m.usa || [], eur = m.eur || [];
+      hoja.appendRow([p.cancha + '-' + (k + 1), p.cancha, fmt,
+        String(usa[0] || ''), String(usa[1] || ''), String(eur[0] || ''), String(eur[1] || '')]);
+    });
+    anotar(j.matricula, 'partidos', p.cancha + ' · ' + (p.lista || []).length + ' partido(s) de ' + (fmt || 'sin formato'));
+    limpiarCache();
+    return { ok: true, estado: estadoCrudo() };
+  } finally { lock.releaseLock(); }
+}
+
+/**
+ * Foursomes: la pareja juega una sola pelota, así que la tarjeta es del LADO.
+ * La carga cualquiera de los dos; el servidor comprueba que juegue ese partido.
+ */
+function guardarGolpesEquipo(p) {
+  var j = exigir(p.token);
+  var partidos = leer('Partidos');
+  var m = null;
+  for (var i = 0; i < partidos.length; i++) if (String(partidos[i].id) === String(p.partido)) m = partidos[i];
+  if (!m) return { ok: false, error: 'partido_inexistente' };
+
+  var mat = String(j.matricula);
+  var lado = (String(m.usa1) === mat || String(m.usa2) === mat) ? 'usa'
+           : (String(m.eur1) === mat || String(m.eur2) === mat) ? 'eur' : null;
+  if (!lado) return { ok: false, error: 'no_jugas_ese_partido' };
+
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var hoja = SpreadsheetApp.openById(SS_ID).getSheetByName('TarjetasEquipo');
+    var fila = buscarFila(hoja, function (v) { return String(v[0]) === String(p.partido) && v[1] === lado; });
+    if (!fila) {
+      var nueva = [String(p.partido), lado];
+      for (var k = 0; k < 18; k++) nueva.push('');
+      nueva.push(new Date());
+      hoja.appendRow(nueva);
+      fila = hoja.getLastRow();
+    }
+    var valores = hoja.getRange(fila, 3, 1, 18).getValues()[0];
+    (p.hoyos || []).forEach(function (c) {
+      var k = Number(c.hoyo) - 1;
+      if (k < 0 || k > 17) return;
+      valores[k] = (c.golpes === null || c.golpes === '' || c.golpes === undefined) ? '' : Number(c.golpes);
+    });
+    hoja.getRange(fila, 3, 1, 18).setValues([valores]);
+    hoja.getRange(fila, 21).setValue(new Date());
+    anotar(mat, 'golpesEquipo', p.partido + ' · lado ' + lado);
+    limpiarCache();
+    return { ok: true, estado: estadoCrudo() };
+  } finally { lock.releaseLock(); }
 }
 
 /* ============================================================
