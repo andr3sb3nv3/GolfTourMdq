@@ -14,7 +14,7 @@ var TOKEN_DIAS = 60;         // duración de la sesión en el celular
 
 var HOJAS = {
   Config:    ['clave', 'valor'],
-  Jugadores: ['matricula', 'nombre', 'apodo', 'handicap', 'equipo', 'rol', 'club', 'fotoId', 'hash', 'alta', 'ultimoAcceso'],
+  Jugadores: ['matricula', 'nombre', 'apodo', 'handicap', 'equipo', 'rol', 'club', 'fotoId', 'hash', 'alta', 'ultimoAcceso', 'resetCodigo', 'resetVence'],
   Canchas:   ['id', 'dia', 'nombre', 'confirmada', 'formato'],   // + par1..par18 + si1..si18
   Tarjetas:  ['cancha', 'matricula'],                 // + h1..h18 + actualizado
   Partidos:  ['id', 'cancha', 'formato', 'usa1', 'usa2', 'eur1', 'eur2'],
@@ -101,6 +101,22 @@ function migrarPartidos() {
   return hechas.length ? 'Creadas: ' + hechas.join(', ') : 'Ya estaban, no se tocó nada.';
 }
 
+/**
+ * MIGRACIÓN 3 — columnas para restablecer contraseñas. No toca nada de lo cargado.
+ */
+function migrarReset() {
+  var hoja = SpreadsheetApp.openById(SS_ID).getSheetByName('Jugadores');
+  var cab = hoja.getRange(1, 1, 1, Math.max(hoja.getLastColumn(), 1)).getValues()[0];
+  var faltan = ['resetCodigo', 'resetVence'].filter(function (c) { return cab.indexOf(c) < 0; });
+  if (!faltan.length) return 'Ya estaba migrada, no se tocó nada.';
+  faltan.forEach(function (c) {
+    var col = hoja.getLastColumn() + 1;
+    hoja.getRange(1, col).setValue(c).setFontWeight('bold').setBackground('#EDF0E8');
+  });
+  limpiarCache();
+  return 'Listo: ' + faltan.join(' y ') + '.';
+}
+
 function migrarFormato() {
   var hoja = SpreadsheetApp.openById(SS_ID).getSheetByName('Canchas');
   var cab = hoja.getRange(1, 1, 1, hoja.getLastColumn()).getValues()[0];
@@ -139,6 +155,9 @@ function despachar(p) {
       case 'equipos':   return guardarEquipos(p);
       case 'partidos':  return guardarPartidos(p);
       case 'golpesEquipo': return guardarGolpesEquipo(p);
+      case 'resetPedir':   return resetPedir(p);
+      case 'resetAplicar': return resetAplicar(p);
+      case 'resetPendientes': return resetPendientes(p);
       case 'borrar':    return borrarTarjetas(p);
       default:          return { ok: false, error: 'accion_desconocida' };
     }
@@ -221,6 +240,85 @@ function login(p) {
   if (j.hash !== hashear(mat, String(p.password || ''))) return { ok: false, error: 'password_incorrecta' };
   tocarAcceso(mat);
   return { ok: true, token: emitirToken(mat), jugador: sinHash(j), estado: estadoCrudo() };
+}
+
+/* ============================================================
+   CONTRASEÑA OLVIDADA
+   El jugador pide un código; el código le llega al organizador
+   (por mail y dentro de la app) y él se lo pasa. Dura 30 minutos
+   y sirve una sola vez.
+   ============================================================ */
+var RESET_MIN = 30;
+
+function correoOrganizador() {
+  try { return Session.getEffectiveUser().getEmail(); } catch (e) { return ''; }
+}
+function avisarPorMail(asunto, cuerpo) {
+  var para = correoOrganizador();
+  if (!para) return;
+  try { MailApp.sendEmail(para, asunto, cuerpo); } catch (e) {}
+}
+function filaJugador(mat) {
+  var hoja = SpreadsheetApp.openById(SS_ID).getSheetByName('Jugadores');
+  var fila = buscarFila(hoja, function (v) { return String(v[0]).trim() === String(mat).trim(); });
+  return fila ? { hoja: hoja, fila: fila } : null;
+}
+
+function resetPedir(p) {
+  var mat = String(p.matricula || '').trim();
+  var j = jugadorPorMatricula(mat);
+  if (!j) return { ok: false, error: 'no_registrado' };
+  var ref = filaJugador(mat);
+  if (!ref) return { ok: false, error: 'no_encontrado' };
+  if (ref.hoja.getLastColumn() < 13) return { ok: false, error: 'falta_migrar' };
+
+  var codigo = String(Math.floor(100000 + Math.random() * 900000));
+  ref.hoja.getRange(ref.fila, 12).setValue(codigo);
+  ref.hoja.getRange(ref.fila, 13).setValue(Date.now() + RESET_MIN * 60000);
+
+  var texto = j.nombre + ' (matrícula ' + mat + ') se olvidó la contraseña y pidió un código.'
+    + '\n\nCÓDIGO: ' + codigo
+    + '\n\nVence en ' + RESET_MIN + ' minutos y sirve una sola vez.'
+    + '\nPasáselo para que lo ponga en la app junto con su contraseña nueva.'
+    + '\n\nSi no fue él, ignorá este mail: sin el código no puede cambiar nada.';
+  avisarPorMail('Golf Tour Mdq · código para ' + j.nombre, texto);
+
+  anotar(mat, 'reset', 'pidió un código');
+  limpiarCache();
+  return { ok: true, organizador: nombreOrganizador() };
+}
+
+function resetAplicar(p) {
+  var mat = String(p.matricula || '').trim();
+  var j = jugadorPorMatricula(mat);
+  if (!j) return { ok: false, error: 'no_registrado' };
+  if (String(p.password || '').length < 4) return { ok: false, error: 'password_corta' };
+  if (!j.resetCodigo || String(j.resetCodigo).trim() !== String(p.codigo || '').trim())
+    return { ok: false, error: 'codigo_invalido' };
+  if (Number(j.resetVence || 0) < Date.now()) return { ok: false, error: 'codigo_vencido' };
+
+  var ref = filaJugador(mat);
+  ref.hoja.getRange(ref.fila, 9).setValue(hashear(mat, String(p.password)));
+  ref.hoja.getRange(ref.fila, 12).setValue('');
+  ref.hoja.getRange(ref.fila, 13).setValue('');
+  anotar(mat, 'reset', 'cambió su contraseña con el código');
+  limpiarCache();
+  return { ok: true, token: emitirToken(mat), jugador: sinHash(jugadorPorMatricula(mat)), estado: estadoCrudo() };
+}
+
+function resetPendientes(p) {
+  exigir(p.token, true);
+  var ahora = Date.now();
+  return { ok: true, pedidos: leer('Jugadores').filter(function (j) {
+    return j.resetCodigo && Number(j.resetVence || 0) > ahora;
+  }).map(function (j) {
+    return { matricula: String(j.matricula), nombre: j.nombre, codigo: String(j.resetCodigo),
+             minutos: Math.max(0, Math.round((Number(j.resetVence) - ahora) / 60000)) };
+  }) };
+}
+function nombreOrganizador() {
+  var a = leer('Jugadores').filter(function (j) { return j.rol === 'admin'; })[0];
+  return a ? a.nombre : 'el organizador';
 }
 
 /* ============================================================

@@ -14,6 +14,7 @@ var UI = Object.assign({ tab: 'posiciones', cancha: null, canchaLb: 'general',
 
 var sincronizando = false, ultimoError = '', reloj = null, promptInstalar = null;
 var TEST = leerLS('gtm-test-on', false);
+var PEDIDOS = null;                  // pedidos de contraseña que ve el organizador
 var PROD = null;                     // acá se guarda el estado real mientras estás en testeo
 
 function leerLS(k, def) { try { var v = localStorage.getItem(k); return v ? JSON.parse(v) : def; } catch (e) { return def; } }
@@ -275,6 +276,7 @@ function refrescarInstalar() {
 
 /* ============ pantalla de ingreso ============ */
 function vistaIngreso() {
+  if (UI.ingreso === 'olvide') return vistaOlvide();
   var alta = UI.ingreso === 'alta';
   var h = '<div class="pantalla">' +
     '<div class="marca"><div class="crest">GT</div><div><h1>Golf Tour Mdq</h1>' +
@@ -301,12 +303,41 @@ function vistaIngreso() {
   }
   h += '<button class="btn pri" data-acc="' + (alta ? 'registrar' : 'entrar') + '">' +
     (alta ? 'Crear mi acceso' : 'Entrar') + '</button>' +
+    (alta ? '' : '<button class="btn fin" data-acc="modo" data-v="olvide">Me olvidé la contraseña</button>') +
     '<span class="hint">Se guarda la sesión en este celular: entrás una vez y listo.</span>' +
     '<button class="btn fin" data-acc="probar">Probar la conexión con la planilla</button>' +
     '<button class="btn fin" data-acc="test-entrar">🧪 Entrar en modo testeo (datos de prueba)</button>' +
     '</div></section></div>';
   return h;
 }
+function vistaOlvide() {
+  var paso2 = !!UI.olvideMat;
+  var h = '<div class="pantalla">' +
+    '<div class="marca"><div class="crest">GT</div><div><h1>Contraseña nueva</h1>' +
+    '<p>' + (paso2 ? 'Paso 2 de 2' : 'Paso 1 de 2') + '</p></div></div>' +
+    '<section class="card"><div class="form">' +
+    (ultimoError ? '<div class="error">' + esc(textoError(ultimoError)) + '</div>' : '') +
+    (UI.olvideOk ? '<div class="ok-msg">Listo. Le mandamos el código a ' + esc(UI.olvideOk) +
+      '. Pedíselo y ponelo acá abajo — vence en 30 minutos.</div>' : '');
+  if (!paso2) {
+    h += '<div class="campo"><label for="o-mat">Tu matrícula</label>' +
+      '<input id="o-mat" type="text" inputmode="numeric" placeholder="la que usás para entrar"></div>' +
+      '<button class="btn pri" data-acc="olvide-pedir">Pedir un código</button>' +
+      '<span class="hint">El código le llega al organizador, por mail y dentro de la app. Él te lo pasa.</span>';
+  } else {
+    h += '<div class="campo"><label>Matrícula</label>' +
+      '<input type="text" value="' + esc(UI.olvideMat) + '" disabled></div>' +
+      '<div class="campo"><label for="o-cod">Código de 6 números</label>' +
+      '<input id="o-cod" type="text" inputmode="numeric" maxlength="6" placeholder="el que te pasó el organizador"></div>' +
+      '<div class="campo"><label for="o-pass">Contraseña nueva</label>' +
+      '<input id="o-pass" type="password" autocomplete="new-password" placeholder="mínimo 4 caracteres"></div>' +
+      '<button class="btn pri" data-acc="olvide-aplicar">Cambiar la contraseña y entrar</button>' +
+      '<button class="btn fin" data-acc="olvide-otro">Pedir otro código</button>';
+  }
+  return h + '<button class="btn fin" data-acc="modo" data-v="entrar">← Volver</button>' +
+    '</div></section></div>';
+}
+
 function textoError(e) {
   var t = {
     no_registrado: 'Esa matrícula todavía no está registrada. Entrá por "Primera vez".',
@@ -320,7 +351,10 @@ function textoError(e) {
     sin_conexion: 'No se pudo hablar con la planilla. Puede ser que no tengas señal, o que la implementación del Apps Script no esté publicada para "Cualquier usuario".',
     necesita_login: 'El Apps Script está pidiendo iniciar sesión con Google. Hay que volver a implementarlo con «Ejecutar como: Yo» y «Quién tiene acceso: Cualquier usuario».',
     respuesta_invalida: 'El backend contestó algo que no es un dato válido. Suele ser un error dentro del script: revisá Ejecuciones en el editor de Apps Script.',
-    sin_api: 'La app no está conectada a la planilla todavía.'
+    sin_api: 'La app no está conectada a la planilla todavía.',
+    codigo_invalido: 'Ese código no coincide. Fijate que sea el último que te pasaron.',
+    codigo_vencido: 'El código venció. Pedí uno nuevo.',
+    falta_migrar: 'Falta correr la migración de contraseñas en el Apps Script.'
   };
   return t[e] || ('Algo falló: ' + e);
 }
@@ -917,6 +951,24 @@ function vistaCanchas() {
   return h + '</div>';
 }
 
+function bloquePedidos() {
+  var h = '<section class="card"><div class="sec-tit"><h2>Contraseñas olvidadas</h2>' +
+    '<span class="eyebrow">' + (PEDIDOS ? PEDIDOS.length + ' pendiente' + (PEDIDOS.length === 1 ? '' : 's') : 'organizador') + '</span></div>';
+  if (PEDIDOS && PEDIDOS.length) {
+    PEDIDOS.forEach(function (p) {
+      h += '<div class="jug"><span class="av">🔑</span>' +
+        '<span><span class="lb-nom">' + esc(p.nombre) + '</span>' +
+        '<span class="lb-meta">Matrícula ' + esc(p.matricula) + ' · vence en ' + p.minutos + ' min</span></span>' +
+        '<span class="codigo">' + esc(p.codigo) + '</span></div>';
+    });
+  } else if (PEDIDOS) {
+    h += '<p class="vacio">No hay pedidos pendientes.</p>';
+  }
+  return h + '<div class="acc"><button class="btn" data-acc="ver-pedidos">' +
+    (PEDIDOS ? 'Actualizar' : 'Ver pedidos de contraseña') + '</button>' +
+    '<span class="hint">Cuando alguien se olvida la contraseña te llega un código por mail y aparece acá. Se lo pasás y con eso él pone una nueva.</span></div></section>';
+}
+
 function vistaPerfil() {
   var y = yo();
   if (!y) return '<p class="vacio">Cargando…</p>';
@@ -951,7 +1003,8 @@ function vistaPerfil() {
     '<input id="p-pass" type="password" placeholder="mínimo 4 caracteres" data-acc="ed-pass"></div></div>' +
     '<div class="candado" style="border-top:0"><span>🔒</span><span>Editás <b>tu</b> perfil y <b>tu</b> tarjeta.' +
     (esAdmin() ? ' Como organizador además cargás las canchas y los nombres de los equipos — pero los datos y las tarjetas de los demás tampoco los tocás.' : '') + '</span></div>' +
-    '<div class="acc"><button class="btn fin" data-acc="salir">Cerrar sesión en este celular</button></div></section></div>';
+    '<div class="acc"><button class="btn fin" data-acc="salir">Cerrar sesión en este celular</button></div></section>' +
+    (esAdmin() && !TEST ? bloquePedidos() : '') + '</div>';
 }
 
 /* ============ armado ============ */
@@ -1018,7 +1071,11 @@ document.addEventListener('click', function (ev) {
   if (!b || b.tagName === 'INPUT' || b.tagName === 'SELECT') return;
   var a = b.getAttribute('data-acc'), v = b.getAttribute('data-v');
 
-  if (a === 'modo') { UI.ingreso = v; ultimoError = ''; pintar(); return; }
+  if (a === 'modo') { UI.ingreso = v; ultimoError = ''; UI.olvideMat = null; UI.olvideOk = null; guardarUI(); pintar(); return; }
+  if (a === 'olvide-pedir') { olvidePedir(); return; }
+  if (a === 'olvide-aplicar') { olvideAplicar(); return; }
+  if (a === 'olvide-otro') { UI.olvideMat = null; UI.olvideOk = null; ultimoError = ''; guardarUI(); pintar(); return; }
+  if (a === 'ver-pedidos') { verPedidos(b); return; }
   if (a === 'entrar' || a === 'registrar') { ingresar(a === 'registrar'); return; }
   if (a === 'salir') { if (confirm('¿Cerrar sesión en este celular?')) salir(); return; }
   if (a === 'quitar-foto') { accionar({ accion: 'perfil', fotoId: '' }); return; }
@@ -1140,6 +1197,39 @@ function armarPartidos(cid) {
   if (!confirm('Se van a armar ' + lista.length + ' partido(s) de ' + FORMATOS[c.formato] +
     ' emparejando por handicap. Si ya había partidos en este día, se reemplazan. ¿Seguimos?')) return;
   accionar({ accion: 'partidos', cancha: cid, formato: c.formato, lista: lista });
+}
+
+function olvidePedir() {
+  var mat = ((document.getElementById('o-mat') || {}).value || '').trim();
+  if (!mat) { ultimoError = 'falta_matricula'; pintar(); return; }
+  ultimoError = '';
+  pedir({ accion: 'resetPedir', matricula: mat }).then(function (res) {
+    if (res && res.ok) {
+      UI.olvideMat = mat; UI.olvideOk = res.organizador || 'el organizador';
+    } else ultimoError = (res && res.error) || 'fallo';
+    guardarUI(); pintar();
+  }, function (err) { ultimoError = (err && err.message) || 'sin_conexion'; pintar(); });
+}
+function olvideAplicar() {
+  var cod = ((document.getElementById('o-cod') || {}).value || '').trim();
+  var pass = (document.getElementById('o-pass') || {}).value || '';
+  ultimoError = '';
+  pedir({ accion: 'resetAplicar', matricula: UI.olvideMat, codigo: cod, password: pass }).then(function (res) {
+    if (res && res.ok) {
+      SES = { token: res.token, matricula: res.jugador.matricula };
+      guardarLS(LS.ses, SES);
+      adoptar(res.estado);
+      UI.ingreso = 'entrar'; UI.olvideMat = null; UI.olvideOk = null; UI.tab = 'posiciones';
+      guardarUI(); pintar(); arrancarReloj();
+    } else { ultimoError = (res && res.error) || 'fallo'; pintar(); }
+  }, function (err) { ultimoError = (err && err.message) || 'sin_conexion'; pintar(); });
+}
+function verPedidos(boton) {
+  boton.textContent = 'Buscando…';
+  pedir({ accion: 'resetPendientes', token: SES && SES.token }).then(function (res) {
+    PEDIDOS = (res && res.ok) ? res.pedidos : [];
+    pintar();
+  }, function () { PEDIDOS = []; pintar(); });
 }
 
 function primerLibre() {
