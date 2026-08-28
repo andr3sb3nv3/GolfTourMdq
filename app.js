@@ -132,7 +132,17 @@ function pedir(cuerpo) {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
     body: JSON.stringify(cuerpo)
-  }).then(function (r) { return r.json(); });
+  }).then(function (r) {
+    return r.text().then(function (t) {
+      var limpio = String(t || '').trim();
+      if (limpio.charAt(0) === '{') { try { return JSON.parse(limpio); } catch (e) {} }
+      // Google devolvió una página en vez de datos: casi siempre es el login
+      var err = new Error(/accounts\.google|ServiceLogin|iniciar sesión|sign in|autoriza/i.test(limpio)
+        ? 'necesita_login' : 'respuesta_invalida');
+      err.detalle = limpio.slice(0, 180);
+      throw err;
+    });
+  }, function () { throw new Error('sin_conexion'); });
 }
 function traerEstado() {
   if (!SES) return Promise.resolve();
@@ -223,6 +233,7 @@ function vistaIngreso() {
   h += '<button class="btn pri" data-acc="' + (alta ? 'registrar' : 'entrar') + '">' +
     (alta ? 'Crear mi acceso' : 'Entrar') + '</button>' +
     '<span class="hint">Se guarda la sesión en este celular: entrás una vez y listo.</span>' +
+    '<button class="btn fin" data-acc="probar">Probar la conexión con la planilla</button>' +
     '</div></section></div>';
   return h;
 }
@@ -236,7 +247,9 @@ function textoError(e) {
     falta_matricula: 'Falta la matrícula.',
     sesion_vencida: 'Se venció la sesión. Volvé a entrar.',
     solo_admin: 'Eso lo cambia solo el organizador.',
-    sin_conexion: 'Sin conexión. Lo que cargues se guarda y se sube cuando vuelva la señal.',
+    sin_conexion: 'No se pudo hablar con la planilla. Puede ser que no tengas señal, o que la implementación del Apps Script no esté publicada para "Cualquier usuario".',
+    necesita_login: 'El Apps Script está pidiendo iniciar sesión con Google. Hay que volver a implementarlo con «Ejecutar como: Yo» y «Quién tiene acceso: Cualquier usuario».',
+    respuesta_invalida: 'El backend contestó algo que no es un dato válido. Suele ser un error dentro del script: revisá Ejecuciones en el editor de Apps Script.',
     sin_api: 'La app no está conectada a la planilla todavía.'
   };
   return t[e] || ('Algo falló: ' + e);
@@ -539,6 +552,7 @@ document.addEventListener('click', function (ev) {
   if (a === 'entrar' || a === 'registrar') { ingresar(a === 'registrar'); return; }
   if (a === 'salir') { if (confirm('¿Cerrar sesión en este celular?')) salir(); return; }
   if (a === 'sync') { sincronizar(); return; }
+  if (a === 'probar') { probarConexion(b); return; }
   if (a === 'info') { alert(textoInfo()); return; }
   if (!E) return;
 
@@ -597,7 +611,7 @@ function ingresar(alta) {
       UI.tab = 'posiciones';
       guardarUI(); pintar(); arrancarReloj();
     } else { ultimoError = (res && res.error) || 'fallo'; pintar(); }
-  }, function () { ultimoError = 'sin_conexion'; pintar(); });
+  }, function (err) { ultimoError = (err && err.message) || 'sin_conexion'; pintar(); });
 }
 
 function primerLibre() {
@@ -656,6 +670,18 @@ function exportar() {
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
 }
 
+function probarConexion(boton) {
+  boton.textContent = 'Probando…';
+  pedir({ accion: 'ping' }).then(function (res) {
+    boton.textContent = 'Probar la conexión con la planilla';
+    alert(res && res.ok ? '✅ La planilla responde bien. El problema no es la conexión.'
+                        : '⚠️ Respondió pero con un error: ' + JSON.stringify(res));
+  }, function (err) {
+    boton.textContent = 'Probar la conexión con la planilla';
+    alert('❌ ' + textoError((err && err.message) || 'sin_conexion') +
+      (err && err.detalle ? '\n\nLo que contestó Google:\n' + err.detalle : ''));
+  });
+}
 function textoInfo() {
   if (!navigator.onLine) return 'Sin señal. Podés seguir cargando: los golpes quedan guardados en el celular y se suben solos cuando vuelva la conexión.';
   return 'En vivo: cada golpe que cargás se sube a la planilla y aparece en el celular de todos.';
