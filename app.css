@@ -301,3 +301,6 @@ img.av{object-fit:cover;padding:0;background:var(--panel2)}
   .chip-test{padding:6px 8px;font-size:11px}
 }
 .p-hoyos i.fin{opacity:.28}
+.pick-eq.pick-4{flex-wrap:wrap}
+.pick-eq.pick-4 button{flex:1 1 44%;font-size:13px;padding:10px 4px}
+.pick-eq button[aria-pressed="true"]:not(.a):not(.r){border-color:var(--verde);color:var(--verde);background:var(--panel)}

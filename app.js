@@ -671,12 +671,13 @@ function vistaRyder() {
     marcadorHTML(gral) + '</section>';
 
   h += '<section class="card"><div class="sec-tit"><h2>' + esc(c.nombre) + ' · Día ' + c.dia + '</h2>' +
-    '<span class="pin' + (fmt ? '' : ' recibe') + '">' + (FORMATOS[fmt] || 'formato sin definir') + '</span></div>';
+    '<span class="pin' + (fmt ? '' : ' recibe') + '">' + (FORMATOS[fmt] || 'sin definir') + '</span></div>' +
+    selectorModalidad(c, admin);
 
   if (!fmt) {
     h += '<p class="vacio">' + (admin
-      ? 'Elegí el formato de esta jornada en la pestaña <b>Canchas</b> y después armá los partidos.'
-      : 'El organizador todavía no definió el formato de este día.') + '</p></section></div>';
+      ? 'Elegí acá arriba con qué se juega hoy y después armá los partidos.'
+      : 'El organizador todavía no definió la modalidad de este día.') + '</p></section></div>';
     return h;
   }
 
@@ -709,6 +710,21 @@ function vistaRyder() {
   if (admin) h += '<div class="acc"><button class="btn fin" data-acc="armar" data-v="' + cid + '">Rearmar los partidos de esta jornada</button></div>';
   h += '<div class="candado solo"><span>⛳</span><span>Handicap por <b>diferencia al 100%</b>: el bando de menor handicap juega scratch y el otro recibe la diferencia en los hoyos de menor índice.</span></div>';
   return h + '</div>';
+}
+
+// La modalidad se decide el mismo día: no hay nada atado a la jornada.
+function selectorModalidad(c, admin) {
+  if (!admin) return '<div class="candado"><span>🎛️</span><span>Se juega <b>' +
+    (FORMATOS[c.formato] || 'con la modalidad que defina el organizador') + '</b>. La elige él antes de salir.</span></div>';
+  return '<div class="grid2" style="grid-template-columns:1fr"><div class="campo">' +
+    '<label>Con qué se juega hoy</label><div class="pick-eq pick-4">' +
+    [['foursomes', 'Foursomes'], ['fourball', 'Four-ball'], ['singles', 'Singles'], ['', 'Sin definir']]
+      .map(function (f) {
+        return '<button data-acc="formato" data-v="' + c.id + '" data-i="' + f[0] + '" aria-pressed="' +
+          ((c.formato || '') === f[0]) + '">' + f[1] + '</button>';
+      }).join('') + '</div>' +
+    '<span class="hint">Cualquiera de las tres, cualquier día. Si cambiás la modalidad se borran los partidos ya armados de esta jornada.</span>' +
+    '</div></div>';
 }
 
 function marcadorHTML(r) {
@@ -886,13 +902,8 @@ function vistaCanchas() {
         (c.confirmada ? '✓ Tarjeta oficial' : 'Marcar como tarjeta oficial') + '</button>' +
         '<span class="hint" style="flex:1;min-width:180px">El índice va del 1 al 18: 1 es el hoyo más difícil.</span></div>';
     }
-    h += '<div class="grid2" style="grid-template-columns:1fr"><div class="campo">' +
-      '<label>Formato de equipos de esta jornada</label><div class="pick-eq">' +
-      [['', 'Sin definir'], ['foursomes', 'Foursomes'], ['fourball', 'Four-ball'], ['singles', 'Singles']]
-        .map(function (f) {
-          return '<button data-acc="formato" data-v="' + c.id + '" data-i="' + f[0] + '"' +
-            ' aria-pressed="' + ((c.formato || '') === f[0]) + '"' + (admin ? '' : ' disabled') + '>' + f[1] + '</button>';
-        }).join('') + '</div></div></div>';
+    h += '<div class="candado"><span>🎛️</span><span>La modalidad de equipos de este día (' +
+      (FORMATOS[c.formato] || 'sin definir') + ') se elige en la pestaña <b>Ryder</b>.</span></div>';
     h += '</section>';
   });
 
@@ -1024,7 +1035,16 @@ document.addEventListener('click', function (ev) {
   else if (a === 'mas' || a === 'menos' || a === 'set' || a === 'borrar') { anotarGolpe(a, v); return; }
   else if (a === 'abrir-cancha') { UI.editando = (UI.editando === v ? null : v); }
   else if (a === 'confirmar') { var c = cancha(v); accionar({ accion: 'cancha', id: v, confirmada: !c.confirmada }); return; }
-  else if (a === 'formato') { accionar({ accion: 'cancha', id: v, formato: b.getAttribute('data-i') }); return; }
+  else if (a === 'formato') {
+    var nuevo = b.getAttribute('data-i'), cc = cancha(v);
+    if (!cc || (cc.formato || '') === nuevo) return;
+    var hay = partidosDe(v).length;
+    if (hay && !confirm('Cambiar la modalidad borra los ' + hay + ' partido(s) ya armados de este día. ¿Seguimos?')) return;
+    accionar({ accion: 'cancha', id: v, formato: nuevo }).then(function () {
+      if (hay) return accionar({ accion: 'partidos', cancha: v, formato: nuevo, lista: [] });
+    });
+    return;
+  }
   else if (a === 'mi-equipo') { accionar({ accion: 'perfil', equipo: v }); return; }
   else if (a === 'reset') { if (confirm('Esto borra TODAS las tarjetas de las 3 canchas. ¿Seguro?')) accionar({ accion: 'borrar' }); return; }
   else if (a === 'exportar') { exportar(); return; }
