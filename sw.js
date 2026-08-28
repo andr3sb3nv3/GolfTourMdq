@@ -1,6 +1,6 @@
 /* Service worker: la app funciona sin señal.
    El caparazón se cachea; los datos van siempre a la red y quedan en localStorage. */
-var CACHE = 'gtm-v1';
+var CACHE = 'gtm-v2';   // subir este número en cada cambio: obliga al celular a bajar la versión nueva
 var ARCHIVOS = ['./', 'index.html', 'app.css', 'app.js', 'config.js',
                 'manifest.webmanifest', 'icono-192.png', 'icono-512.png', 'icono-maskable.png'];
 
