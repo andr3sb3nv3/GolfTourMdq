@@ -957,6 +957,23 @@ function vistaPerfil() {
 /* ============ armado ============ */
 var TABS = [['posiciones', 'Medal'], ['ryder', 'Ryder'], ['cargar', 'Cargar'], ['tarjetas', 'Tarjetas'], ['jugadores', 'Jugadores'], ['canchas', 'Canchas']];
 
+function desplegableJugadores() {
+  if (!TEST || !UI.selector) return '';
+  var y = yo();
+  return '<div class="drop-fondo" data-acc="cerrar-selector"></div>' +
+    '<div class="drop"><div class="tit">Entrar como</div>' +
+    E.jugadores.map(function (j) {
+      var soy = String(j.matricula) === String(UI.yoTest);
+      return '<button data-acc="test-yo" data-v="' + j.matricula + '" aria-current="' + soy + '">' +
+        avatar(j) + '<span><span class="' + claseTxt(j).trim() + '">' + esc(j.nombre) + '</span>' +
+        '<i>HCP ' + j.handicap + ' · ' + esc(nombreEquipo(j.equipo)) +
+        (j.rol === 'admin' ? ' · organizador' : '') + '</i></span>' +
+        (soy ? '<span class="tick">✓</span>' : '') + '</button>';
+    }).join('') +
+    '<button data-acc="ver-perfil"><span class="av">👤</span><span>Ver el perfil de ' +
+    esc(nombreCorto(y ? y.nombre : '')) + '<i>editar nombre, handicap, equipo y foto</i></span></button></div>';
+}
+
 function barraEstado() {
   if (TEST) return '<div class="barra-estado test">🧪 Modo testeo · datos inventados, no tocan la planilla' +
     ' · <button class="btn fin" data-acc="test-salir">salir</button></div>';
@@ -985,6 +1002,7 @@ function pintar() {
     (TEST ? 'data-acc="tab" data-v="testeo"' : 'data-acc="test-entrar"') + '>🧪 Testeo</button>' +
     '<button class="btn-perfil" data-acc="ir-perfil">' + avatar(y) +
     '<span class="nom' + claseTxt(y) + '">' + esc(nombreCorto(y ? y.nombre : '')) + '</span></button></div></div>' +
+    desplegableJugadores() +
     '<header class="cab"><div class="crest">GT</div><div class="tit"><h1>' + esc(E.torneo.nombre) + '</h1>' +
     '<div class="sub">' + esc(E.torneo.sede) + ' · ' + E.canchas.length + ' canchas</div></div></header>' +
     '<nav class="tabs">' + TABS.map(function (t) {
@@ -1007,7 +1025,7 @@ document.addEventListener('click', function (ev) {
   if (a === 'test-entrar') { entrarTest(false); return; }
   if (a === 'test-salir') { salirTest(); return; }
   if (a === 'test-regenerar') { if (confirm('Se sortean de nuevo handicaps, tarjetas y partidos. ¿Seguimos?')) entrarTest(true); return; }
-  if (a === 'test-yo') { UI.yoTest = v; UI.hoyo = 0; guardarUI(); pintar(); return; }
+  if (a === 'test-yo') { UI.yoTest = v; UI.hoyo = 0; UI.selector = false; guardarUI(); pintar(); return; }
   if (a === 'sync') { sincronizar(); return; }
   if (a === 'probar') { probarConexion(b); return; }
   if (a === 'instalar') {
@@ -1021,7 +1039,12 @@ document.addEventListener('click', function (ev) {
   if (!E) return;
 
   if (a === 'tab') { UI.tab = v; UI.editando = null; }
-  else if (a === 'ir-perfil') { UI.tab = 'perfil'; }
+  else if (a === 'ir-perfil') {
+    if (TEST) { UI.selector = !UI.selector; guardarUI(); pintar(); return; }
+    UI.tab = 'perfil';
+  }
+  else if (a === 'cerrar-selector') { UI.selector = false; guardarUI(); pintar(); return; }
+  else if (a === 'ver-perfil') { UI.selector = false; UI.tab = 'perfil'; }
   else if (a === 'lb-cancha') { UI.canchaLb = v; }
   else if (a === 'ryder-cancha') { UI.canchaRyder = v; }
   else if (a === 'armar') { armarPartidos(v); return; }
