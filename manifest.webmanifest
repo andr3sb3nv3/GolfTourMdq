@@ -1,7 +1,7 @@
 {
-  "name": "Golf Tour Mdq",
-  "short_name": "Golf Mdq",
-  "description": "Resultados en vivo del Golf Tour Mdq: tarjetas, posiciones y equipos.",
+  "name": "Ryder MDQ",
+  "short_name": "Ryder MDQ",
+  "description": "Resultados en vivo del viaje de golf a Mar del Plata: tarjetas, posiciones y equipos.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

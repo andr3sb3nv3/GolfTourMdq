@@ -22,6 +22,7 @@ function guardarLS(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } c
 function guardarUI() { guardarLS(LS.ui, UI); }
 
 /* ============ utilidades ============ */
+var MARCA = '<span class="txt-azul">Ryder</span> <span class="txt-rojo">MDQ</span>';
 function esc(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
     return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
@@ -279,7 +280,7 @@ function vistaIngreso() {
   if (UI.ingreso === 'olvide') return vistaOlvide();
   var alta = UI.ingreso === 'alta';
   var h = '<div class="pantalla">' +
-    '<div class="marca"><div class="crest">GT</div><div><h1>Golf Tour Mdq</h1>' +
+    '<div class="marca-app"><div><h1 class="logo">' + MARCA + '</h1>' +
     '<p>Mar del Plata · 3 canchas</p></div></div>';
   if (!API) h += '<div class="error">La app todavía no está conectada a la planilla. ' +
     'Falta pegar la URL del Apps Script en <b>config.js</b>.</div>';
@@ -313,7 +314,7 @@ function vistaIngreso() {
 function vistaOlvide() {
   var paso2 = !!UI.olvideMat;
   var h = '<div class="pantalla">' +
-    '<div class="marca"><div class="crest">GT</div><div><h1>Contraseña nueva</h1>' +
+    '<div class="marca-app"><div><h1>Contraseña nueva</h1>' +
     '<p>' + (paso2 ? 'Paso 2 de 2' : 'Paso 1 de 2') + '</p></div></div>' +
     '<section class="card"><div class="form">' +
     (ultimoError ? '<div class="error">' + esc(textoError(ultimoError)) + '</div>' : '') +
@@ -428,7 +429,7 @@ function generarTest() {
   });
 
   return {
-    torneo: { nombre: 'Golf Tour Mdq', sede: 'Mar del Plata', edicion: '2026' },
+    torneo: { nombre: 'Ryder MDQ', sede: 'Mar del Plata', edicion: '2026' },
     equipos: { azul: { nombre: 'Team Europe' }, rojo: { nombre: 'Team USA' } },
     jugadores: jugadores, canchas: canchas, tarjetas: tarjetas,
     partidos: partidos, tarjetasEquipo: tarjetasEquipo,
@@ -942,6 +943,10 @@ function vistaCanchas() {
   });
 
   if (admin) h += '<section class="card"><div class="sec-tit"><h2>El torneo</h2></div>' +
+    '<div class="grid2"><div class="campo"><label for="t-nom">Nombre</label>' +
+    '<input id="t-nom" type="text" value="' + esc(E.torneo.nombre) + '" data-acc="ed-torneo" data-v="nombre"></div>' +
+    '<div class="campo"><label for="t-sede">Sede</label>' +
+    '<input id="t-sede" type="text" value="' + esc(E.torneo.sede) + '" data-acc="ed-torneo" data-v="sede"></div></div>' +
     '<div class="grid2"><div class="campo"><label for="t-azul">Equipo azul</label>' +
     '<input id="t-azul" type="text" value="' + esc(nombreEquipo('azul')) + '" data-acc="ed-eq" data-v="azul"></div>' +
     '<div class="campo"><label for="t-rojo">Equipo rojo</label>' +
@@ -1056,12 +1061,12 @@ function pintar() {
     '<button class="btn-perfil" data-acc="ir-perfil">' + avatar(y) +
     '<span class="nom' + claseTxt(y) + '">' + esc(nombreCorto(y ? y.nombre : '')) + '</span></button></div></div>' +
     desplegableJugadores() +
-    '<header class="cab"><div class="crest">GT</div><div class="tit"><h1>' + esc(E.torneo.nombre) + '</h1>' +
+    '<header class="cab"><div class="tit"><h1 class="logo">' + MARCA + '</h1>' +
     '<div class="sub">' + esc(E.torneo.sede) + ' · ' + E.canchas.length + ' canchas</div></div></header>' +
     '<nav class="tabs">' + TABS.map(function (t) {
       return '<button data-acc="tab" data-v="' + t[0] + '" aria-current="' + (UI.tab === t[0]) + '">' + t[1] + '</button>';
     }).join('') + '</nav><main>' + vista + '</main>' +
-    '<footer class="pie">' + esc(E.torneo.nombre) + ' · ' + esc(E.torneo.edicion || '') +
+    '<footer class="pie">Ryder MDQ · ' + esc(E.torneo.edicion || '') +
     (E.sello ? '<small>actualizado ' + hora(E.sello) + '</small>' : '') + '</footer></div>';
 }
 
@@ -1148,6 +1153,7 @@ document.addEventListener('change', function (ev) {
     accionar({ accion: 'cancha', id: v, par: par, si: si });
   }
   else if (a === 'ed-eq') { var q = { accion: 'equipos' }; q[v] = el.value.trim(); accionar(q); }
+  else if (a === 'ed-torneo') { var t = { accion: 'torneo' }; t[v] = el.value.trim(); accionar(t); }
 });
 
 function ingresar(alta) {

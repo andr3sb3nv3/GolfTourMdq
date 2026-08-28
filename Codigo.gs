@@ -48,7 +48,7 @@ function configurar() {
 
   var cfg = ss.getSheetByName('Config');
   cfg.getRange(2, 1, 7, 2).setValues([
-    ['torneo',      'Golf Tour Mdq'],
+    ['torneo',      'Ryder MDQ'],
     ['sede',        'Mar del Plata'],
     ['edicion',     '2026'],
     ['equipoAzul',  'Team Europe'],
@@ -153,6 +153,7 @@ function despachar(p) {
       case 'foto':      return guardarFoto(p);
       case 'cancha':    return guardarCancha(p);
       case 'equipos':   return guardarEquipos(p);
+      case 'torneo':    return guardarTorneo(p);
       case 'partidos':  return guardarPartidos(p);
       case 'golpesEquipo': return guardarGolpesEquipo(p);
       case 'resetPedir':   return resetPedir(p);
@@ -465,6 +466,14 @@ function guardarCancha(p) {
   if (p.par && p.par.length === 18) hoja.getRange(fila, 6, 1, 18).setValues([p.par.map(Number)]);
   if (p.si && p.si.length === 18) hoja.getRange(fila, 24, 1, 18).setValues([p.si.map(Number)]);
   anotar(sesion(p.token).matricula, 'cancha', p.id);
+  limpiarCache();
+  return { ok: true, estado: estadoCrudo() };
+}
+
+function guardarTorneo(p) {
+  exigir(p.token, true);
+  if (p.nombre) escribirConfig('torneo', String(p.nombre));
+  if (p.sede) escribirConfig('sede', String(p.sede));
   limpiarCache();
   return { ok: true, estado: estadoCrudo() };
 }
