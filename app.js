@@ -568,19 +568,25 @@ function calcularPartido(m) {
             cerradoEn: cerradoEn, usa: usa, eur: eur, cerrado: false, ganador: null,
             puntoUsa: 0, puntoEur: 0 };
 
-  if (jugados === 0) { r.texto = 'sin empezar'; return r; }
+  r.lider = arriba > 0 ? 'usa' : (arriba < 0 ? 'eur' : null);
+  if (jugados === 0) { r.texto = 'sin empezar'; r.badge = '–'; r.sub = ''; return r; }
   if (cerradoEn) {
     r.cerrado = true;
     r.ganador = arriba > 0 ? 'usa' : 'eur';
     r[arriba > 0 ? 'puntoUsa' : 'puntoEur'] = 1;
     r.texto = restan > 0 ? dif2 + '&' + restan : dif2 + ' arriba';
+    r.badge = restan > 0 ? dif2 + '&' + restan : dif2 + 'UP';
+    r.sub = 'final';
   } else if (jugados === 18) {
     r.cerrado = true;
     r.puntoUsa = 0.5; r.puntoEur = 0.5;
     r.texto = 'empatado';
+    r.badge = 'AS'; r.sub = 'final';
   } else {
     r.texto = arriba === 0 ? 'iguales · hoyo ' + jugados
       : dif2 + ' arriba ' + (arriba > 0 ? 'USA' : 'EUR') + ' · hoyo ' + jugados;
+    r.badge = arriba === 0 ? 'AS' : dif2 + 'UP';
+    r.sub = jugados;
   }
   return r;
 }
@@ -643,8 +649,7 @@ function chipsCancha(sel, acc, conGeneral) {
 function vistaPosiciones() {
   var lista = ordenar(acumulado(UI.canchaLb));
   var c = UI.canchaLb === 'general' ? null : cancha(UI.canchaLb);
-  var titulo = (c ? esc(c.nombre) + ' · Día ' + c.dia : esc(E.torneo.nombre) + ' · las 3 vueltas') +
-    (UI.metrica === 'neto' ? ' · Medal Play' : '');
+  var titulo = c ? esc(c.nombre) + ' · Día ' + c.dia : 'Las 3 vueltas';
   var max = 1; lista.forEach(function (a) { if (UI.metrica === 'stableford' && a.pts > max) max = a.pts; });
 
   var h = '<div class="pila">' + chipsCancha(UI.canchaLb, 'lb-cancha', true) + panelEquipos(UI.canchaLb) +
@@ -701,8 +706,8 @@ function vistaRyder() {
 
   var h = '<div class="pila">' + chipsCancha(cid, 'ryder-cancha', false);
 
-  h += '<section class="card"><div class="lb-cab"><h2>Ryder · las 3 jornadas</h2>' +
-    '<span class="eyebrow">' + gral.total + ' partidos · ' + fmtPunto(gral.usa + gral.eur) + ' definidos</span></div>' +
+  h += '<section class="card"><div class="lb-cab"><h2>Ryder Cup</h2>' +
+    '<span class="eyebrow">' + gral.total + ' partidos</span></div>' +
     marcadorHTML(gral) + '</section>';
 
   h += '<section class="card"><div class="sec-tit"><h2>' + esc(c.nombre) + ' · Día ' + c.dia + '</h2>' +
@@ -729,16 +734,13 @@ function vistaRyder() {
   ms.forEach(function (m, k) {
     var p = calcularPartido(m);
     if (!p) return;
-    var nombres = function (eq) {
-      return eq.map(function (j) { return esc(nombreCorto(j.nombre)) + ' <i>' + esc(j.handicap) + '</i>'; }).join(' + ');
-    };
-    var estado = p.cerrado ? (p.ganador ? (p.ganador === 'usa' ? 'txt-rojo' : 'txt-azul') : '') : '';
-    h += '<section class="card partido"><div class="p-cab"><span class="eyebrow">Partido ' + (k + 1) + '</span>' +
-      '<span class="p-estado ' + estado + '">' + esc(p.texto) + '</span></div>' +
-      '<div class="p-lados">' +
-      '<div class="p-lado txt-rojo' + (p.ganador === 'usa' ? ' gana' : '') + '">' + nombres(p.usa) + '</div>' +
-      '<div class="p-vs">vs</div>' +
-      '<div class="p-lado txt-azul' + (p.ganador === 'eur' ? ' gana' : '') + '">' + nombres(p.eur) + '</div>' +
+    h += '<section class="card partido">' +
+      '<div class="p-cab"><span class="eyebrow">Partido ' + (k + 1) + '</span>' +
+      '<span class="p-estado">' + esc(p.cerrado ? (FORMATOS[p.fmt] || '') : (p.jugados ? 'hoyo ' + p.jugados : 'sin empezar')) + '</span></div>' +
+      '<div class="match">' +
+      '<div class="m-lado izq">' + p.usa.map(function (j) { return filaJugadorMatch(j, 'usa'); }).join('') + '</div>' +
+      badgeMatch(p) +
+      '<div class="m-lado der">' + p.eur.map(function (j) { return filaJugadorMatch(j, 'eur'); }).join('') + '</div>' +
       '</div>' + tiraHoyos(p) + '</section>';
   });
 
@@ -762,17 +764,34 @@ function selectorModalidad(c, admin) {
     '</div></div>';
 }
 
+function filaJugadorMatch(j, lado) {
+  var foto = j.foto ? '<img class="m-foto ' + lado + '" src="' + j.foto + '" alt="">'
+    : (j.fotoId ? '<img class="m-foto ' + lado + '" src="https://drive.google.com/thumbnail?id=' + esc(j.fotoId) + '&sz=w120" alt="">'
+                : '<span class="m-foto ' + lado + '">' + esc(inicial(j)) + '</span>');
+  return '<div class="m-jug">' + foto +
+    '<span class="m-nom">' + esc(nombreCorto(j.nombre)) + '</span>' +
+    '<span class="m-hcp">' + esc(j.handicap) + '</span></div>';
+}
+function badgeMatch(p) {
+  var cls = !p.jugados ? 'sin' : (p.lider === 'usa' ? 'usa' : (p.lider === 'eur' ? 'eur' : 'as'));
+  return '<div class="m-badge ' + cls + '"><b>' + esc(p.badge || '–') + '</b>' +
+    (p.sub ? '<span>' + esc(p.sub) + '</span>' : '') + '</div>';
+}
+
 function marcadorHTML(r) {
   var tot = r.provUsa + r.provEur, pa = tot ? Math.round(r.provUsa / tot * 100) : 50;
   return '<div class="marcador-eq">' +
-    '<div class="lado"><b class="txt-rojo">' + fmtPunto(r.usa) + '</b>' +
-    '<span class="txt-rojo">' + esc(nombreEquipo('rojo')) + '</span>' +
-    (r.enJuego ? '<i>proyectado ' + fmtPunto(r.provUsa) + '</i>' : '') + '</div>' +
-    '<div class="vs">vs</div>' +
-    '<div class="lado"><b class="txt-azul">' + fmtPunto(r.eur) + '</b>' +
-    '<span class="txt-azul">' + esc(nombreEquipo('azul')) + '</span>' +
-    (r.enJuego ? '<i>proyectado ' + fmtPunto(r.provEur) + '</i>' : '') + '</div></div>' +
-    '<div class="barra-eq"><i class="r" style="width:' + pa + '%"></i><i class="a" style="width:' + (100 - pa) + '%"></i></div>';
+    '<div class="lado"><span class="escudo usa">USA</span>' +
+    '<span class="nombre">' + esc(nombreEquipo('rojo')) + '<i>' +
+    (r.enJuego ? 'proyectado ' + fmtPunto(r.provUsa) : 'puntos') + '</i></span></div>' +
+    '<div class="capsula"><span class="c-usa">' + fmtPunto(r.usa) + '</span>' +
+    '<span class="c-eur">' + fmtPunto(r.eur) + '</span></div>' +
+    '<div class="lado"><span class="escudo eur">EUR</span>' +
+    '<span class="nombre">' + esc(nombreEquipo('azul')) + '<i>' +
+    (r.enJuego ? 'proyectado ' + fmtPunto(r.provEur) : 'puntos') + '</i></span></div></div>' +
+    '<div class="barra-eq"><i class="r" style="width:' + pa + '%"></i><i class="a" style="width:' + (100 - pa) + '%"></i></div>' +
+    (r.enJuego ? '<div class="meta-eq"><span>' + r.enJuego + ' en juego</span><span>' +
+      (r.total - r.enJuego) + ' de ' + r.total + ' definidos</span></div>' : '');
 }
 function fmtPunto(n) { return (Math.round(n * 2) / 2).toString().replace('.5', '½').replace(/^0½$/, '½'); }
 function tiraHoyos(p) {
@@ -1051,21 +1070,21 @@ function pintar() {
     UI.tab === 'jugadores' ? vistaJugadores() : UI.tab === 'canchas' ? vistaCanchas() :
     UI.tab === 'ryder' ? vistaRyder() : UI.tab === 'perfil' ? vistaPerfil() :
     UI.tab === 'testeo' ? vistaTesteo() : vistaPosiciones();
-  app.innerHTML = barraEstado() + '<div class="wrap">' +
+  app.innerHTML = barraEstado() + '<div class="topbar"><div class="topbar-in">' +
     '<div class="cab-top">' +
-    '<button class="chip-estado" data-acc="info"><span class="punto' + (navigator.onLine ? ' vivo' : ' gris') + '"></span>' +
-    (navigator.onLine ? 'En vivo' : 'Sin señal') + '</button>' +
+    '<h1 class="logo">' + MARCA + '</h1>' +
     '<div class="cab-der">' +
+    '<button class="chip-estado" data-acc="info"><span class="punto' + (navigator.onLine ? ' vivo' : ' gris') + '"></span>' +
+    (navigator.onLine ? 'Vivo' : 'Sin señal') + '</button>' +
     '<button class="chip-test' + (TEST ? ' on' : '') + '" ' +
     (TEST ? 'data-acc="tab" data-v="testeo"' : 'data-acc="test-entrar"') + '>🧪 Testeo</button>' +
     '<button class="btn-perfil" data-acc="ir-perfil">' + avatar(y) +
-    '<span class="nom' + claseTxt(y) + '">' + esc(nombreCorto(y ? y.nombre : '')) + '</span></button></div></div>' +
-    desplegableJugadores() +
-    '<header class="cab"><div class="tit"><h1 class="logo">' + MARCA + '</h1>' +
-    '<div class="sub">' + esc(E.torneo.sede) + ' · ' + E.canchas.length + ' canchas</div></div></header>' +
+    '<span class="nom">' + esc(nombreCorto(y ? y.nombre : '')) + '</span></button></div></div>' +
     '<nav class="tabs">' + TABS.map(function (t) {
       return '<button data-acc="tab" data-v="' + t[0] + '" aria-current="' + (UI.tab === t[0]) + '">' + t[1] + '</button>';
-    }).join('') + '</nav><main>' + vista + '</main>' +
+    }).join('') + '</nav></div></div>' +
+    desplegableJugadores() +
+    '<div class="wrap"><main>' + vista + '</main>' +
     '<footer class="pie">Ryder MDQ · ' + esc(E.torneo.edicion || '') +
     (E.sello ? '<small>actualizado ' + hora(E.sello) + '</small>' : '') + '</footer></div>';
 }
