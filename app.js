@@ -22,7 +22,7 @@ function guardarLS(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } c
 function guardarUI() { guardarLS(LS.ui, UI); }
 
 /* ============ utilidades ============ */
-var MARCA = '<span class="txt-azul">Ryder</span> <span class="txt-rojo">MDQ</span>';
+var MARCA = '<img class="escudo-logo" src="escudo.png" alt=""><span>Ryder <b>MDQ</b></span>';
 function esc(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
     return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
@@ -280,8 +280,8 @@ function vistaIngreso() {
   if (UI.ingreso === 'olvide') return vistaOlvide();
   var alta = UI.ingreso === 'alta';
   var h = '<div class="pantalla">' +
-    '<div class="marca-app"><div><h1 class="logo">' + MARCA + '</h1>' +
-    '<p>Mar del Plata · 3 canchas</p></div></div>';
+    '<div class="marca-app"><img class="escudo-grande" src="escudo.png" alt="Ryder MDQ">' +
+    '<p>Mar del Plata · 3 canchas</p></div>';
   if (!API) h += '<div class="error">La app todavía no está conectada a la planilla. ' +
     'Falta pegar la URL del Apps Script en <b>config.js</b>.</div>';
   h += bloqueInstalar();
