@@ -370,17 +370,18 @@ function diaFecha(d) { return 'Día ' + d + (FECHAS[d] ? ' · ' + FECHAS[d] : ''
 
 var CANCHAS_PR = [
   { id: 'jockey-roja', nombre: 'Jockey Club Roja',
-    par: [5,5,4,4,3,4,3,4,4, 5,3,4,4,3,4,4,5,4],
-    si:  [5,1,15,9,17,13,11,3,7, 4,14,8,2,16,18,12,6,10] },
+    par: [4,4,3,5,4,4,4,3,4, 5,5,3,4,4,5,4,3,4],
+    si:  [5,13,17,1,11,9,3,15,7, 6,4,18,8,12,2,10,16,14] },
   { id: 'jockey-azul', nombre: 'Jockey Club Azul',
     par: [5,5,4,4,3,4,3,4,4, 5,3,4,4,3,4,4,5,4],
     si:  [5,1,15,9,17,13,11,3,7, 4,14,8,2,16,18,12,6,10] },
   { id: 'newman',      nombre: 'Club Newman',
     par: [4,4,4,5,3,4,5,3,5, 4,4,4,5,3,4,3,5,4],
     si:  [15,11,9,7,17,1,5,13,3, 6,12,2,10,14,16,18,4,8] },
-  { id: 'lagos',       nombre: 'Lagos de Palermo',
-    par: [4,4,3,5,4,4,4,3,4, 5,5,3,4,4,5,4,3,4],
-    si:  [5,13,17,1,11,9,3,15,7, 6,4,18,8,12,2,10,16,14] }
+  // Lagos nunca llegó: la tarjeta que estaba acá era en realidad la de Roja.
+  // Queda un molde estándar hasta que aparezca la de verdad.
+  { id: 'lagos',       nombre: 'Lagos de Palermo', provisoria: true,
+    par: PAR72.slice(), si: SI_STD.slice() }
 ];
 function canchaPR(id) {
   for (var i = 0; i < CANCHAS_PR.length; i++) if (CANCHAS_PR[i].id === id) return CANCHAS_PR[i];
@@ -686,9 +687,13 @@ function prVistaArmado() {
       var tot = c.par.reduce(function (a, b) { return a + b; }, 0);
       return '<button class="pr-op" data-acc="pr-cancha" data-v="' + c.id + '" aria-pressed="' +
         (PR.cancha === c.id) + '">' + esc(c.nombre) +
-        '<i>par ' + tot + '</i></button>';
+        '<i>par ' + tot + (c.provisoria ? ' · provisoria' : '') + '</i></button>';
     }).join('') + '</div>' +
-    '<div class="candado"><span>⛳</span><span>Tarjeta oficial: par e índice de los 18 hoyos.</span></div>' +
+    (canchaPR(PR.cancha).provisoria
+      ? '<div class="aviso" style="margin:12px 14px"><span>⚠️</span><span>De esta cancha todavía no ' +
+        'tenemos la tarjeta: va un molde par 72 estándar. Se puede jugar, pero el reparto de golpes ' +
+        'no es el real.</span></div>'
+      : '<div class="candado"><span>⛳</span><span>Tarjeta oficial: par e índice de los 18 hoyos.</span></div>') +
     '</section>' +
 
     '<section class="card"><div class="sec-tit"><h2>Desempate del match</h2></div>' +
