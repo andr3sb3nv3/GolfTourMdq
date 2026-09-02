@@ -723,6 +723,8 @@ function prVistaJuego() {
   var c = canchaPR(PR.cancha), i = Math.min(Math.max(PR.hoyo, 0), 17);
   var par = Number(c.par[i]) || 4, si = Number(c.si[i]) || (i + 1);
   var r = prTodo(), netos = r.tabla[i];
+  var hechos = netos.filter(function (n) { return n != null; });
+  var mejorNeto = hechos.length ? Math.min.apply(null, hechos) : null;
 
   var h = '<div class="pila">' +
     '<section class="card"><div class="p-cab"><span class="eyebrow">' + esc(c.nombre) + '</span>' +
@@ -734,17 +736,19 @@ function prVistaJuego() {
 
     PR.jugadores.map(function (j, k) {
       var rec = prRecibe(k, i);
-      return '<div class="pr-fila">' +
+      var mejor = netos[k] != null && netos[k] === mejorNeto;
+      return '<div class="pr-fila' + (mejor ? ' mejor' : '') + '">' +
         '<div class="pr-quien"><b>' + esc(nombreCorto(j.nombre)) + '</b>' +
         '<i>HCP ' + esc(j.hcp) + (rec ? ' · +' + rec + ' acá' : '') + '</i></div>' +
         '<button class="rd chico" data-acc="pr-menos" data-v="' + k + '">−</button>' +
         '<span class="pr-golpes' + (j.hoyos[i] == null ? ' sin' : '') + '">' + (j.hoyos[i] == null ? '–' : j.hoyos[i]) + '</span>' +
         '<button class="rd chico" data-acc="pr-mas" data-v="' + k + '">+</button>' +
-        '<span class="pr-pts">' + (netos[k] != null ? 'neto ' + netos[k] : '') + '</span>' +
+        '<span class="pr-pts' + (mejor ? ' mejor' : '') + '">' +
+        (netos[k] != null ? 'neto ' + netos[k] : '') + '</span>' +
         '</div>';
     }).join('') +
 
-    prHoyoMatches(r, i) +
+    prHoyoDetalle(r, i) +
 
     '<div class="navh" style="margin:12px 14px"><button data-acc="pr-prev"' + (i === 0 ? ' disabled' : '') + '>← Hoyo ' + (i || 1) + '</button>' +
     '<button class="pri" data-acc="pr-next">' + (i === 17 ? 'Terminar' : 'Hoyo ' + (i + 2) + ' →') + '</button></div>' +
@@ -765,16 +769,30 @@ function prVistaJuego() {
   return h;
 }
 
-// Cómo quedó este hoyo en cada uno de los match posibles
-function prHoyoMatches(r, i) {
-  return '<div class="pr-hm">' + r.matches.map(function (m) {
+/* Cómo quedó ESTE hoyo: quién ganó cada match y cuántos puntos se llevó
+   cada uno en cada sindicato. */
+function prHoyoDetalle(r, i) {
+  var h = '<div class="pr-hm"><h4>Este hoyo · match</h4>' + r.matches.map(function (m) {
     var hh = m.hoyos[i];
     var res = hh.gana === null ? '–'
       : (hh.gana === '' ? 'se reparte'
       : prNombresLado(hh.gana === 'a' ? m.ladoA : m.ladoB) + (hh.por === 'segunda' ? ' · 2ª bola' : ''));
     return '<div><span>' + esc(prNombresLado(m.ladoA) + ' vs ' + prNombresLado(m.ladoB)) + '</span>' +
       '<b>' + esc(res) + '</b></div>';
-  }).join('') + '</div>';
+  }).join('');
+
+  if (r.sindicatos.length) {
+    h += '<h4>Este hoyo · sindicato</h4>' + r.sindicatos.map(function (s) {
+      var netos = s.trio.map(function (k) { return r.tabla[i][k]; });
+      var falta = netos.some(function (n) { return n == null; });
+      var pts = falta ? null : puntosSindicato(netos);
+      return '<div><span>' + esc(s.trio.map(function (k) {
+          return nombreCorto(PR.jugadores[k].nombre);
+        }).join(' · ')) + '</span>' +
+        '<b>' + (pts ? pts.join(' · ') : '–') + '</b></div>';
+    }).join('');
+  }
+  return h + '</div>';
 }
 
 function prResumen(r) {

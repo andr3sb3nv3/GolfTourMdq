@@ -391,3 +391,9 @@ input[type="number"]{font-family:"IBM Plex Mono",monospace}
 .pr-hm div{display:flex;justify-content:space-between;gap:12px;font-size:12px;padding:3px 0}
 .pr-hm span{color:var(--tenue);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pr-hm b{color:var(--navy);white-space:nowrap;font-weight:700}
+
+.pr-hm h4{margin:10px 0 4px;font-family:Archivo,system-ui,sans-serif;font-size:10px;
+  letter-spacing:.13em;text-transform:uppercase;color:var(--tenue);font-weight:800}
+.pr-hm h4:first-child{margin-top:0}
+.pr-fila.mejor{box-shadow:inset 3px 0 0 var(--oro)}
+.pr-pts.mejor{color:var(--navy);font-weight:800}
