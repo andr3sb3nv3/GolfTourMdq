@@ -2,7 +2,9 @@
  * GOLF TOUR MDQ — backend
  * Se pega en la planilla "Golf Tour Mdq — Base de datos":
  *   Extensiones → Apps Script → pegar esto → Guardar
- *   Ejecutar la función  configurar()  una sola vez (autoriza los permisos)
+ *   Ejecutar  configurar()  UNA sola vez, al estrenar la planilla. Después
+ *   nunca más: borra todo. Para actualizar el código alcanza con pegar esto
+ *   y correr las funciones  migrar…()  , que no borran nada.
  *   Implementar → Nueva implementación → Aplicación web
  *      Ejecutar como: Yo    ·    Quién tiene acceso: Cualquier usuario
  *   Copiar la URL que termina en /exec y pasársela a la app.
@@ -30,9 +32,39 @@ for (var i = 1; i <= 18; i++) HOJAS.TarjetasEquipo.push('h' + i);
 HOJAS.TarjetasEquipo.push('actualizado');
 
 /* ============================================================
-   CONFIGURACIÓN INICIAL — correr una sola vez
+   REVISAR — qué hay cargado hoy en la planilla.
+   Está primera a propósito: el editor de Apps Script deja seleccionada la
+   primera función del archivo, así que es la que se ejecuta si alguien le da
+   a "Ejecutar" sin mirar el desplegable. Esta no toca nada.
+   ============================================================ */
+function revisar() {
+  var ss = SpreadsheetApp.openById(SS_ID), salida = [];
+  ss.getSheets().forEach(function (h) {
+    salida.push(h.getName() + ': ' + Math.max(0, h.getLastRow() - 1) + ' fila(s)');
+  });
+  var texto = salida.join('\n');
+  Logger.log(texto);
+  return texto;
+}
+
+/* ============================================================
+   CONFIGURACIÓN INICIAL — deja TODAS las hojas en cero.
+   Sirve una sola vez, al estrenar la planilla. Después no se toca nunca más:
+   borra jugadores, tarjetas y partidas. Por eso ahora se planta sola si
+   encuentra datos cargados.
    ============================================================ */
 function configurar() {
+  var jug = SpreadsheetApp.openById(SS_ID).getSheetByName('Jugadores');
+  if (jug && jug.getLastRow() > 1) {
+    throw new Error('NO se hizo nada. Hay ' + (jug.getLastRow() - 1) + ' jugador(es) cargados y ' +
+      'configurar() borra TODA la planilla. Para las actualizaciones de código no hace falta ' +
+      'correr nada de esto: alcanza con las funciones migrar…(), que no borran. ' +
+      'Si de verdad querés arrancar de cero, corré borrarTodoYEmpezarDeNuevo().');
+  }
+  borrarTodoYEmpezarDeNuevo();
+}
+
+function borrarTodoYEmpezarDeNuevo() {
   var ss = SpreadsheetApp.openById(SS_ID);
 
   Object.keys(HOJAS).forEach(function (nombre) {

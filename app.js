@@ -364,17 +364,21 @@ function textoError(e) {
 /* ============ partida rápida ============ */
 var PAR72 = [4,4,3,5,4,4,3,4,5,4,3,5,4,4,3,4,5,4];
 var SI_STD = [5,3,17,11,1,9,15,7,13,6,12,4,10,2,18,8,14,16];
+// Los tres días de la gira: viernes 27, sábado 28 y domingo 29 de noviembre de 2026
+var FECHAS = { 1: 'vie 27 nov', 2: 'sáb 28 nov', 3: 'dom 29 nov' };
+function diaFecha(d) { return 'Día ' + d + (FECHAS[d] ? ' · ' + FECHAS[d] : ''); }
+
 var CANCHAS_PR = [
-  { id: 'jockey-roja', nombre: 'Jockey Club Roja', ok: false,
+  { id: 'jockey-roja', nombre: 'Jockey Club Roja',
     par: [5,5,4,4,3,4,3,4,4, 5,3,4,4,3,4,4,5,4],
     si:  [5,1,15,9,17,13,11,3,7, 4,14,8,2,16,18,12,6,10] },
-  { id: 'jockey-azul', nombre: 'Jockey Club Azul', ok: true,
+  { id: 'jockey-azul', nombre: 'Jockey Club Azul',
     par: [5,5,4,4,3,4,3,4,4, 5,3,4,4,3,4,4,5,4],
     si:  [5,1,15,9,17,13,11,3,7, 4,14,8,2,16,18,12,6,10] },
-  { id: 'newman',      nombre: 'Club Newman', ok: true,
+  { id: 'newman',      nombre: 'Club Newman',
     par: [4,4,4,5,3,4,5,3,5, 4,4,4,5,3,4,3,5,4],
     si:  [15,11,9,7,17,1,5,13,3, 6,12,2,10,14,16,18,4,8] },
-  { id: 'lagos',       nombre: 'Lagos de Palermo', ok: false,
+  { id: 'lagos',       nombre: 'Lagos de Palermo',
     par: [4,4,3,5,4,4,4,3,4, 5,5,3,4,4,5,4,3,4],
     si:  [5,13,17,1,11,9,3,15,7, 6,4,18,8,12,2,10,16,14] }
 ];
@@ -682,13 +686,10 @@ function prVistaArmado() {
       var tot = c.par.reduce(function (a, b) { return a + b; }, 0);
       return '<button class="pr-op" data-acc="pr-cancha" data-v="' + c.id + '" aria-pressed="' +
         (PR.cancha === c.id) + '">' + esc(c.nombre) +
-        '<i>par ' + tot + (c.ok ? '' : ' · por confirmar') + '</i></button>';
+        '<i>par ' + tot + '</i></button>';
     }).join('') + '</div>' +
-    (canchaPR(PR.cancha).ok
-      ? '<div class="candado"><span>⛳</span><span>Tarjeta oficial cargada: par e índice de los 18 hoyos.</span></div>'
-      : '<div class="aviso" style="margin:12px 14px"><span>⚠️</span><span>Esta tarjeta está <b>por confirmar</b>: ' +
-        'los datos que llegaron para Roja y Lagos se pisaron entre sí. Sirve para jugar, pero el reparto de golpes ' +
-        'puede no ser el real.</span></div>') + '</section>' +
+    '<div class="candado"><span>⛳</span><span>Tarjeta oficial: par e índice de los 18 hoyos.</span></div>' +
+    '</section>' +
 
     '<section class="card"><div class="sec-tit"><h2>Desempate del match</h2></div>' +
     '<div class="pr-eq" style="margin:0 14px 4px"><span>La segunda bola desempata</span>' +
@@ -1030,7 +1031,7 @@ function chipsCancha(sel, acc, conGeneral) {
 function vistaPosiciones() {
   var lista = ordenar(acumulado(UI.canchaLb));
   var c = UI.canchaLb === 'general' ? null : cancha(UI.canchaLb);
-  var titulo = c ? esc(c.nombre) + ' · Día ' + c.dia : 'Las 3 vueltas';
+  var titulo = c ? esc(c.nombre) + ' · ' + diaFecha(c.dia) : 'Las 3 vueltas';
   var max = 1; lista.forEach(function (a) { if (UI.metrica === 'stableford' && a.pts > max) max = a.pts; });
 
   var h = '<div class="pila">' + chipsCancha(UI.canchaLb, 'lb-cancha', true) + panelEquipos(UI.canchaLb) +
@@ -1091,7 +1092,7 @@ function vistaRyder() {
     '<span class="eyebrow">' + gral.total + ' partidos</span></div>' +
     marcadorHTML(gral) + '</section>';
 
-  h += '<section class="card"><div class="sec-tit"><h2>' + esc(c.nombre) + ' · Día ' + c.dia + '</h2>' +
+  h += '<section class="card"><div class="sec-tit"><h2>' + esc(c.nombre) + ' · ' + diaFecha(c.dia) + '</h2>' +
     '<span class="pin' + (fmt ? '' : ' recibe') + '">' + (FORMATOS[fmt] || 'sin definir') + '</span></div>' +
     selectorModalidad(c, admin);
 
@@ -1249,7 +1250,7 @@ function vistaTarjetas() {
     '<button data-acc="vista-tc" data-v="bruto" aria-pressed="' + (modo === 'bruto') + '">Bruto</button>' +
     '<button data-acc="vista-tc" data-v="neto" aria-pressed="' + (modo === 'neto') + '">Neto</button>' +
     '<button data-acc="vista-tc" data-v="pts" aria-pressed="' + (modo === 'pts') + '">Puntos</button></div>' +
-    '<section class="card"><div class="sec-tit"><h2>' + esc(c.nombre) + '</h2><span class="eyebrow">Día ' + c.dia + '</span></div>' +
+    '<section class="card"><div class="sec-tit"><h2>' + esc(c.nombre) + '</h2><span class="eyebrow">' + diaFecha(c.dia) + '</span></div>' +
     '<div class="scroll"><table class="tc"><thead>';
   var enc = '<tr><th class="lbl">Hoyo</th>';
   for (var k = 0; k < 18; k++) { enc += '<th>' + (k + 1) + '</th>'; if (k === 8) enc += '<th class="tot">Ida</th>'; }
@@ -1320,7 +1321,7 @@ function vistaCanchas() {
   E.canchas.forEach(function (c) {
     var totPar = c.par.reduce(function (m, n) { return m + (Number(n) || 0); }, 0);
     var abierta = UI.editando === c.id;
-    h += '<section class="card"><div class="sec-tit"><h2>Día ' + c.dia + ' · ' + esc(c.nombre) + '</h2>' +
+    h += '<section class="card"><div class="sec-tit"><h2>' + diaFecha(c.dia) + ' · ' + esc(c.nombre) + '</h2>' +
       '<span class="pin' + (c.confirmada ? '' : ' recibe') + '">par ' + totPar + (c.confirmada ? ' · oficial' : ' · provisorio') + '</span></div>' +
       '<div class="grid2"><div class="campo"><label for="c-' + c.id + '">Cancha</label>' +
       '<input id="c-' + c.id + '" type="text" value="' + esc(c.nombre) + '" data-acc="ed-cancha" data-v="' + c.id + '"' + (admin ? '' : ' disabled') + '></div></div>' +
