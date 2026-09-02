@@ -646,6 +646,24 @@ function vistaRapida() {
   return PR.id ? prVistaJuego() : prVistaArmado();
 }
 
+/* Nombre y handicap de cada uno. Se puede tocar antes de empezar y también
+   durante la vuelta: el nombre nuevo se usa en todos lados y se manda a la planilla. */
+function prEditorJugadores(armando) {
+  var n = PR.jugadores.length;
+  return PR.jugadores.map(function (j, i) {
+    return '<div class="pr-jug">' +
+      '<div class="campo"><label for="prn' + i + '">Jugador ' + (i + 1) + '</label>' +
+      '<input id="prn' + i + '" type="text" autocomplete="off" value="' + esc(j.nombre) +
+      '" data-acc="pr-nombre" data-v="' + i + '"></div>' +
+      '<div class="campo"><label for="prh' + i + '">HCP</label>' +
+      '<input id="prh' + i + '" type="number" step="0.1" value="' + esc(j.hcp) +
+      '" data-acc="pr-hcp" data-v="' + i + '"></div>' +
+      (armando && n > 2 ? '<button class="btn fin peli" data-acc="pr-quitar" data-v="' + i + '" aria-label="Quitar">✕</button>'
+                        : '<span></span>') +
+      '</div>';
+  }).join('');
+}
+
 function prVistaArmado() {
   var n = PR.jugadores.length;
   var h = '<div class="pila">' +
@@ -654,15 +672,7 @@ function prVistaArmado() {
 
     '<section class="card"><div class="sec-tit"><h2>Jugadores</h2>' +
     '<span class="eyebrow">' + n + ' de 4</span></div>' +
-    PR.jugadores.map(function (j, i) {
-      return '<div class="pr-jug">' +
-        '<div class="campo"><label for="prn' + i + '">Jugador ' + (i + 1) + '</label>' +
-        '<input id="prn' + i + '" type="text" value="' + esc(j.nombre) + '" data-acc="pr-nombre" data-v="' + i + '"></div>' +
-        '<div class="campo"><label for="prh' + i + '">HCP</label>' +
-        '<input id="prh' + i + '" type="number" step="0.1" value="' + esc(j.hcp) + '" data-acc="pr-hcp" data-v="' + i + '"></div>' +
-        (n > 2 ? '<button class="btn fin peli" data-acc="pr-quitar" data-v="' + i + '" aria-label="Quitar">✕</button>' : '<span></span>') +
-        '</div>';
-    }).join('') +
+    prEditorJugadores(true) +
     (n < 4 ? '<div class="acc"><button class="btn" data-acc="pr-agregar">+ Agregar jugador</button></div>' : '') +
     prQueSale() + '</section>' +
 
@@ -744,6 +754,10 @@ function prVistaJuego() {
     }).join('') + '</div></section>' +
 
     prResumen(r) +
+    '<section class="card"><div class="sec-tit"><h2>Jugadores</h2>' +
+    '<span class="eyebrow">nombre y hcp</span></div>' + prEditorJugadores(false) +
+    '<div class="candado"><span>✏️</span><span>Cambiá un nombre y se actualiza en todos los match, ' +
+    'en los sindicatos y en la planilla. El handicap también: se recalculan los hoyos ya cargados.</span></div></section>' +
     '<div class="acc"><button class="btn" data-acc="pr-guardar">Guardar en la planilla</button>' +
     '<button class="btn fin peli" data-acc="pr-cerrar">Terminar y salir</button></div>' +
     (PR.guardado ? '<div class="candado solo"><span>✅</span><span>Guardada a las ' + esc(PR.guardado) + '.</span></div>' : '') +
@@ -1510,8 +1524,14 @@ document.addEventListener('click', function (ev) {
 
 document.addEventListener('change', function (ev) {
   var el = ev.target.closest('[data-acc]');
-  if (!el || !E) return;
-  var a = el.getAttribute('data-acc'), v = el.getAttribute('data-v'), i = Number(el.getAttribute('data-i'));
+  if (!el) return;
+  var acc = el.getAttribute('data-acc');
+  if (acc === 'pr-nombre' || acc === 'pr-hcp') {
+    cambioRapida(acc, Number(el.getAttribute('data-v')), el.value);
+    return;
+  }
+  if (!E) return;
+  var a = acc, v = el.getAttribute('data-v'), i = Number(el.getAttribute('data-i'));
   if (a === 'ed-foto') { if (el.files && el.files[0]) subirFoto(el.files[0]); el.value = ''; return; }
   else if (a === 'ed-perfil') { var p = { accion: 'perfil' }; p[v] = el.value.trim(); accionar(p); }
   else if (a === 'ed-pass') { if (el.value.length >= 4) accionar({ accion: 'perfil', password: el.value }).then(function () { el.value = ''; alert('Contraseña cambiada.'); }); }
@@ -1607,6 +1627,19 @@ function verPedidos(boton) {
     PEDIDOS = (res && res.ok) ? res.pedidos : [];
     pintar();
   }, function () { PEDIDOS = []; pintar(); });
+}
+
+/* Un nombre o un handicap que cambia se propaga solo: todo se recalcula a
+   partir de PR.jugadores, así que basta con guardar y repintar. */
+function cambioRapida(a, i, valor) {
+  if (!PR || !PR.jugadores[i]) return;
+  if (a === 'pr-nombre') {
+    PR.jugadores[i].nombre = String(valor).trim() || ('Jugador ' + (i + 1));
+  } else {
+    PR.jugadores[i].hcp = Math.max(0, Math.min(54, Number(valor) || 0));
+  }
+  guardarPR(); pintar();
+  if (PR.id) prGuardarRemoto(false);        // que la planilla quede con el dato nuevo
 }
 
 function accionRapida(a, v, b) {
