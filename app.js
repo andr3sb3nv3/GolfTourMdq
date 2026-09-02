@@ -365,10 +365,18 @@ function textoError(e) {
 var PAR72 = [4,4,3,5,4,4,3,4,5,4,3,5,4,4,3,4,5,4];
 var SI_STD = [5,3,17,11,1,9,15,7,13,6,12,4,10,2,18,8,14,16];
 var CANCHAS_PR = [
-  { id: 'jockey-roja', nombre: 'Jockey Club Roja', par: PAR72, si: SI_STD },
-  { id: 'jockey-azul', nombre: 'Jockey Club Azul', par: PAR72, si: SI_STD },
-  { id: 'newman',      nombre: 'Club Newman',      par: PAR72, si: SI_STD },
-  { id: 'lagos',       nombre: 'Lagos de Palermo', par: PAR72, si: SI_STD }
+  { id: 'jockey-roja', nombre: 'Jockey Club Roja', ok: false,
+    par: [5,5,4,4,3,4,3,4,4, 5,3,4,4,3,4,4,5,4],
+    si:  [5,1,15,9,17,13,11,3,7, 4,14,8,2,16,18,12,6,10] },
+  { id: 'jockey-azul', nombre: 'Jockey Club Azul', ok: true,
+    par: [5,5,4,4,3,4,3,4,4, 5,3,4,4,3,4,4,5,4],
+    si:  [5,1,15,9,17,13,11,3,7, 4,14,8,2,16,18,12,6,10] },
+  { id: 'newman',      nombre: 'Club Newman', ok: true,
+    par: [4,4,4,5,3,4,5,3,5, 4,4,4,5,3,4,3,5,4],
+    si:  [15,11,9,7,17,1,5,13,3, 6,12,2,10,14,16,18,4,8] },
+  { id: 'lagos',       nombre: 'Lagos de Palermo', ok: false,
+    par: [4,4,3,5,4,4,4,3,4, 5,5,3,4,4,5,4,3,4],
+    si:  [5,13,17,1,11,9,3,15,7, 6,4,18,8,12,2,10,16,14] }
 ];
 function canchaPR(id) {
   for (var i = 0; i < CANCHAS_PR.length; i++) if (CANCHAS_PR[i].id === id) return CANCHAS_PR[i];
@@ -618,11 +626,16 @@ function prVistaArmado() {
     '<section class="card"><div class="sec-tit"><h2>Cancha</h2></div>' +
     '<div class="grid2" style="grid-template-columns:1fr 1fr;gap:8px">' +
     CANCHAS_PR.map(function (c) {
+      var tot = c.par.reduce(function (a, b) { return a + b; }, 0);
       return '<button class="pr-op" data-acc="pr-cancha" data-v="' + c.id + '" aria-pressed="' +
-        (PR.cancha === c.id) + '">' + esc(c.nombre) + '</button>';
+        (PR.cancha === c.id) + '">' + esc(c.nombre) +
+        '<i>par ' + tot + (c.ok ? '' : ' · por confirmar') + '</i></button>';
     }).join('') + '</div>' +
-    '<div class="candado"><span>⛳</span><span>Las cuatro arrancan con par 72 estándar. Si tenés la tarjeta real, ' +
-    'se puede cargar hoyo por hoyo como las del torneo.</span></div></section>' +
+    (canchaPR(PR.cancha).ok
+      ? '<div class="candado"><span>⛳</span><span>Tarjeta oficial cargada: par e índice de los 18 hoyos.</span></div>'
+      : '<div class="aviso" style="margin:12px 14px"><span>⚠️</span><span>Esta tarjeta está <b>por confirmar</b>: ' +
+        'los datos que llegaron para Roja y Lagos se pisaron entre sí. Sirve para jugar, pero el reparto de golpes ' +
+        'puede no ser el real.</span></div>') + '</section>' +
 
     '<section class="card"><div class="sec-tit"><h2>Modalidad</h2></div>' +
     '<div class="grid2" style="grid-template-columns:1fr 1fr;gap:8px">' +
