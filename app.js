@@ -368,6 +368,34 @@ var SI_STD = [5,3,17,11,1,9,15,7,13,6,12,4,10,2,18,8,14,16];
 var FECHAS = { 1: 'vie 27 nov', 2: 'sáb 28 nov', 3: 'dom 29 nov' };
 function diaFecha(d) { return 'Día ' + d + (FECHAS[d] ? ' · ' + FECHAS[d] : ''); }
 
+/* Tarjetas oficiales de las canchas del torneo. El organizador las carga de un
+   toque desde la pestaña Canchas; en Acantilados se juegan tres nueves (Merlo,
+   Medio y Laguna) combinados de a dos, así que hay una tarjeta por combinación. */
+var TARJETAS_OFICIALES = {
+  acantilados: [
+    { etiqueta: 'Azul', detalle: 'Merlo + Medio', nombre: 'Acantilados Golf · Azul',
+      par: [4,4,5,4,3,5,3,4,4, 5,3,4,4,4,5,3,4,4],
+      si:  [3,9,7,1,17,5,15,13,11, 12,16,10,14,4,2,18,8,6] },
+    { etiqueta: 'Colorada', detalle: 'Merlo + Laguna', nombre: 'Acantilados Golf · Colorada',
+      par: [4,4,5,4,3,5,3,4,4, 4,5,4,4,5,3,4,3,4],
+      si:  [3,9,7,1,17,5,15,13,11, 4,6,2,14,8,16,12,18,10] },
+    { etiqueta: 'Amarilla', detalle: 'Medio + Laguna', nombre: 'Acantilados Golf · Amarilla',
+      par: [5,3,4,4,4,5,3,4,4, 4,5,4,4,5,3,4,3,4],
+      si:  [11,15,9,13,3,1,17,7,5, 4,6,2,14,8,16,12,18,10] }
+  ],
+  miramar: [
+    { etiqueta: 'Tarjeta oficial', detalle: 'par 72', nombre: 'Miramar Links',
+      par: [4,3,4,4,5,5,3,4,4, 5,4,3,4,4,5,3,4,4],
+      si:  [1,13,17,11,7,9,15,3,5, 18,10,14,12,6,2,16,8,4] }
+  ]
+};
+function mismaTarjeta(c, t) {
+  for (var i = 0; i < 18; i++) {
+    if (Number(c.par[i]) !== t.par[i] || Number(c.si[i]) !== t.si[i]) return false;
+  }
+  return true;
+}
+
 var CANCHAS_PR = [
   { id: 'jockey-roja', nombre: 'Jockey Club Roja',
     par: [4,4,3,5,4,4,4,3,4, 5,5,3,4,4,5,4,3,4],
@@ -378,10 +406,9 @@ var CANCHAS_PR = [
   { id: 'newman',      nombre: 'Club Newman',
     par: [4,4,4,5,3,4,5,3,5, 4,4,4,5,3,4,3,5,4],
     si:  [15,11,9,7,17,1,5,13,3, 6,12,2,10,14,16,18,4,8] },
-  // Lagos nunca llegó: la tarjeta que estaba acá era en realidad la de Roja.
-  // Queda un molde estándar hasta que aparezca la de verdad.
-  { id: 'lagos',       nombre: 'Lagos de Palermo', provisoria: true,
-    par: PAR72.slice(), si: SI_STD.slice() }
+  { id: 'lagos',       nombre: 'Lagos de Palermo',
+    par: [4,4,4,4,3,5,3,4,4, 3,5,4,3,5,4,5,4,4],
+    si:  [9,7,13,3,11,1,17,15,5, 16,14,6,18,2,8,12,4,10] }
 ];
 function canchaPR(id) {
   for (var i = 0; i < CANCHAS_PR.length; i++) if (CANCHAS_PR[i].id === id) return CANCHAS_PR[i];
@@ -687,13 +714,9 @@ function prVistaArmado() {
       var tot = c.par.reduce(function (a, b) { return a + b; }, 0);
       return '<button class="pr-op" data-acc="pr-cancha" data-v="' + c.id + '" aria-pressed="' +
         (PR.cancha === c.id) + '">' + esc(c.nombre) +
-        '<i>par ' + tot + (c.provisoria ? ' · provisoria' : '') + '</i></button>';
+        '<i>par ' + tot + '</i></button>';
     }).join('') + '</div>' +
-    (canchaPR(PR.cancha).provisoria
-      ? '<div class="aviso" style="margin:12px 14px"><span>⚠️</span><span>De esta cancha todavía no ' +
-        'tenemos la tarjeta: va un molde par 72 estándar. Se puede jugar, pero el reparto de golpes ' +
-        'no es el real.</span></div>'
-      : '<div class="candado"><span>⛳</span><span>Tarjeta oficial: par e índice de los 18 hoyos.</span></div>') +
+    '<div class="candado"><span>⛳</span><span>Tarjeta oficial: par e índice de los 18 hoyos.</span></div>' +
     '</section>' +
 
     '<section class="card"><div class="sec-tit"><h2>Desempate del match</h2></div>' +
@@ -1332,6 +1355,19 @@ function vistaCanchas() {
       '<input id="c-' + c.id + '" type="text" value="' + esc(c.nombre) + '" data-acc="ed-cancha" data-v="' + c.id + '"' + (admin ? '' : ' disabled') + '></div></div>' +
       '<div class="acc" style="padding-top:0"><button class="btn fin" data-acc="abrir-cancha" data-v="' + c.id + '">' +
       (abierta ? '▲ Ocultar los 18 hoyos' : '▼ Ver y editar los 18 hoyos') + '</button></div>';
+    var oficiales = TARJETAS_OFICIALES[c.id];
+    if (admin && oficiales) {
+      h += '<div class="grid2" style="grid-template-columns:repeat(' + oficiales.length + ',1fr);gap:8px">' +
+        oficiales.map(function (t, k) {
+          return '<button class="pr-op" data-acc="preset" data-v="' + c.id + '" data-i="' + k +
+            '" aria-pressed="' + mismaTarjeta(c, t) + '">' + esc(t.etiqueta) +
+            '<i>' + esc(t.detalle) + '</i></button>';
+        }).join('') + '</div>' +
+        '<div class="candado"><span>⛳</span><span>' + (oficiales.length > 1
+          ? 'Acantilados tiene tres nueves y se juegan combinados de a dos. Elegí la combinación del día: ' +
+            'se cargan los 18 pares e índices de la tarjeta del club.'
+          : 'Carga los 18 pares e índices de la tarjeta del club.') + '</span></div>';
+    }
     if (abierta) {
       h += '<div class="hoyo-ed" style="padding-bottom:8px"><span></span><span class="eyebrow">Par</span><span class="eyebrow">Hcp hoyo</span></div>';
       for (var i = 0; i < 18; i++) {
@@ -1528,6 +1564,13 @@ document.addEventListener('click', function (ev) {
   else if (a === 'hoyo-next') { if (UI.hoyo === 17) { UI.tab = 'posiciones'; UI.canchaLb = canchaActual().id; } else UI.hoyo++; }
   else if (a === 'mas' || a === 'menos' || a === 'set' || a === 'borrar') { anotarGolpe(a, v); return; }
   else if (a === 'abrir-cancha') { UI.editando = (UI.editando === v ? null : v); }
+  else if (a === 'preset') {
+    var lista = TARJETAS_OFICIALES[v], t = lista && lista[Number(b.getAttribute('data-i'))];
+    if (!t) return;
+    if (!confirm('¿Cargar la tarjeta ' + t.etiqueta + '? Reemplaza el par y el índice de los 18 hoyos.')) return;
+    accionar({ accion: 'cancha', id: v, nombre: t.nombre, par: t.par.slice(), si: t.si.slice(), confirmada: true });
+    return;
+  }
   else if (a === 'confirmar') { var c = cancha(v); accionar({ accion: 'cancha', id: v, confirmada: !c.confirmada }); return; }
   else if (a === 'formato') {
     var nuevo = b.getAttribute('data-i'), cc = cancha(v);
