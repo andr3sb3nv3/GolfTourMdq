@@ -19,6 +19,7 @@ var HOJAS = {
   Tarjetas:  ['cancha', 'matricula'],                 // + h1..h18 + actualizado
   Partidos:  ['id', 'cancha', 'formato', 'usa1', 'usa2', 'eur1', 'eur2'],
   TarjetasEquipo: ['partido', 'lado'],               // + h1..h18 + actualizado
+  Partidas:  ['id', 'fecha', 'cancha', 'modalidad', 'jugadores', 'creador', 'hoja', 'resultado'],
   Log:       ['fecha', 'matricula', 'accion', 'detalle']
 };
 for (var i = 1; i <= 18; i++) HOJAS.Canchas.push('par' + i);
@@ -117,6 +118,21 @@ function migrarReset() {
   return 'Listo: ' + faltan.join(' y ') + '.';
 }
 
+/**
+ * MIGRACIÓN 4 — índice de partidas rápidas. Cada partida además crea su
+ * propia hoja, así queda el historial de todas las vueltas sueltas.
+ */
+function migrarRapidas() {
+  var ss = SpreadsheetApp.openById(SS_ID);
+  if (ss.getSheetByName('Partidas')) return 'Ya estaba, no se tocó nada.';
+  var h = ss.insertSheet('Partidas');
+  h.getRange(1, 1, 1, HOJAS.Partidas.length).setValues([HOJAS.Partidas])
+    .setFontWeight('bold').setBackground('#EDF0E8');
+  h.setFrozenRows(1);
+  limpiarCache();
+  return 'Listo: hoja Partidas creada.';
+}
+
 function migrarFormato() {
   var hoja = SpreadsheetApp.openById(SS_ID).getSheetByName('Canchas');
   var cab = hoja.getRange(1, 1, 1, hoja.getLastColumn()).getValues()[0];
@@ -159,6 +175,10 @@ function despachar(p) {
       case 'resetPedir':   return resetPedir(p);
       case 'resetAplicar': return resetAplicar(p);
       case 'resetPendientes': return resetPendientes(p);
+      case 'prCrear':   return prCrear(p);
+      case 'prGuardar': return prGuardar(p);
+      case 'prLista':   return prLista(p);
+      case 'prLeer':    return prLeer(p);
       case 'borrar':    return borrarTarjetas(p);
       default:          return { ok: false, error: 'accion_desconocida' };
     }
@@ -566,6 +586,107 @@ function guardarGolpesEquipo(p) {
     limpiarCache();
     return { ok: true, estado: estadoCrudo() };
   } finally { lock.releaseLock(); }
+}
+
+/* ============================================================
+   PARTIDAS RÁPIDAS
+   Cada partida vive en su propia hoja y queda listada en "Partidas".
+   ============================================================ */
+function prHojaNombre(id) { return 'PR ' + id; }
+
+function prCrear(p) {
+  var j = exigir(p.token);
+  var ss = SpreadsheetApp.openById(SS_ID);
+  var indice = ss.getSheetByName('Partidas');
+  if (!indice) return { ok: false, error: 'falta_migrar' };
+
+  var jug = p.jugadores || [];
+  if (jug.length < 2 || jug.length > 4) return { ok: false, error: 'jugadores_invalidos' };
+
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var id = Utilities.formatDate(new Date(), 'GMT-3', 'yyyyMMdd-HHmmss');
+    var hoja = ss.insertSheet(prHojaNombre(id));
+
+    hoja.getRange(1, 1, 4, 2).setValues([
+      ['Partida rápida', id],
+      ['Fecha', new Date()],
+      ['Cancha', String(p.cancha || '')],
+      ['Modalidad', String(p.modalidad || '')]
+    ]);
+    hoja.getRange(1, 1, 4, 1).setFontWeight('bold');
+
+    var cab = ['Jugador', 'HCP', 'Equipo'];
+    for (var i = 1; i <= 18; i++) cab.push('H' + i);
+    cab.push('Bruto', 'Neto', 'Resultado');
+    hoja.getRange(6, 1, 1, cab.length).setValues([cab])
+      .setFontWeight('bold').setBackground('#EDF0E8');
+    hoja.setFrozenRows(6);
+
+    var filas = jug.map(function (x) {
+      var f = [String(x.nombre || ''), Number(x.hcp) || 0, String(x.equipo || '')];
+      for (var k = 0; k < 18; k++) f.push('');
+      return f.concat(['', '', '']);
+    });
+    hoja.getRange(7, 1, filas.length, filas[0].length).setValues(filas);
+
+    indice.appendRow([id, new Date(), String(p.cancha || ''), String(p.modalidad || ''),
+      jug.map(function (x) { return x.nombre; }).join(', '), j.matricula, prHojaNombre(id), '']);
+
+    anotar(j.matricula, 'partidaRapida', id + ' · ' + p.cancha + ' · ' + p.modalidad);
+    return { ok: true, id: id };
+  } finally { lock.releaseLock(); }
+}
+
+function prGuardar(p) {
+  exigir(p.token);
+  var ss = SpreadsheetApp.openById(SS_ID);
+  var hoja = ss.getSheetByName(prHojaNombre(p.id));
+  if (!hoja) return { ok: false, error: 'partida_inexistente' };
+
+  var jug = p.jugadores || [];
+  var filas = jug.map(function (x) {
+    var f = [String(x.nombre || ''), Number(x.hcp) || 0, String(x.equipo || '')];
+    for (var k = 0; k < 18; k++) {
+      var v = (x.hoyos || [])[k];
+      f.push(v === null || v === undefined || v === '' ? '' : Number(v));
+    }
+    return f.concat([x.bruto || '', x.neto || '', String(x.resultado || '')]);
+  });
+  if (filas.length) hoja.getRange(7, 1, filas.length, filas[0].length).setValues(filas);
+
+  if (p.resultado) {
+    var indice = ss.getSheetByName('Partidas');
+    var fila = buscarFila(indice, function (v) { return String(v[0]) === String(p.id); });
+    if (fila) indice.getRange(fila, 8).setValue(String(p.resultado));
+  }
+  return { ok: true };
+}
+
+function prLista(p) {
+  exigir(p.token);
+  return { ok: true, partidas: leer('Partidas').map(function (x) {
+    return { id: String(x.id), fecha: x.fecha, cancha: x.cancha, modalidad: x.modalidad,
+             jugadores: x.jugadores, resultado: x.resultado };
+  }).reverse().slice(0, 40) };
+}
+
+function prLeer(p) {
+  exigir(p.token);
+  var hoja = SpreadsheetApp.openById(SS_ID).getSheetByName(prHojaNombre(p.id));
+  if (!hoja) return { ok: false, error: 'partida_inexistente' };
+  var enc = hoja.getRange(1, 1, 4, 2).getValues();
+  var ult = hoja.getLastRow();
+  var cuerpo = ult >= 7 ? hoja.getRange(7, 1, ult - 6, 24).getValues() : [];
+  return { ok: true, partida: {
+    id: String(enc[0][1]), cancha: String(enc[2][1]), modalidad: String(enc[3][1]),
+    jugadores: cuerpo.filter(function (f) { return f[0]; }).map(function (f) {
+      var hoyos = [];
+      for (var i = 3; i < 21; i++) hoyos.push(f[i] === '' ? null : Number(f[i]));
+      return { nombre: f[0], hcp: Number(f[1]) || 0, equipo: f[2], hoyos: hoyos };
+    })
+  } };
 }
 
 /* ============================================================
