@@ -386,25 +386,36 @@ var PR = leerLS('gtm-pr', null);     // partida en curso
 function guardarPR() { guardarLS('gtm-pr', PR); }
 
 function prNueva() {
-  return { id: null, cancha: 'jockey-roja', modalidad: 'match', hoyo: 0, guardado: null,
+  return { id: null, cancha: 'jockey-roja', hoyo: 0, guardado: null, segunda: true,
     jugadores: [{ nombre: 'Jugador 1', hcp: 18, hoyos: nulos() },
-                { nombre: 'Jugador 2', hcp: 18, hoyos: nulos() }],
-    equipos: [0, 1, 0, 1],           // a qué bando va cada jugador en match de a dos
-    afuera: 3 };                     // en sindicato con 4, quién no juega
+                { nombre: 'Jugador 2', hcp: 18, hoyos: nulos() }] };
 }
 function nulos() { return [null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null]; }
 
-/* --- cálculo --- */
-// Golpes netos de cada jugador en un hoyo, con el mejor handicap del grupo como scratch
+/* --- cálculo ---
+   Los golpes se reparten UNA sola vez para todo el grupo: el de menor handicap
+   juega scratch y los demás reciben la diferencia en los hoyos de menor índice.
+   Sobre esos netos salen todas las alternativas a la vez, así todas se comparan
+   con la misma vara. */
+function prBase() {
+  return Math.min.apply(null, PR.jugadores.map(function (j) { return Math.round(Number(j.hcp) || 0); }));
+}
+function prRecibe(k, hoyo) {                 // golpes que recibe un jugador en un hoyo
+  var c = canchaPR(PR.cancha);
+  return golpesDif(Math.round(Number(PR.jugadores[k].hcp) || 0) - prBase(), Number(c.si[hoyo]) || (hoyo + 1));
+}
 function prNetos(hoyo) {
-  var c = canchaPR(PR.cancha), si = Number(c.si[hoyo]) || (hoyo + 1);
-  var base = Math.min.apply(null, PR.jugadores.map(function (j) { return Math.round(Number(j.hcp) || 0); }));
-  return PR.jugadores.map(function (j) {
+  return PR.jugadores.map(function (j, k) {
     var g = j.hoyos[hoyo];
-    if (g == null) return null;
-    return g - golpesDif(Math.round(Number(j.hcp) || 0) - base, si);
+    return g == null ? null : g - prRecibe(k, hoyo);
   });
 }
+function prTabla() {                         // los netos de los 18 hoyos
+  var t = [], i;
+  for (i = 0; i < 18; i++) t.push(prNetos(i));
+  return t;
+}
+
 // Sindicato: 6 puntos por hoyo entre tres. 4-2-0 · 4-1-1 · 3-3-0 · 2-2-2
 function puntosSindicato(netos) {
   if (netos.some(function (n) { return n == null; })) return [0, 0, 0];
@@ -422,78 +433,110 @@ function puntosSindicato(netos) {
   });
   return pts;
 }
-function prTrio() {
-  var idx = [];
-  PR.jugadores.forEach(function (_, i) { if (i !== PR.afuera || PR.jugadores.length === 3) idx.push(i); });
-  return idx.slice(0, 3);
+
+// Todas las formas de partir el grupo en dos bandos
+function prParejas(n) {
+  if (n === 2) return [{ a: [0], b: [1] }];
+  if (n === 3) return [{ a: [0], b: [1] }, { a: [0], b: [2] }, { a: [1], b: [2] }];
+  return [{ a: [0, 1], b: [2, 3] }, { a: [0, 2], b: [1, 3] }, { a: [0, 3], b: [1, 2] }];
 }
-function prResultado() {
-  var c = canchaPR(PR.cancha), n = PR.jugadores.length, i;
-  var r = { modalidad: PR.modalidad, jugados: 0, bruto: [], neto: [], puntos: [], texto: '' };
-  PR.jugadores.forEach(function (j) {
+// Todos los tríos posibles para el sindicato
+function prTrios(n) {
+  if (n < 3) return [];
+  if (n === 3) return [[0, 1, 2]];
+  return [[0, 1, 2], [0, 1, 3], [0, 2, 3], [1, 2, 3]];
+}
+
+function prNombresLado(lado) {
+  return lado.map(function (k) { return nombreCorto(PR.jugadores[k].nombre); }).join(' y ');
+}
+
+/* Match de un bando contra otro, con los netos ya calculados.
+   Gana el hoyo la mejor bola de cada lado. Si las mejores empatan y el
+   desempate está activado, decide la segunda bola. */
+function prMatch(ladoA, ladoB, tabla, segunda) {
+  var hoyos = [], i;
+  for (i = 0; i < 18; i++) {
+    var ns = tabla[i], va = [], vb = [];
+    ladoA.forEach(function (k) { if (ns[k] != null) va.push(ns[k]); });
+    ladoB.forEach(function (k) { if (ns[k] != null) vb.push(ns[k]); });
+    va.sort(function (p, q) { return p - q; });
+    vb.sort(function (p, q) { return p - q; });
+    if (!va.length || !vb.length) { hoyos.push({ a: null, b: null, a2: null, b2: null, gana: null, por: '' }); continue; }
+    var gana = va[0] < vb[0] ? 'a' : (vb[0] < va[0] ? 'b' : '');
+    var por = gana ? 'primera' : '';
+    if (gana === '' && segunda && va.length > 1 && vb.length > 1) {
+      if (va[1] < vb[1]) { gana = 'a'; por = 'segunda'; }
+      else if (vb[1] < va[1]) { gana = 'b'; por = 'segunda'; }
+    }
+    hoyos.push({ a: va[0], b: vb[0], a2: va.length > 1 ? va[1] : null, b2: vb.length > 1 ? vb[1] : null,
+                 gana: gana, por: por });
+  }
+  var arriba = 0, jugados = 0, cerradoEn = 0;
+  for (i = 0; i < 18; i++) {
+    if (hoyos[i].gana === null) break;
+    jugados++;
+    if (hoyos[i].gana === 'a') arriba++; else if (hoyos[i].gana === 'b') arriba--;
+    if (Math.abs(arriba) > 18 - jugados) { cerradoEn = jugados; break; }
+  }
+  var m = { ladoA: ladoA, ladoB: ladoB, hoyos: hoyos, arriba: arriba, jugados: jugados, cerradoEn: cerradoEn };
+  var dif = Math.abs(arriba), restan = 18 - jugados;
+  if (!jugados) m.texto = 'sin empezar';
+  else if (cerradoEn) m.texto = prNombresLado(arriba > 0 ? ladoA : ladoB) + ' ganó ' +
+    (restan > 0 ? dif + '&' + restan : dif + ' arriba');
+  else if (jugados === 18 && arriba === 0) m.texto = 'empatados';
+  else if (arriba === 0) m.texto = 'iguales · hoyo ' + jugados;
+  else m.texto = prNombresLado(arriba > 0 ? ladoA : ladoB) + ' ' + dif + ' arriba · hoyo ' + jugados;
+  return m;
+}
+
+/* Sindicato de un trío sobre los mismos netos */
+function prSindicato(trio, tabla) {
+  var pts = [0, 0, 0], jugados = 0, i, x;
+  for (i = 0; i < 18; i++) {
+    var tn = trio.map(function (k) { return tabla[i][k]; });
+    if (tn.some(function (v) { return v == null; })) continue;
+    jugados++;
+    var p = puntosSindicato(tn);
+    for (x = 0; x < 3; x++) pts[x] += p[x];
+  }
+  var s = { trio: trio, puntos: pts, jugados: jugados };
+  var mejor = Math.max.apply(null, pts);
+  var lideres = trio.filter(function (k, x) { return pts[x] === mejor; });
+  s.texto = !jugados ? 'sin empezar'
+    : (lideres.length > 1 ? 'iguales en ' + mejor + ' pts' : prNombresLado(lideres) + ' ' + mejor + ' pts');
+  return s;
+}
+
+/* Todo junto: se cargan los golpes una sola vez y salen todas las alternativas */
+function prTodo() {
+  var tabla = prTabla(), n = PR.jugadores.length, i;
+  var r = { tabla: tabla, jugados: 0, bruto: [], neto: [] };
+  PR.jugadores.forEach(function (j, k) {
     var b = 0, ne = 0, hay = 0;
-    j.hoyos.forEach(function (g, k) {
-      if (g == null) return;
-      hay++; b += g;
-      ne += g - golpesDif(Math.round(Number(j.hcp) || 0) -
-        Math.min.apply(null, PR.jugadores.map(function (x) { return Math.round(Number(x.hcp) || 0); })),
-        Number(c.si[k]) || (k + 1));
-    });
+    for (i = 0; i < 18; i++) {
+      if (j.hoyos[i] == null) continue;
+      hay++; b += j.hoyos[i]; ne += tabla[i][k];
+    }
     r.bruto.push(b); r.neto.push(ne);
     if (hay > r.jugados) r.jugados = hay;
   });
-
-  if (PR.modalidad === 'sindicato') {
-    var trio = prTrio();
-    r.puntos = PR.jugadores.map(function () { return 0; });
-    for (i = 0; i < 18; i++) {
-      var netos = prNetos(i);
-      var tn = trio.map(function (k) { return netos[k]; });
-      var pts = puntosSindicato(tn);
-      trio.forEach(function (k, x) { r.puntos[k] += pts[x]; });
-    }
-    var mejor = -1, lider = null, empate = false;
-    trio.forEach(function (k) {
-      if (r.puntos[k] > mejor) { mejor = r.puntos[k]; lider = k; empate = false; }
-      else if (r.puntos[k] === mejor) empate = true;
-    });
-    r.texto = r.jugados ? (empate ? 'iguales en ' + mejor + ' puntos'
-      : PR.jugadores[lider].nombre + ' arriba con ' + mejor + ' puntos') : 'sin empezar';
-    r.trio = trio;
-    return r;
-  }
-
-  // match: uno contra uno, o de a dos con la mejor bola
-  var ladoA = [], ladoB = [];
-  PR.jugadores.forEach(function (_, k) { (PR.equipos[k] === 1 ? ladoB : ladoA).push(k); });
-  var arriba = 0, jugados = 0, cerradoEn = 0;
-  r.hoyos = [];
-  for (i = 0; i < 18; i++) {
-    var ns = prNetos(i);
-    var mejorDe = function (lado) {
-      var m = null;
-      lado.forEach(function (k) { if (ns[k] != null && (m === null || ns[k] < m)) m = ns[k]; });
-      return m;
-    };
-    var a = mejorDe(ladoA), b = mejorDe(ladoB);
-    var gana = (a == null || b == null) ? null : (a < b ? 'a' : (b < a ? 'b' : ''));
-    r.hoyos.push({ a: a, b: b, gana: gana });
-  }
-  for (i = 0; i < 18; i++) {
-    if (r.hoyos[i].a == null || r.hoyos[i].b == null) break;
-    jugados++;
-    if (r.hoyos[i].gana === 'a') arriba++; else if (r.hoyos[i].gana === 'b') arriba--;
-    if (Math.abs(arriba) > 18 - jugados) { cerradoEn = jugados; break; }
-  }
-  var dif = Math.abs(arriba), restan = 18 - jugados;
-  r.ladoA = ladoA; r.ladoB = ladoB; r.arriba = arriba; r.jugados = jugados; r.cerradoEn = cerradoEn;
-  var nombreLado = function (lado) { return lado.map(function (k) { return PR.jugadores[k].nombre; }).join(' y '); };
-  if (!jugados) r.texto = 'sin empezar';
-  else if (cerradoEn) r.texto = nombreLado(arriba > 0 ? ladoA : ladoB) + ' ganó ' + (restan > 0 ? dif + '&' + restan : dif + ' arriba');
-  else if (jugados === 18 && arriba === 0) r.texto = 'empatados';
-  else r.texto = arriba === 0 ? 'iguales · hoyo ' + jugados
-    : nombreLado(arriba > 0 ? ladoA : ladoB) + ' ' + dif + ' arriba · hoyo ' + jugados;
+  r.matches = prParejas(n).map(function (p) { return prMatch(p.a, p.b, tabla, PR.segunda !== false); });
+  r.sindicatos = prTrios(n).map(function (t) { return prSindicato(t, tabla); });
   return r;
+}
+
+/* Una línea con todo, para dejar en la planilla */
+function prTextoGuardado(r) {
+  var partes = r.matches.map(function (m) {
+    return prNombresLado(m.ladoA) + ' vs ' + prNombresLado(m.ladoB) + ': ' + m.texto;
+  });
+  r.sindicatos.forEach(function (s) {
+    partes.push('Sindicato ' + s.trio.map(function (k, x) {
+      return nombreCorto(PR.jugadores[k].nombre) + ' ' + s.puntos[x];
+    }).join('/'));
+  });
+  return partes.join(' | ');
 }
 
 /* ============ modo testeo ============ */
@@ -607,7 +650,7 @@ function prVistaArmado() {
   var n = PR.jugadores.length;
   var h = '<div class="pila">' +
     '<div class="aviso"><span>⚡</span><span><b>Partida rápida.</b> Una vuelta suelta, con quien sea y en cualquier cancha. ' +
-    'Queda guardada en su propia hoja de la planilla, aparte del torneo.</span></div>' +
+    'Cargás los golpes una sola vez y salen todas las alternativas juntas.</span></div>' +
 
     '<section class="card"><div class="sec-tit"><h2>Jugadores</h2>' +
     '<span class="eyebrow">' + n + ' de 4</span></div>' +
@@ -621,7 +664,7 @@ function prVistaArmado() {
         '</div>';
     }).join('') +
     (n < 4 ? '<div class="acc"><button class="btn" data-acc="pr-agregar">+ Agregar jugador</button></div>' : '') +
-    '</section>' +
+    prQueSale() + '</section>' +
 
     '<section class="card"><div class="sec-tit"><h2>Cancha</h2></div>' +
     '<div class="grid2" style="grid-template-columns:1fr 1fr;gap:8px">' +
@@ -637,11 +680,11 @@ function prVistaArmado() {
         'los datos que llegaron para Roja y Lagos se pisaron entre sí. Sirve para jugar, pero el reparto de golpes ' +
         'puede no ser el real.</span></div>') + '</section>' +
 
-    '<section class="card"><div class="sec-tit"><h2>Modalidad</h2></div>' +
-    '<div class="grid2" style="grid-template-columns:1fr 1fr;gap:8px">' +
-    '<button class="pr-op" data-acc="pr-modo" data-v="match" aria-pressed="' + (PR.modalidad === 'match') + '">Match</button>' +
-    '<button class="pr-op" data-acc="pr-modo" data-v="sindicato" aria-pressed="' + (PR.modalidad === 'sindicato') + '">Sindicato</button>' +
-    '</div>' + prOpcionesModalidad() + '</section>' +
+    '<section class="card"><div class="sec-tit"><h2>Desempate del match</h2></div>' +
+    '<div class="pr-eq" style="margin:0 14px 4px"><span>La segunda bola desempata</span>' +
+    '<button class="a" data-acc="pr-segunda" data-v="1" aria-pressed="' + (PR.segunda !== false) + '">Sí</button>' +
+    '<button class="r" data-acc="pr-segunda" data-v="0" aria-pressed="' + (PR.segunda === false) + '">No</button></div>' +
+    '<div class="candado"><span>🎯</span><span>' + prTextoDesempate() + '</span></div></section>' +
 
     '<div class="acc"><button class="btn pri" data-acc="pr-empezar" style="flex:1;padding:13px">Empezar la partida</button></div>' +
     '<div class="acc" style="padding-top:0"><button class="btn fin" data-acc="pr-historial">Ver partidas anteriores</button></div>' +
@@ -650,62 +693,48 @@ function prVistaArmado() {
   return h;
 }
 
-function prOpcionesModalidad() {
-  var n = PR.jugadores.length;
-  if (PR.modalidad === 'match') {
-    if (n === 2) return '<div class="candado"><span>🤝</span><span>Uno contra uno. El de menor handicap juega scratch ' +
-      'y el otro recibe la diferencia completa en los hoyos de menor índice.</span></div>';
-    if (n === 3) return '<div class="aviso" style="margin:12px 14px"><span>⚠️</span><span>El match es de a uno o de a dos. ' +
-      'Con tres jugadores conviene el Sindicato.</span></div>';
-    return '<div class="grid2" style="grid-template-columns:1fr;padding-top:0"><div class="campo">' +
-      '<label>Equipos</label>' + PR.jugadores.map(function (j, i) {
-        return '<div class="pr-eq"><span>' + esc(j.nombre) + '</span>' +
-          '<button class="a" data-acc="pr-equipo" data-v="' + i + '" data-i="0" aria-pressed="' + (PR.equipos[i] !== 1) + '">Lado 1</button>' +
-          '<button class="r" data-acc="pr-equipo" data-v="' + i + '" data-i="1" aria-pressed="' + (PR.equipos[i] === 1) + '">Lado 2</button></div>';
-      }).join('') + '</div></div>' +
-      '<div class="candado"><span>🤝</span><span>De a dos, cuenta la mejor bola de cada lado en cada hoyo.</span></div>';
-  }
-  if (n === 3) return '<div class="candado"><span>🎯</span><span>Seis puntos por hoyo entre los tres: ' +
-    '<b>4-2-0</b> si salen distintos, <b>4-1-1</b> si uno gana solo, <b>3-3-0</b> si empatan arriba y <b>2-2-2</b> si empatan los tres.</span></div>';
-  if (n === 4) return '<div class="grid2" style="grid-template-columns:1fr;padding-top:0"><div class="campo">' +
-    '<label>El sindicato lo juegan tres — ¿quién queda afuera?</label><div class="pick-eq pick-4">' +
-    PR.jugadores.map(function (j, i) {
-      return '<button data-acc="pr-afuera" data-v="' + i + '" aria-pressed="' + (PR.afuera === i) + '">' +
-        esc(nombreCorto(j.nombre)) + '</button>';
-    }).join('') + '</div></div></div>' +
-    '<div class="candado"><span>🎯</span><span>Con cuatro anotados hay cuatro tríos posibles. Elegís cuál juega ' +
-    'y los otros tres reparten los 6 puntos de cada hoyo.</span></div>';
-  return '<div class="aviso" style="margin:12px 14px"><span>⚠️</span><span>El Sindicato es de tres jugadores. ' +
-    'Agregá uno más o pasá a Match.</span></div>';
+// Qué se va a calcular con los jugadores que hay anotados
+function prQueSale() {
+  var n = PR.jugadores.length, m = prParejas(n).length, s = prTrios(n).length;
+  return '<div class="candado"><span>🧮</span><span>Con ' + n + ' jugadores salen <b>' + m + ' match' +
+    (m > 1 ? 'es' : '') + '</b>' +
+    (s ? ' y <b>' + s + ' sindicato' + (s > 1 ? 's' : '') + '</b>' : ' (el sindicato necesita tres)') +
+    ', todo con los mismos golpes. No hay que elegir modalidad.</span></div>';
+}
+
+function prTextoDesempate() {
+  if (PR.segunda === false) return 'Solo cuenta la mejor bola de cada lado. Si empatan, el hoyo se reparte.';
+  return 'Si la mejor bola de cada lado empata, gana el hoyo el lado con la mejor <b>segunda</b> bola. ' +
+    'Si la primera bola ya es mejor, ese lado ganó el hoyo y la segunda no se mira. ' +
+    'En los match de a uno no hay segunda bola: el empate se reparte.';
 }
 
 function prVistaJuego() {
   var c = canchaPR(PR.cancha), i = Math.min(Math.max(PR.hoyo, 0), 17);
   var par = Number(c.par[i]) || 4, si = Number(c.si[i]) || (i + 1);
-  var r = prResultado(), netos = prNetos(i);
-  var base = Math.min.apply(null, PR.jugadores.map(function (j) { return Math.round(Number(j.hcp) || 0); }));
-  var trio = PR.modalidad === 'sindicato' ? prTrio() : null;
-  var ptsHoyo = trio ? puntosSindicato(trio.map(function (k) { return netos[k]; })) : null;
+  var r = prTodo(), netos = r.tabla[i];
 
   var h = '<div class="pila">' +
-    '<section class="card"><div class="p-cab"><span class="eyebrow">' + esc(c.nombre) + ' · ' +
-    (PR.modalidad === 'match' ? 'Match' : 'Sindicato') + '</span>' +
-    '<span class="p-estado">' + esc(r.texto) + '</span></div>' +
+    '<section class="card"><div class="p-cab"><span class="eyebrow">' + esc(c.nombre) + '</span>' +
+    '<span class="p-estado">' + r.matches.length + ' match' + (r.matches.length > 1 ? 'es' : '') +
+    (r.sindicatos.length ? ' · ' + r.sindicatos.length + ' sindicato' + (r.sindicatos.length > 1 ? 's' : '') : '') +
+    '</span></div>' +
     '<div class="hoyo" style="padding-bottom:8px"><div class="n">' + (i + 1) + '</div>' +
     '<div class="datos"><span class="pin">Par ' + par + '</span><span class="pin">SI ' + si + '</span></div></div>' +
 
     PR.jugadores.map(function (j, k) {
-      var fuera = trio && trio.indexOf(k) < 0;
-      var rec = golpesDif(Math.round(Number(j.hcp) || 0) - base, si);
-      return '<div class="pr-fila' + (fuera ? ' fuera' : '') + '">' +
+      var rec = prRecibe(k, i);
+      return '<div class="pr-fila">' +
         '<div class="pr-quien"><b>' + esc(nombreCorto(j.nombre)) + '</b>' +
-        '<i>' + (fuera ? 'no juega el sindicato' : 'HCP ' + j.hcp + (rec ? ' · +' + rec + ' acá' : '')) + '</i></div>' +
+        '<i>HCP ' + esc(j.hcp) + (rec ? ' · +' + rec + ' acá' : '') + '</i></div>' +
         '<button class="rd chico" data-acc="pr-menos" data-v="' + k + '">−</button>' +
         '<span class="pr-golpes' + (j.hoyos[i] == null ? ' sin' : '') + '">' + (j.hoyos[i] == null ? '–' : j.hoyos[i]) + '</span>' +
         '<button class="rd chico" data-acc="pr-mas" data-v="' + k + '">+</button>' +
-        '<span class="pr-pts">' + (ptsHoyo && !fuera ? ptsHoyo[trio.indexOf(k)] + ' pt' : (netos[k] != null ? 'neto ' + netos[k] : '')) + '</span>' +
+        '<span class="pr-pts">' + (netos[k] != null ? 'neto ' + netos[k] : '') + '</span>' +
         '</div>';
     }).join('') +
+
+    prHoyoMatches(r, i) +
 
     '<div class="navh" style="margin:12px 14px"><button data-acc="pr-prev"' + (i === 0 ? ' disabled' : '') + '>← Hoyo ' + (i || 1) + '</button>' +
     '<button class="pri" data-acc="pr-next">' + (i === 17 ? 'Terminar' : 'Hoyo ' + (i + 2) + ' →') + '</button></div>' +
@@ -714,7 +743,7 @@ function prVistaJuego() {
       return '<button data-acc="pr-ir" data-v="' + k + '" class="' + (lleno ? 'hecho' : '') + '" aria-current="' + (k === i) + '">' + (k + 1) + '</button>';
     }).join('') + '</div></section>' +
 
-    prTablaPR(r) +
+    prResumen(r) +
     '<div class="acc"><button class="btn" data-acc="pr-guardar">Guardar en la planilla</button>' +
     '<button class="btn fin peli" data-acc="pr-cerrar">Terminar y salir</button></div>' +
     (PR.guardado ? '<div class="candado solo"><span>✅</span><span>Guardada a las ' + esc(PR.guardado) + '.</span></div>' : '') +
@@ -722,24 +751,52 @@ function prVistaJuego() {
   return h;
 }
 
-function prTablaPR(r) {
-  var h = '<section class="card"><div class="sec-tit"><h2>Cómo va</h2>' +
+// Cómo quedó este hoyo en cada uno de los match posibles
+function prHoyoMatches(r, i) {
+  return '<div class="pr-hm">' + r.matches.map(function (m) {
+    var hh = m.hoyos[i];
+    var res = hh.gana === null ? '–'
+      : (hh.gana === '' ? 'se reparte'
+      : prNombresLado(hh.gana === 'a' ? m.ladoA : m.ladoB) + (hh.por === 'segunda' ? ' · 2ª bola' : ''));
+    return '<div><span>' + esc(prNombresLado(m.ladoA) + ' vs ' + prNombresLado(m.ladoB)) + '</span>' +
+      '<b>' + esc(res) + '</b></div>';
+  }).join('') + '</div>';
+}
+
+function prResumen(r) {
+  var h = '<section class="card"><div class="sec-tit"><h2>Tarjeta</h2>' +
     '<span class="eyebrow">' + (r.jugados || 0) + ' hoyos</span></div>';
   PR.jugadores.forEach(function (j, k) {
-    var fuera = r.trio && r.trio.indexOf(k) < 0;
-    var val = r.modalidad === 'sindicato'
-      ? (fuera ? '–' : r.puntos[k])
-      : r.bruto[k] || '–';
-    var sub = r.modalidad === 'sindicato' ? (fuera ? 'afuera' : 'puntos')
-      : (r.neto[k] ? 'neto ' + r.neto[k] : 'bruto');
     h += '<div class="jug"><span class="av">' + esc(inicial({ nombre: j.nombre })) + '</span>' +
       '<span><span class="lb-nom">' + esc(j.nombre) + '</span>' +
-      '<span class="lb-meta">HCP ' + esc(j.hcp) +
-      (r.modalidad === 'match' ? ' · lado ' + (PR.equipos[k] === 1 ? '2' : '1') : '') + '</span></span>' +
-      '<span class="lb-val"><b>' + val + '</b><span>' + sub + '</span></span></div>';
+      '<span class="lb-meta">HCP ' + esc(j.hcp) + '</span></span>' +
+      '<span class="lb-val"><b>' + (r.bruto[k] || '–') + '</b><span>neto ' + (r.neto[k] || '–') + '</span></span></div>';
   });
-  return h + '</section>';
+  h += '<div class="candado"><span>⚖️</span><span>Todos miden contra el handicap más bajo del grupo, hoyo por hoyo ' +
+    'según el índice de la tarjeta. Es el mismo reparto para todas las alternativas.</span></div></section>';
+
+  h += '<section class="card"><div class="sec-tit"><h2>Match</h2>' +
+    '<span class="eyebrow">' + r.matches.length + '</span></div>';
+  r.matches.forEach(function (m) {
+    h += '<div class="pr-res"><span class="pr-vs">' + esc(prNombresLado(m.ladoA)) +
+      ' <i>vs</i> ' + esc(prNombresLado(m.ladoB)) + '</span><b>' + esc(m.texto) + '</b></div>';
+  });
+  h += '<div class="candado"><span>🎯</span><span>' + prTextoDesempate() + '</span></div></section>';
+
+  if (r.sindicatos.length) {
+    h += '<section class="card"><div class="sec-tit"><h2>Sindicato</h2>' +
+      '<span class="eyebrow">' + r.sindicatos.length + '</span></div>';
+    r.sindicatos.forEach(function (s) {
+      h += '<div class="pr-res"><span class="pr-vs">' + esc(s.trio.map(function (k, x) {
+        return nombreCorto(PR.jugadores[k].nombre) + ' ' + s.puntos[x];
+      }).join(' · ')) + '</span><b>' + esc(s.texto) + '</b></div>';
+    });
+    h += '<div class="candado"><span>🧮</span><span>Seis puntos por hoyo: <b>4-2-0</b> si salen distintos, ' +
+      '<b>4-1-1</b> si uno gana solo, <b>3-3-0</b> si empatan arriba y <b>2-2-2</b> si empatan los tres.</span></div></section>';
+  }
+  return h;
 }
+
 
 function prHistorialHTML() {
   if (!PARTIDAS || !PARTIDAS.length) return '<div class="candado solo"><span>📁</span><span>Todavía no hay partidas guardadas.</span></div>';
@@ -1558,17 +1615,13 @@ function accionRapida(a, v, b) {
   if (a === 'pr-agregar') {
     if (PR.jugadores.length >= 4) return;
     PR.jugadores.push({ nombre: 'Jugador ' + (PR.jugadores.length + 1), hcp: 18, hoyos: nulos() });
-    if (PR.jugadores.length === 4 && PR.afuera == null) PR.afuera = 3;
   }
   else if (a === 'pr-quitar') {
     if (PR.jugadores.length <= 2) return;
     PR.jugadores.splice(i, 1);
-    if (PR.afuera >= PR.jugadores.length) PR.afuera = PR.jugadores.length - 1;
   }
   else if (a === 'pr-cancha') PR.cancha = v;
-  else if (a === 'pr-modo') PR.modalidad = v;
-  else if (a === 'pr-equipo') PR.equipos[i] = Number(b.getAttribute('data-i'));
-  else if (a === 'pr-afuera') PR.afuera = i;
+  else if (a === 'pr-segunda') PR.segunda = v === '1';
   else if (a === 'pr-empezar') { prEmpezar(); return; }
   else if (a === 'pr-prev') PR.hoyo = Math.max(0, PR.hoyo - 1);
   else if (a === 'pr-next') PR.hoyo = Math.min(17, PR.hoyo + 1);
@@ -1592,16 +1645,13 @@ function accionRapida(a, v, b) {
 }
 
 function prEmpezar() {
-  var n = PR.jugadores.length;
-  if (PR.modalidad === 'sindicato' && n < 3) { alert('El Sindicato necesita tres jugadores.'); return; }
-  if (PR.modalidad === 'match' && n === 3) { alert('El match es de a uno o de a dos. Con tres, jugá el Sindicato.'); return; }
   if (TEST || !SES) {                       // en testeo la partida no viaja a la planilla
     PR.id = 'local-' + Date.now(); guardarPR(); pintar(); return;
   }
   pedir({ accion: 'prCrear', token: SES.token, cancha: canchaPR(PR.cancha).nombre,
-    modalidad: PR.modalidad === 'match' ? 'Match' : 'Sindicato',
-    jugadores: PR.jugadores.map(function (j, k) {
-      return { nombre: j.nombre, hcp: j.hcp, equipo: PR.modalidad === 'match' ? (PR.equipos[k] === 1 ? 'Lado 2' : 'Lado 1') : '' };
+    modalidad: prEtiquetaModalidad(),
+    jugadores: PR.jugadores.map(function (j) {
+      return { nombre: j.nombre, hcp: j.hcp, equipo: '' };
     }) }).then(function (res) {
     if (res && res.ok) { PR.id = res.id; guardarPR(); pintar(); }
     else { alert(textoError((res && res.error) || 'fallo')); }
@@ -1609,18 +1659,25 @@ function prEmpezar() {
     PR.id = 'local-' + Date.now(); guardarPR(); pintar(); });
 }
 
+// Cómo se rotula la partida en la planilla: ya no hay una sola modalidad
+function prEtiquetaModalidad() {
+  var n = PR.jugadores.length, s = prTrios(n).length;
+  return 'Todas · ' + prParejas(n).length + ' match' + (s ? ' + ' + s + ' sindicato' : '') +
+    (PR.segunda === false ? '' : ' · 2ª bola desempata');
+}
+
 function prGuardarRemoto(avisar) {
-  var r = prResultado();
+  var r = prTodo();
   if (!PR.id || PR.id.indexOf('local-') === 0 || !SES || TEST) {
     if (avisar) alert('Esta partida se está guardando solo en el celular.');
     return Promise.resolve();
   }
-  return pedir({ accion: 'prGuardar', token: SES.token, id: PR.id, resultado: r.texto,
+  return pedir({ accion: 'prGuardar', token: SES.token, id: PR.id, resultado: prTextoGuardado(r),
     jugadores: PR.jugadores.map(function (j, k) {
-      return { nombre: j.nombre, hcp: j.hcp,
-        equipo: PR.modalidad === 'match' ? (PR.equipos[k] === 1 ? 'Lado 2' : 'Lado 1') : '',
+      return { nombre: j.nombre, hcp: j.hcp, equipo: '',
         hoyos: j.hoyos, bruto: r.bruto[k], neto: r.neto[k],
-        resultado: PR.modalidad === 'sindicato' ? (r.puntos[k] + ' pts') : '' };
+        resultado: r.sindicatos.filter(function (s) { return s.trio.indexOf(k) >= 0; })
+          .map(function (s) { return s.puntos[s.trio.indexOf(k)] + ' pts'; }).join(' / ') };
     }) }).then(function (res) {
     if (res && res.ok) {
       PR.guardado = new Date().toTimeString().slice(0, 5);
