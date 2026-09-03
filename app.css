@@ -388,7 +388,6 @@ input[type="number"]{font-family:"IBM Plex Mono",monospace}
 .pr-vs i{font-style:normal;padding:0 2px;opacity:.8}
 .pr-res b{display:block;font-size:14.5px;font-weight:800;color:var(--navy);line-height:1.25}
 .pr-hm{margin:10px 14px 0;border-top:1px solid var(--linea);padding-top:8px}
-.pr-hm div{display:flex;justify-content:space-between;gap:12px;font-size:12px;padding:3px 0}
 .pr-hm span{color:var(--tenue);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pr-hm b{color:var(--navy);white-space:nowrap;font-weight:700}
 
@@ -397,3 +396,18 @@ input[type="number"]{font-family:"IBM Plex Mono",monospace}
 .pr-hm h4:first-child{margin-top:0}
 .pr-fila.mejor{box-shadow:inset 3px 0 0 var(--oro)}
 .pr-pts.mejor{color:var(--navy);font-weight:800}
+
+/* partida rápida · destacar el match y los sindicatos que se están jugando */
+.pr-res, .hm-fila{display:block;width:100%;border:0;background:none;font:inherit;
+  color:inherit;text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.pr-res.destacado{background:#EFF4FD;box-shadow:inset 3px 0 0 var(--eur)}
+.pr-res.destacado .pr-vs, .pr-res.destacado b{color:var(--eur)}
+.hm-fila{display:flex;justify-content:space-between;gap:12px;font-size:12px;
+  padding:4px 6px;border-radius:6px}
+.hm-fila.destacado{background:#EFF4FD;box-shadow:inset 3px 0 0 var(--eur)}
+.hm-fila.destacado span, .hm-fila.destacado b{color:var(--eur)}
+.hm-ver{display:flex;justify-content:flex-end;margin-top:8px}
+.btn-ver{border:1.5px solid var(--linea-2);background:var(--panel);border-radius:999px;
+  padding:5px 12px;font-family:Archivo,system-ui,sans-serif;font-size:11px;font-weight:800;
+  letter-spacing:.04em;text-transform:uppercase;color:var(--navy);cursor:pointer}
+.btn-ver:active{background:#EFF4FD;border-color:var(--eur);color:var(--eur)}
