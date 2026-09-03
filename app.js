@@ -419,6 +419,7 @@ function guardarPR() { guardarLS('gtm-pr', PR); }
 
 function prNueva() {
   return { id: null, cancha: 'jockey-roja', hoyo: 0, guardado: null, segunda: true, destacados: [],
+    vista: 'hoyo', vistaTc: 'bruto', anoto: null,
     jugadores: [{ nombre: 'Jugador 1', hcp: 18, hoyos: nulos() },
                 { nombre: 'Jugador 2', hcp: 18, hoyos: nulos() }] };
 }
@@ -778,13 +779,84 @@ function prTextoDesempate() {
 }
 
 function prVistaJuego() {
+  var r = prTodo();
+  var seg = '<div class="seg" role="group">' +
+    '<button data-acc="pr-vista" data-v="hoyo" aria-pressed="' + (PR.vista !== 'vuelta') + '">Hoyo</button>' +
+    '<button data-acc="pr-vista" data-v="vuelta" aria-pressed="' + (PR.vista === 'vuelta') + '">La vuelta</button></div>';
+  var pie = prResumen(r) +
+    '<section class="card"><div class="sec-tit"><h2>Jugadores</h2>' +
+    '<span class="eyebrow">nombre y hcp</span></div>' + prEditorJugadores(false) +
+    '<div class="candado"><span>✏️</span><span>Cambiá un nombre y se actualiza en todos los match, ' +
+    'en los sindicatos y en la planilla. El handicap también: se recalculan los hoyos ya cargados.</span></div></section>' +
+    '<div class="acc"><button class="btn" data-acc="pr-guardar">Guardar en la planilla</button>' +
+    '<button class="btn fin peli" data-acc="pr-cerrar">Terminar y salir</button></div>' +
+    (PR.guardado ? '<div class="candado solo"><span>✅</span><span>Guardada a las ' + esc(PR.guardado) + '.</span></div>' : '');
+  return '<div class="pila">' + seg +
+    (PR.vista === 'vuelta' ? prVistaVuelta(r) : prVistaHoyo(r)) + pie + '</div>';
+}
+
+/* La vuelta entera: los 18 hoyos de todos, con las marcas de siempre.
+   Es el "cómo vengo jugando" de un vistazo. */
+function prVistaVuelta(r) {
+  var c = canchaPR(PR.cancha), neto = PR.vistaTc === 'neto', k;
+  var h = '<div class="seg" role="group" style="margin-top:2px">' +
+    '<button data-acc="pr-tc" data-v="bruto" aria-pressed="' + (!neto) + '">Bruto</button>' +
+    '<button data-acc="pr-tc" data-v="neto" aria-pressed="' + neto + '">Neto</button></div>' +
+    '<section class="card"><div class="sec-tit"><h2>La vuelta</h2>' +
+    '<span class="eyebrow">' + esc(c.nombre) + '</span></div>' +
+    '<div class="scroll"><table class="tc"><thead>';
+
+  var enc = '<tr><th class="lbl">Hoyo</th>', fPar = '<tr><th class="lbl">Par</th>', fSi = '<tr><th class="lbl">Hcp hoyo</th>';
+  var pIda = 0, pVta = 0;
+  for (k = 0; k < 18; k++) {
+    var pv = Number(c.par[k]) || 4;
+    enc += '<th>' + (k + 1) + '</th>';
+    fPar += '<th>' + pv + '</th>';
+    fSi += '<th>' + (Number(c.si[k]) || (k + 1)) + '</th>';
+    if (k < 9) pIda += pv; else pVta += pv;
+    if (k === 8) { enc += '<th class="tot">Ida</th>'; fPar += '<th class="tot">' + pIda + '</th>'; fSi += '<th class="tot"></th>'; }
+  }
+  enc += '<th class="tot">Vta</th><th class="tot">Tot</th><th class="tot">±</th></tr>';
+  fPar += '<th class="tot">' + pVta + '</th><th class="tot">' + (pIda + pVta) + '</th><th class="tot"></th></tr>';
+  fSi += '<th class="tot"></th><th class="tot"></th><th class="tot"></th></tr>';
+  h += enc + fPar + fSi + '</thead><tbody>';
+
+  PR.jugadores.forEach(function (j, x) {
+    var ida = 0, vta = 0, tot = 0, vsPar = 0, jugados = 0;
+    var fila = '<tr' + (PR.anoto === x ? ' class="yo"' : '') + '><td class="lbl">' +
+      esc(nombreCorto(j.nombre)) + '</td>';
+    for (var q = 0; q < 18; q++) {
+      var par = Number(c.par[q]) || 4, val = '·', cls = '';
+      var v = neto ? r.tabla[q][x] : j.hoyos[q];
+      if (v != null) {
+        val = v; jugados++;
+        var ref = v - par;
+        if (ref <= -2) cls = 'marca cc'; else if (ref === -1) cls = 'marca c';
+        else if (ref === 1) cls = 'marca s'; else if (ref >= 2) cls = 'marca ss';
+        if (q < 9) ida += v; else vta += v;
+        tot += v; vsPar += ref;
+      }
+      fila += '<td>' + (cls ? '<span class="' + cls + '">' + val + '</span>' : val) + '</td>';
+      if (q === 8) fila += '<td class="tot">' + (ida || '·') + '</td>';
+    }
+    h += fila + '<td class="tot">' + (vta || '·') + '</td><td class="tot">' + (tot || '·') + '</td>' +
+      '<td class="tot">' + (jugados ? (vsPar > 0 ? '+' + vsPar : (vsPar === 0 ? 'E' : vsPar)) : '·') + '</td></tr>';
+  });
+
+  return h + '</tbody></table></div>' +
+    '<div class="candado"><span>⛳</span><span>Círculo rojo: bajo par. Cuadrado azul: sobre par. ' +
+    'Doble marco: eagle o doble bogey. La columna <b>±</b> es contra el par de los hoyos jugados.</span></div>' +
+    '</section>';
+}
+
+function prVistaHoyo(r) {
   var c = canchaPR(PR.cancha), i = Math.min(Math.max(PR.hoyo, 0), 17);
   var par = Number(c.par[i]) || 4, si = Number(c.si[i]) || (i + 1);
-  var r = prTodo(), netos = r.tabla[i];
+  var netos = r.tabla[i];
   var hechos = netos.filter(function (n) { return n != null; });
   var mejorNeto = hechos.length ? Math.min.apply(null, hechos) : null;
 
-  var h = '<div class="pila">' +
+  var h = prSelectorAnoto() +
     '<section class="card"><div class="p-cab"><span class="eyebrow">' + esc(c.nombre) + '</span>' +
     '<span class="p-estado">' + r.matches.length + ' match' + (r.matches.length > 1 ? 'es' : '') +
     (r.sindicatos.length ? ' · ' + r.sindicatos.length + ' sindicato' + (r.sindicatos.length > 1 ? 's' : '') : '') +
@@ -792,7 +864,10 @@ function prVistaJuego() {
     '<div class="hoyo" style="padding-bottom:8px"><div class="n">' + (i + 1) + '</div>' +
     '<div class="datos"><span class="pin">Par ' + par + '</span><span class="pin">SI ' + si + '</span></div></div>' +
 
-    PR.jugadores.map(function (j, k) {
+    PR.jugadores.filter(function (_, k) {
+      return PR.anoto == null || PR.anoto === k;
+    }).map(function (j) {
+      var k = PR.jugadores.indexOf(j);
       var rec = prRecibe(k, i);
       var mejor = netos[k] != null && netos[k] === mejorNeto;
       return '<div class="pr-fila' + (mejor ? ' mejor' : '') + '">' +
@@ -815,16 +890,19 @@ function prVistaJuego() {
       return '<button data-acc="pr-ir" data-v="' + k + '" class="' + (lleno ? 'hecho' : '') + '" aria-current="' + (k === i) + '">' + (k + 1) + '</button>';
     }).join('') + '</div></section>' +
 
-    prResumen(r) +
-    '<section class="card"><div class="sec-tit"><h2>Jugadores</h2>' +
-    '<span class="eyebrow">nombre y hcp</span></div>' + prEditorJugadores(false) +
-    '<div class="candado"><span>✏️</span><span>Cambiá un nombre y se actualiza en todos los match, ' +
-    'en los sindicatos y en la planilla. El handicap también: se recalculan los hoyos ya cargados.</span></div></section>' +
-    '<div class="acc"><button class="btn" data-acc="pr-guardar">Guardar en la planilla</button>' +
-    '<button class="btn fin peli" data-acc="pr-cerrar">Terminar y salir</button></div>' +
-    (PR.guardado ? '<div class="candado solo"><span>✅</span><span>Guardada a las ' + esc(PR.guardado) + '.</span></div>' : '') +
-    '</div>';
+    '';
   return h;
+}
+
+/* A quién estoy anotando: todos, o uno solo para que la pantalla quede limpia. */
+function prSelectorAnoto() {
+  if (PR.jugadores.length < 2) return '';
+  return '<div class="pr-anoto"><span>Anoto</span>' +
+    '<button data-acc="pr-anoto" data-v="" aria-pressed="' + (PR.anoto == null) + '">Todos</button>' +
+    PR.jugadores.map(function (j, k) {
+      return '<button data-acc="pr-anoto" data-v="' + k + '" aria-pressed="' + (PR.anoto === k) + '">' +
+        esc(nombreCorto(j.nombre)) + '</button>';
+    }).join('') + '</div>';
 }
 
 /* Cómo quedó ESTE hoyo: quién ganó cada match y cuántos puntos se llevó
@@ -1763,6 +1841,7 @@ function accionRapida(a, v, b) {
   else if (a === 'pr-quitar') {
     if (PR.jugadores.length <= 2) return;
     PR.jugadores.splice(i, 1);
+    if (PR.anoto != null && PR.anoto >= PR.jugadores.length) PR.anoto = null;
   }
   else if (a === 'pr-destacar') {
     if (!PR.destacados) PR.destacados = [];
@@ -1770,6 +1849,9 @@ function accionRapida(a, v, b) {
     if (d >= 0) PR.destacados.splice(d, 1); else PR.destacados.push(v);
   }
   else if (a === 'pr-ver-todos') PR.verTodos = !PR.verTodos;
+  else if (a === 'pr-vista') PR.vista = v;
+  else if (a === 'pr-tc') PR.vistaTc = v;
+  else if (a === 'pr-anoto') PR.anoto = (v === '' ? null : Number(v));
   else if (a === 'pr-cancha') PR.cancha = v;
   else if (a === 'pr-segunda') PR.segunda = v === '1';
   else if (a === 'pr-empezar') { prEmpezar(); return; }

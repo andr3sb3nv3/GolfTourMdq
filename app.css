@@ -418,3 +418,15 @@ input[type="number"]{font-family:"IBM Plex Mono",monospace}
   letter-spacing:.04em;text-transform:uppercase;color:var(--navy);cursor:pointer}
 .btn-ver:active{background:#EFF4FD;border-color:var(--eur);color:var(--eur)}
 .pr-hm h4 b{color:var(--eur);font-weight:800}
+
+/* partida rápida · a quién anoto y resalte de mi fila en la tarjeta */
+.pr-anoto{display:flex;gap:6px;align-items:center;overflow-x:auto;padding:2px 0 2px;
+  -webkit-overflow-scrolling:touch;scrollbar-width:none}
+.pr-anoto::-webkit-scrollbar{display:none}
+.pr-anoto > span{font-family:Archivo,system-ui,sans-serif;font-size:10px;font-weight:800;
+  letter-spacing:.13em;text-transform:uppercase;color:var(--tenue);flex:0 0 auto;padding-right:2px}
+.pr-anoto button{flex:0 0 auto;border:1.5px solid var(--linea-2);background:var(--panel);
+  border-radius:999px;padding:9px 14px;font-size:12.5px;font-weight:700;color:var(--tinta);
+  cursor:pointer;white-space:nowrap;-webkit-tap-highlight-color:transparent}
+.pr-anoto button[aria-pressed="true"]{border-color:var(--navy);background:var(--navy);color:#fff}
+table.tc tr.yo .lbl{color:var(--eur);font-weight:800;box-shadow:inset 3px 0 0 var(--eur)}
