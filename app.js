@@ -830,13 +830,16 @@ function prVistaJuego() {
 /* Cómo quedó ESTE hoyo: quién ganó cada match y cuántos puntos se llevó
    cada uno en cada sindicato. */
 function prHoyoDetalle(r, i) {
-  var h = '<div class="pr-hm"><h4>Este hoyo · match</h4>' + prElegidos(r.matches, claveMatch).map(function (m) {
+  var elegidos = prHayElegidos(r);
+  var h = '<div class="pr-hm"><h4>Este hoyo · match' +
+    (elegidos ? '' : ' <b>· tocá el que jugás</b>') + '</h4>' + prElegidos(r.matches, claveMatch).map(function (m) {
     var hh = m.hoyos[i];
     var res = hh.gana === null ? '–'
       : (hh.gana === '' ? 'se reparte'
       : prNombresLado(hh.gana === 'a' ? m.ladoA : m.ladoB) + (hh.por === 'segunda' ? ' · 2ª bola' : ''));
     return '<button type="button" class="hm-fila' + marcaDestacado(claveMatch(m)) + '">' +
-      '<span>' + esc(prNombresLado(m.ladoA) + ' vs ' + prNombresLado(m.ladoB)) + '</span>' +
+      '<span class="hm-tic"></span>' +
+      '<span class="hm-quien">' + esc(prNombresLado(m.ladoA) + ' vs ' + prNombresLado(m.ladoB)) + '</span>' +
       '<b>' + esc(res) + '</b></button>';
   }).join('');
 
@@ -846,7 +849,8 @@ function prHoyoDetalle(r, i) {
       var falta = netos.some(function (n) { return n == null; });
       var pts = falta ? null : puntosSindicato(netos);
       return '<button type="button" class="hm-fila' + marcaDestacado(claveSind(s)) + '">' +
-        '<span>' + esc(s.trio.map(function (k) {
+        '<span class="hm-tic"></span>' +
+        '<span class="hm-quien">' + esc(s.trio.map(function (k) {
           return nombreCorto(PR.jugadores[k].nombre);
         }).join(' · ')) + '</span>' +
         '<b>' + (pts ? pts.join(' · ') : '–') + '</b></button>';
@@ -874,11 +878,11 @@ function prResumen(r) {
     '</span>' + botonVerTodos(r) + '</div>';
   ms.forEach(function (m) {
     h += '<button type="button" class="pr-res' + marcaDestacado(claveMatch(m)) + '">' +
-      '<span class="pr-vs">' + esc(prNombresLado(m.ladoA)) +
-      ' <i>vs</i> ' + esc(prNombresLado(m.ladoB)) + '</span><b>' + esc(m.texto) + '</b></button>';
+      '<span class="hm-tic"></span><span><span class="pr-vs">' + esc(prNombresLado(m.ladoA)) +
+      ' <i>vs</i> ' + esc(prNombresLado(m.ladoB)) + '</span><b>' + esc(m.texto) + '</b></span></button>';
   });
-  h += '<div class="candado"><span>👆</span><span>Tocá el que estés jugando y queda en <b>azul</b>, ' +
-    'acá y en cada hoyo.</span></div>' +
+  h += '<div class="candado"><span>👆</span><span>Tocá el match que estés jugando: queda en <b>azul</b> ' +
+    'y el resto se esconde, acá y en cada hoyo. Volvés a tocarlo y se suelta.</span></div>' +
     '<div class="candado"><span>🎯</span><span>' + prTextoDesempate() + '</span></div></section>';
 
   if (r.sindicatos.length) {
@@ -888,9 +892,9 @@ function prResumen(r) {
       '</span>' + botonVerTodos(r) + '</div>';
     ss.forEach(function (s) {
       h += '<button type="button" class="pr-res' + marcaDestacado(claveSind(s)) + '">' +
-        '<span class="pr-vs">' + esc(s.trio.map(function (k, x) {
+        '<span class="hm-tic"></span><span><span class="pr-vs">' + esc(s.trio.map(function (k, x) {
           return nombreCorto(PR.jugadores[k].nombre) + ' ' + s.puntos[x];
-        }).join(' · ')) + '</span><b>' + esc(s.texto) + '</b></button>';
+        }).join(' · ')) + '</span><b>' + esc(s.texto) + '</b></span></button>';
     });
     h += '<div class="candado"><span>🧮</span><span>Seis puntos por hoyo: <b>4-2-0</b> si salen distintos, ' +
       '<b>4-1-1</b> si uno gana solo, <b>3-3-0</b> si empatan arriba y <b>2-2-2</b> si empatan los tres.</span></div></section>';

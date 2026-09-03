@@ -381,8 +381,6 @@ input[type="number"]{font-family:"IBM Plex Mono",monospace}
 .pr-op i{display:block;font-style:normal;font-size:11px;font-weight:600;margin-top:3px;opacity:.72}
 
 /* partida rápida · todas las alternativas a la vez */
-.pr-res{padding:11px 14px;border-top:1px solid var(--linea)}
-.pr-res:first-of-type{border-top:0}
 .pr-vs{display:block;font-size:12px;font-weight:600;color:var(--tenue);
   letter-spacing:.01em;margin-bottom:2px}
 .pr-vs i{font-style:normal;padding:0 2px;opacity:.8}
@@ -397,17 +395,26 @@ input[type="number"]{font-family:"IBM Plex Mono",monospace}
 .pr-fila.mejor{box-shadow:inset 3px 0 0 var(--oro)}
 .pr-pts.mejor{color:var(--navy);font-weight:800}
 
-/* partida rápida · destacar el match y los sindicatos que se están jugando */
-.pr-res, .hm-fila{display:block;width:100%;border:0;background:none;font:inherit;
-  color:inherit;text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent}
-.pr-res.destacado{background:#EFF4FD;box-shadow:inset 3px 0 0 var(--eur)}
-.pr-res.destacado .pr-vs, .pr-res.destacado b{color:var(--eur)}
-.hm-fila{display:flex;justify-content:space-between;gap:12px;font-size:12px;
-  padding:4px 6px;border-radius:6px}
-.hm-fila.destacado{background:#EFF4FD;box-shadow:inset 3px 0 0 var(--eur)}
-.hm-fila.destacado span, .hm-fila.destacado b{color:var(--eur)}
-.hm-ver{display:flex;justify-content:flex-end;margin-top:8px}
+/* partida rápida · destacar el match y los sindicatos que se están jugando.
+   Filas grandes de verdad: en la cancha se tocan con el pulgar y con guante. */
+.pr-res, .hm-fila{display:grid;align-items:center;width:100%;border:1.5px solid var(--linea);
+  background:var(--panel);font:inherit;color:inherit;text-align:left;cursor:pointer;
+  border-radius:12px;-webkit-tap-highlight-color:transparent}
+.pr-res{grid-template-columns:24px 1fr;gap:11px;min-height:56px;padding:9px 12px;margin:0 14px 8px}
+.pr-res:first-of-type{margin-top:2px}
+.hm-fila{grid-template-columns:24px 1fr auto;gap:10px;min-height:48px;padding:8px 11px;margin-top:7px}
+.hm-tic{width:22px;height:22px;border-radius:50%;border:2px solid var(--linea-2);
+  background:var(--panel);box-sizing:border-box}
+.pr-res.destacado, .hm-fila.destacado{border-color:var(--eur);background:#EFF4FD}
+.destacado .hm-tic{border-color:var(--eur);background:var(--eur);
+  box-shadow:inset 0 0 0 3.5px #EFF4FD}
+.pr-res.destacado .pr-vs, .pr-res.destacado b,
+.hm-fila.destacado .hm-quien, .hm-fila.destacado b{color:var(--eur)}
+.hm-quien{font-size:12.5px;color:var(--tenue);font-weight:600;line-height:1.25}
+.hm-fila b{font-size:12.5px;color:var(--navy);white-space:nowrap;font-weight:700}
+.hm-ver{display:flex;justify-content:flex-end;margin-top:10px}
 .btn-ver{border:1.5px solid var(--linea-2);background:var(--panel);border-radius:999px;
-  padding:5px 12px;font-family:Archivo,system-ui,sans-serif;font-size:11px;font-weight:800;
+  padding:9px 16px;font-family:Archivo,system-ui,sans-serif;font-size:11.5px;font-weight:800;
   letter-spacing:.04em;text-transform:uppercase;color:var(--navy);cursor:pointer}
 .btn-ver:active{background:#EFF4FD;border-color:var(--eur);color:var(--eur)}
+.pr-hm h4 b{color:var(--eur);font-weight:800}
