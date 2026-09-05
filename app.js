@@ -299,7 +299,7 @@ function vistaIngreso() {
     h += '<div class="campo"><label for="i-nom">Nombre y apellido</label>' +
       '<input id="i-nom" type="text" autocomplete="name"></div>' +
       '<div class="campo"><label for="i-hcp">Handicap</label>' +
-      '<input id="i-hcp" type="number" step="0.1" placeholder="ej: 14.3"></div>' +
+      '<input id="i-hcp" type="text" inputmode="decimal" placeholder="ej: 14,3"></div>' +
       '<div class="campo"><label for="i-clave">Clave del viaje</label>' +
       '<input id="i-clave" type="text" placeholder="la que pasó el organizador"></div>';
   }
@@ -430,18 +430,31 @@ function nulos() { return [null,null,null,null,null,null,null,null,null,null,nul
    juega scratch y los demás reciben la diferencia en los hoyos de menor índice.
    Sobre esos netos salen todas las alternativas a la vez, así todas se comparan
    con la misma vara. */
+/* Handicap escrito a mano. Acá se usa coma decimal, y Number('14,5') es NaN:
+   con un  || 0  detrás, ese handicap se volvía 0 en silencio y el reparto de
+   golpes quedaba al revés. Se acepta coma y punto, y lo que no se entiende
+   devuelve null en vez de cero. */
+function numeroHcp(v) {
+  if (typeof v === 'number') return isFinite(v) ? v : null;
+  var t = String(v == null ? '' : v).trim().replace(',', '.');
+  if (!t) return null;
+  var n = parseFloat(t);
+  return isFinite(n) ? n : null;
+}
+function hcpPR(j) { var n = numeroHcp(j && j.hcp); return Math.round(n == null ? 0 : n); }
+
 // Si todos tienen el mismo handicap no hay golpes de diferencia: el neto es el bruto.
 function prTodosIgual() {
   if (PR.jugadores.length < 2) return false;
-  var hs = PR.jugadores.map(function (j) { return Math.round(Number(j.hcp) || 0); });
+  var hs = PR.jugadores.map(hcpPR);
   return Math.max.apply(null, hs) === Math.min.apply(null, hs);
 }
 function prBase() {
-  return Math.min.apply(null, PR.jugadores.map(function (j) { return Math.round(Number(j.hcp) || 0); }));
+  return Math.min.apply(null, PR.jugadores.map(hcpPR));
 }
 function prRecibe(k, hoyo) {                 // golpes que recibe un jugador en un hoyo
   var c = canchaPR(PR.cancha);
-  return golpesDif(Math.round(Number(PR.jugadores[k].hcp) || 0) - prBase(), Number(c.si[hoyo]) || (hoyo + 1));
+  return golpesDif(hcpPR(PR.jugadores[k]) - prBase(), Number(c.si[hoyo]) || (hoyo + 1));
 }
 function prNetos(hoyo) {
   return PR.jugadores.map(function (j, k) {
@@ -724,7 +737,7 @@ function prEditorJugadores(armando) {
       '<input id="prn' + i + '" type="text" autocomplete="off" value="' + esc(j.nombre) +
       '" data-acc="pr-nombre" data-v="' + i + '"></div>' +
       '<div class="campo"><label for="prh' + i + '">HCP</label>' +
-      '<input id="prh' + i + '" type="number" step="0.1" value="' + esc(j.hcp) +
+      '<input id="prh' + i + '" type="text" inputmode="decimal" value="' + esc(j.hcp) +
       '" data-acc="pr-hcp" data-v="' + i + '"></div>' +
       (armando && n > 2 ? '<button class="btn fin peli" data-acc="pr-quitar" data-v="' + i + '" aria-label="Quitar">✕</button>'
                         : '<span></span>') +
@@ -945,12 +958,53 @@ function prHoyoDetalle(r, i) {
   return h + (ver ? '<div class="hm-ver">' + ver + '</div>' : '') + '</div>';
 }
 
+/* Hoyo por hoyo del match elegido: la mejor bola NETA de cada lado y cómo va.
+   Es para poder discutirlo con el número delante. */
+function prTiraMatch(m) {
+  var ultimo = 0, k;
+  for (k = 0; k < 18; k++) {
+    if (PR.jugadores.some(function (j) { return j.hoyos[k] != null; })) ultimo = k + 1;
+  }
+  var h = '';
+  if (m.jugados < ultimo) {
+    h += '<div class="aviso" style="margin:2px 14px 10px"><span>⚠️</span><span>El match cuenta hasta el hoyo <b>' +
+      m.jugados + '</b> porque falta un golpe en el hoyo <b>' + (m.jugados + 1) + '</b>. ' +
+      'El match play se resuelve hoyo por hoyo, así que se frena en el primero incompleto ' +
+      'aunque más adelante haya golpes cargados.</span></div>';
+  }
+  if (!m.jugados) return h;
+
+  h += '<div class="scroll" style="margin:0 14px 12px"><table class="tc"><thead><tr><th class="lbl">Hoyo</th>';
+  for (k = 0; k < m.jugados; k++) h += '<th>' + (k + 1) + '</th>';
+  h += '</tr></thead><tbody>';
+  [[prNombresLado(m.ladoA), 'a'], [prNombresLado(m.ladoB), 'b']].forEach(function (f) {
+    h += '<tr><td class="lbl">' + esc(f[0]) + '</td>';
+    for (k = 0; k < m.jugados; k++) {
+      var v = m.hoyos[k][f[1]], gana = m.hoyos[k].gana === f[1];
+      h += '<td>' + (v == null ? '·' : (gana ? '<span class="marca c">' + v + '</span>' : v)) + '</td>';
+    }
+    h += '</tr>';
+  });
+  h += '<tr><td class="lbl">Va</td>';
+  var arr = 0;
+  for (k = 0; k < m.jugados; k++) {
+    var g = m.hoyos[k].gana;
+    if (g === 'a') arr++; else if (g === 'b') arr--;
+    h += '<td class="tot">' + (arr === 0 ? 'AS' : (arr > 0 ? '+' + arr : arr)) + '</td>';
+  }
+  h += '</tr></tbody></table></div>' +
+    '<div class="candado"><span>🔎</span><span>Son las <b>mejores bolas netas</b> de cada lado, ya con los golpes ' +
+    'de handicap descontados. El círculo marca quién ganó el hoyo. <b>Va</b> es cómo va ' +
+    esc(prNombresLado(m.ladoA)) + ': positivo es arriba.</span></div>';
+  return h;
+}
+
 function prResumen(r) {
   var h = '<section class="card"><div class="sec-tit"><h2>Tarjeta</h2>' +
     '<span class="eyebrow">' + (r.jugados || 0) + ' hoyos</span></div>';
   var base = prBase();
   PR.jugadores.forEach(function (j, k) {
-    var dif = Math.round(Number(j.hcp) || 0) - base;
+    var dif = hcpPR(j) - base;
     h += '<div class="jug"><span class="av">' + esc(inicial({ nombre: j.nombre })) + '</span>' +
       '<span><span class="lb-nom">' + esc(j.nombre) + '</span>' +
       '<span class="lb-meta">HCP ' + esc(j.hcp) + ' · ' +
@@ -973,6 +1027,7 @@ function prResumen(r) {
     h += '<button type="button" class="pr-res' + marcaDestacado(claveMatch(m)) + '">' +
       '<span class="hm-tic"></span><span><span class="pr-vs">' + esc(prNombresLado(m.ladoA)) +
       ' <i>vs</i> ' + esc(prNombresLado(m.ladoB)) + '</span><b>' + esc(m.texto) + '</b></span></button>';
+    if (esDestacado(claveMatch(m))) h += prTiraMatch(m);
   });
   h += (prTodosIgual()
     ? '<div class="aviso" style="margin:12px 14px"><span>⚠️</span><span>El match se juega con los netos, pero ' +
@@ -982,6 +1037,9 @@ function prResumen(r) {
       'En cada hoyo ves los dos netos con los que se resolvió.</span></div>') +
     '<div class="candado"><span>👆</span><span>Tocá el match que estés jugando: queda en <b>azul</b> ' +
     'y el resto se esconde, acá y en cada hoyo. Volvés a tocarlo y se suelta.</span></div>' +
+    '<div class="pr-eq" style="margin:10px 14px 4px"><span>La segunda bola desempata</span>' +
+    '<button class="a" data-acc="pr-segunda" data-v="1" aria-pressed="' + (PR.segunda !== false) + '">Sí</button>' +
+    '<button class="r" data-acc="pr-segunda" data-v="0" aria-pressed="' + (PR.segunda === false) + '">No</button></div>' +
     '<div class="candado"><span>🎯</span><span>' + prTextoDesempate() + '</span></div></section>';
 
   if (r.sindicatos.length) {
@@ -1581,7 +1639,7 @@ function vistaPerfil() {
     '</div></div></div>' +
     '<div class="grid2">' +
     '<div class="campo"><label for="p-nom">Nombre</label><input id="p-nom" type="text" value="' + esc(y.nombre) + '" data-acc="ed-perfil" data-v="nombre"></div>' +
-    '<div class="campo"><label for="p-hcp">Handicap</label><input id="p-hcp" type="number" step="0.1" value="' + esc(y.handicap) + '" data-acc="ed-perfil" data-v="handicap"></div>' +
+    '<div class="campo"><label for="p-hcp">Handicap</label><input id="p-hcp" type="text" inputmode="decimal" value="' + esc(y.handicap) + '" data-acc="ed-perfil" data-v="handicap"></div>' +
     '<div class="campo"><label for="p-club">Club</label><input id="p-club" type="text" value="' + esc(y.club) + '" placeholder="opcional" data-acc="ed-perfil" data-v="club"></div>' +
     '<div class="campo"><label for="p-apo">Apodo</label><input id="p-apo" type="text" value="' + esc(y.apodo || '') + '" placeholder="opcional" data-acc="ed-perfil" data-v="apodo"></div></div>' +
     '<div class="grid2" style="grid-template-columns:1fr"><div class="campo"><label>Equipo</label>' +
@@ -1743,7 +1801,15 @@ document.addEventListener('change', function (ev) {
   if (!E) return;
   var a = acc, v = el.getAttribute('data-v'), i = Number(el.getAttribute('data-i'));
   if (a === 'ed-foto') { if (el.files && el.files[0]) subirFoto(el.files[0]); el.value = ''; return; }
-  else if (a === 'ed-perfil') { var p = { accion: 'perfil' }; p[v] = el.value.trim(); accionar(p); }
+  else if (a === 'ed-perfil') {
+    var p = { accion: 'perfil' };
+    if (v === 'handicap') {
+      var nh = numeroHcp(el.value);
+      if (nh === null) { pintar(); return; }
+      p.handicap = Math.max(0, Math.min(54, nh));
+    } else p[v] = el.value.trim();
+    accionar(p);
+  }
   else if (a === 'ed-pass') { if (el.value.length >= 4) accionar({ accion: 'perfil', password: el.value }).then(function () { el.value = ''; alert('Contraseña cambiada.'); }); }
   else if (a === 'ed-cancha') { accionar({ accion: 'cancha', id: v, nombre: el.value.trim() }); }
   else if (a === 'ed-par' || a === 'ed-si') {
@@ -1763,7 +1829,7 @@ function ingresar(alta) {
   var cuerpo = { accion: alta ? 'registrar' : 'login', matricula: mat.trim(), password: pass };
   if (alta) {
     cuerpo.nombre = (document.getElementById('i-nom') || {}).value || '';
-    cuerpo.handicap = (document.getElementById('i-hcp') || {}).value || 0;
+    cuerpo.handicap = numeroHcp((document.getElementById('i-hcp') || {}).value) || 0;
     cuerpo.claveViaje = (document.getElementById('i-clave') || {}).value || '';
   }
   ultimoError = '';
@@ -1846,7 +1912,9 @@ function cambioRapida(a, i, valor) {
   if (a === 'pr-nombre') {
     PR.jugadores[i].nombre = String(valor).trim() || ('Jugador ' + (i + 1));
   } else {
-    PR.jugadores[i].hcp = Math.max(0, Math.min(54, Number(valor) || 0));
+    var n = numeroHcp(valor);
+    if (n === null) { pintar(); return; }     // no se entiende: se deja el que estaba
+    PR.jugadores[i].hcp = Math.max(0, Math.min(54, n));
   }
   guardarPR(); pintar();
   if (PR.id) prGuardarRemoto(false);        // que la planilla quede con el dato nuevo
