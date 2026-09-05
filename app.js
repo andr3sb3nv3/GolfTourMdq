@@ -430,6 +430,12 @@ function nulos() { return [null,null,null,null,null,null,null,null,null,null,nul
    juega scratch y los demás reciben la diferencia en los hoyos de menor índice.
    Sobre esos netos salen todas las alternativas a la vez, así todas se comparan
    con la misma vara. */
+// Si todos tienen el mismo handicap no hay golpes de diferencia: el neto es el bruto.
+function prTodosIgual() {
+  if (PR.jugadores.length < 2) return false;
+  var hs = PR.jugadores.map(function (j) { return Math.round(Number(j.hcp) || 0); });
+  return Math.max.apply(null, hs) === Math.min.apply(null, hs);
+}
 function prBase() {
   return Math.min.apply(null, PR.jugadores.map(function (j) { return Math.round(Number(j.hcp) || 0); }));
 }
@@ -915,10 +921,11 @@ function prHoyoDetalle(r, i) {
     var res = hh.gana === null ? '–'
       : (hh.gana === '' ? 'se reparte'
       : prNombresLado(hh.gana === 'a' ? m.ladoA : m.ladoB) + (hh.por === 'segunda' ? ' · 2ª bola' : ''));
+    var cifras = (hh.a == null || hh.b == null) ? '' : hh.a + '–' + hh.b;
     return '<button type="button" class="hm-fila' + marcaDestacado(claveMatch(m)) + '">' +
       '<span class="hm-tic"></span>' +
       '<span class="hm-quien">' + esc(prNombresLado(m.ladoA) + ' vs ' + prNombresLado(m.ladoB)) + '</span>' +
-      '<b>' + esc(res) + '</b></button>';
+      '<b>' + (cifras ? '<i>' + cifras + ' netos</i>' : '') + esc(res) + '</b></button>';
   }).join('');
 
   if (r.sindicatos.length) {
@@ -941,14 +948,22 @@ function prHoyoDetalle(r, i) {
 function prResumen(r) {
   var h = '<section class="card"><div class="sec-tit"><h2>Tarjeta</h2>' +
     '<span class="eyebrow">' + (r.jugados || 0) + ' hoyos</span></div>';
+  var base = prBase();
   PR.jugadores.forEach(function (j, k) {
+    var dif = Math.round(Number(j.hcp) || 0) - base;
     h += '<div class="jug"><span class="av">' + esc(inicial({ nombre: j.nombre })) + '</span>' +
       '<span><span class="lb-nom">' + esc(j.nombre) + '</span>' +
-      '<span class="lb-meta">HCP ' + esc(j.hcp) + '</span></span>' +
+      '<span class="lb-meta">HCP ' + esc(j.hcp) + ' · ' +
+      (dif ? 'recibe ' + dif + ' golpe' + (dif > 1 ? 's' : '') : 'juega scratch') + '</span></span>' +
       '<span class="lb-val"><b>' + (r.bruto[k] || '–') + '</b><span>neto ' + (r.neto[k] || '–') + '</span></span></div>';
   });
-  h += '<div class="candado"><span>⚖️</span><span>Todos miden contra el handicap más bajo del grupo, hoyo por hoyo ' +
-    'según el índice de la tarjeta. Es el mismo reparto para todas las alternativas.</span></div></section>';
+  h += (prTodosIgual()
+    ? '<div class="aviso" style="margin:12px 14px"><span>⚠️</span><span>Todos tienen el <b>mismo handicap</b>, ' +
+      'así que no hay golpes de diferencia y el neto es igual al bruto. Si eso no es lo que querés, ' +
+      'cargá los handicaps reales abajo, en <b>Jugadores</b>.</span></div>'
+    : '<div class="candado"><span>⚖️</span><span>El de handicap más bajo juega scratch y los demás reciben la ' +
+      'diferencia, hoyo por hoyo según el índice de la tarjeta. Es el mismo reparto para el match y para los ' +
+      'sindicatos.</span></div>') + '</section>';
 
   var ms = prElegidos(r.matches, claveMatch);
   h += '<section class="card"><div class="sec-tit"><h2>Match</h2>' +
@@ -959,7 +974,13 @@ function prResumen(r) {
       '<span class="hm-tic"></span><span><span class="pr-vs">' + esc(prNombresLado(m.ladoA)) +
       ' <i>vs</i> ' + esc(prNombresLado(m.ladoB)) + '</span><b>' + esc(m.texto) + '</b></span></button>';
   });
-  h += '<div class="candado"><span>👆</span><span>Tocá el match que estés jugando: queda en <b>azul</b> ' +
+  h += (prTodosIgual()
+    ? '<div class="aviso" style="margin:12px 14px"><span>⚠️</span><span>El match se juega con los netos, pero ' +
+      'todos tienen el <b>mismo handicap</b>: no hay golpes de diferencia. Cargá los handicaps reales en ' +
+      '<b>Jugadores</b>, acá abajo.</span></div>'
+    : '<div class="candado"><span>⚖️</span><span>Los match se deciden con la <b>mejor bola neta</b> de cada lado. ' +
+      'En cada hoyo ves los dos netos con los que se resolvió.</span></div>') +
+    '<div class="candado"><span>👆</span><span>Tocá el match que estés jugando: queda en <b>azul</b> ' +
     'y el resto se esconde, acá y en cada hoyo. Volvés a tocarlo y se suelta.</span></div>' +
     '<div class="candado"><span>🎯</span><span>' + prTextoDesempate() + '</span></div></section>';
 

@@ -430,3 +430,8 @@ input[type="number"]{font-family:"IBM Plex Mono",monospace}
   cursor:pointer;white-space:nowrap;-webkit-tap-highlight-color:transparent}
 .pr-anoto button[aria-pressed="true"]{border-color:var(--navy);background:var(--navy);color:#fff}
 table.tc tr.yo .lbl{color:var(--eur);font-weight:800;box-shadow:inset 3px 0 0 var(--eur)}
+
+.hm-fila b i{display:block;font-style:normal;font-family:"IBM Plex Mono",monospace;
+  font-size:10.5px;font-weight:600;color:var(--tenue);letter-spacing:-.01em}
+.hm-fila.destacado b i{color:var(--eur);opacity:.75}
+.hm-fila b{text-align:right;line-height:1.3}
