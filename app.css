@@ -435,3 +435,11 @@ table.tc tr.yo .lbl{color:var(--eur);font-weight:800;box-shadow:inset 3px 0 0 va
   font-size:10.5px;font-weight:600;color:var(--tenue);letter-spacing:-.01em}
 .hm-fila.destacado b i{color:var(--eur);opacity:.75}
 .hm-fila b{text-align:right;line-height:1.3}
+
+.pr-pct{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:0 14px 4px}
+.pr-pct > span{font-family:Archivo,system-ui,sans-serif;font-size:10px;font-weight:800;
+  letter-spacing:.13em;text-transform:uppercase;color:var(--tenue);width:100%}
+.pr-pct button{flex:1;min-width:56px;border:1.5px solid var(--linea-2);background:var(--panel);
+  border-radius:999px;padding:10px 6px;font-size:12.5px;font-weight:700;color:var(--tinta);
+  cursor:pointer;-webkit-tap-highlight-color:transparent}
+.pr-pct button[aria-pressed="true"]{border-color:var(--navy);background:var(--navy);color:#fff}

@@ -419,7 +419,7 @@ function guardarPR() { guardarLS('gtm-pr', PR); }
 
 function prNueva() {
   return { id: null, cancha: 'jockey-roja', hoyo: 0, guardado: null, segunda: true, destacados: [],
-    vista: 'hoyo', vistaTc: 'bruto', anoto: null,
+    vista: 'hoyo', vistaTc: 'bruto', anoto: null, pct: ALLOWANCE,
     jugadores: [{ nombre: 'Jugador 1', hcp: 18, hoyos: nulos() },
                 { nombre: 'Jugador 2', hcp: 18, hoyos: nulos() }] };
 }
@@ -441,7 +441,20 @@ function numeroHcp(v) {
   var n = parseFloat(t);
   return isFinite(n) ? n : null;
 }
-function hcpPR(j) { var n = numeroHcp(j && j.hcp); return Math.round(n == null ? 0 : n); }
+/* Handicap de juego para el match: se toma un porcentaje del handicap y RECIÉN
+   AHÍ se sacan las diferencias contra el más bajo. Es el orden que corresponde:
+   primero la reducción de cada uno, después el reparto. La casa juega al 85%. */
+var ALLOWANCE = 0.85;
+var ALLOWANCES = [[1, '100%'], [0.9, '90%'], [0.85, '85%'], [0.75, '75%']];
+function prPct() {
+  var v = PR && Number(PR.pct);
+  return isFinite(v) && v > 0 ? v : ALLOWANCE;
+}
+function hcpDeJuego(bruto, pct) {
+  var n = numeroHcp(bruto);
+  return Math.round((n == null ? 0 : n) * pct);
+}
+function hcpPR(j) { return hcpDeJuego(j && j.hcp, prPct()); }
 
 // Si todos tienen el mismo handicap no hay golpes de diferencia: el neto es el bruto.
 function prTodosIgual() {
@@ -768,6 +781,10 @@ function prVistaArmado() {
     '<div class="candado"><span>⛳</span><span>Tarjeta oficial: par e índice de los 18 hoyos.</span></div>' +
     '</section>' +
 
+    '<section class="card"><div class="sec-tit"><h2>Handicap del match</h2></div>' +
+    prSelectorPct() +
+    '<div class="candado"><span>⚖️</span><span>' + prTextoPct() + '</span></div></section>' +
+
     '<section class="card"><div class="sec-tit"><h2>Desempate del match</h2></div>' +
     '<div class="pr-eq" style="margin:0 14px 4px"><span>La segunda bola desempata</span>' +
     '<button class="a" data-acc="pr-segunda" data-v="1" aria-pressed="' + (PR.segunda !== false) + '">Sí</button>' +
@@ -788,6 +805,21 @@ function prQueSale() {
     (m > 1 ? 'es' : '') + '</b>' +
     (s ? ' y <b>' + s + ' sindicato' + (s > 1 ? 's' : '') + '</b>' : ' (el sindicato necesita tres)') +
     ', todo con los mismos golpes. No hay que elegir modalidad.</span></div>';
+}
+
+function prSelectorPct() {
+  return '<div class="pr-pct"><span>Handicap de juego</span>' +
+    ALLOWANCES.map(function (a) {
+      return '<button data-acc="pr-pct" data-v="' + a[0] + '" aria-pressed="' +
+        (Math.abs(prPct() - a[0]) < 0.001) + '">' + a[1] + '</button>';
+    }).join('') + '</div>';
+}
+function prTextoPct() {
+  var pct = prPct();
+  if (pct === 1) return 'El match usa el handicap completo de cada uno.';
+  return 'Cada uno juega el match con el <b>' + Math.round(pct * 100) + '%</b> de su handicap. ' +
+    'Sobre esos handicaps reducidos, el más bajo va scratch y los demás reciben la diferencia, ' +
+    'hoyo por hoyo según el índice.';
 }
 
 function prTextoDesempate() {
@@ -1004,20 +1036,19 @@ function prResumen(r) {
     '<span class="eyebrow">' + (r.jugados || 0) + ' hoyos</span></div>';
   var base = prBase();
   PR.jugadores.forEach(function (j, k) {
-    var dif = hcpPR(j) - base;
+    var jue = hcpPR(j), dif = jue - base;
     h += '<div class="jug"><span class="av">' + esc(inicial({ nombre: j.nombre })) + '</span>' +
       '<span><span class="lb-nom">' + esc(j.nombre) + '</span>' +
-      '<span class="lb-meta">HCP ' + esc(j.hcp) + ' · ' +
-      (dif ? 'recibe ' + dif + ' golpe' + (dif > 1 ? 's' : '') : 'juega scratch') + '</span></span>' +
+      '<span class="lb-meta">HCP ' + esc(j.hcp) + (prPct() === 1 ? '' : ' · juega ' + jue) + ' · ' +
+      (dif ? 'recibe ' + dif + ' golpe' + (dif > 1 ? 's' : '') : 'scratch') + '</span></span>' +
       '<span class="lb-val"><b>' + (r.bruto[k] || '–') + '</b><span>neto ' + (r.neto[k] || '–') + '</span></span></div>';
   });
   h += (prTodosIgual()
     ? '<div class="aviso" style="margin:12px 14px"><span>⚠️</span><span>Todos tienen el <b>mismo handicap</b>, ' +
       'así que no hay golpes de diferencia y el neto es igual al bruto. Si eso no es lo que querés, ' +
       'cargá los handicaps reales abajo, en <b>Jugadores</b>.</span></div>'
-    : '<div class="candado"><span>⚖️</span><span>El de handicap más bajo juega scratch y los demás reciben la ' +
-      'diferencia, hoyo por hoyo según el índice de la tarjeta. Es el mismo reparto para el match y para los ' +
-      'sindicatos.</span></div>') + '</section>';
+    : '<div class="candado"><span>⚖️</span><span>' + prTextoPct() +
+      ' El mismo reparto vale para el match y para los sindicatos.</span></div>') + '</section>';
 
   var ms = prElegidos(r.matches, claveMatch);
   h += '<section class="card"><div class="sec-tit"><h2>Match</h2>' +
@@ -1037,6 +1068,8 @@ function prResumen(r) {
       'En cada hoyo ves los dos netos con los que se resolvió.</span></div>') +
     '<div class="candado"><span>👆</span><span>Tocá el match que estés jugando: queda en <b>azul</b> ' +
     'y el resto se esconde, acá y en cada hoyo. Volvés a tocarlo y se suelta.</span></div>' +
+    prSelectorPct() +
+    '<div class="candado"><span>⚖️</span><span>' + prTextoPct() + '</span></div>' +
     '<div class="pr-eq" style="margin:10px 14px 4px"><span>La segunda bola desempata</span>' +
     '<button class="a" data-acc="pr-segunda" data-v="1" aria-pressed="' + (PR.segunda !== false) + '">Sí</button>' +
     '<button class="r" data-acc="pr-segunda" data-v="0" aria-pressed="' + (PR.segunda === false) + '">No</button></div>' +
@@ -1098,7 +1131,9 @@ function vistaTesteo() {
 
 /* ============ match play ============ */
 var FORMATOS = { foursomes: 'Foursomes', fourball: 'Four-ball', singles: 'Singles' };
-function ph(j) { return Math.round(Number(j.handicap) || 0); }
+// Handicap de juego del match: el 85% de la casa. El Medal Neto no se toca:
+// ese sigue con el handicap completo, que es lo que corresponde en medal.
+function ph(j) { return hcpDeJuego(j && j.handicap, ALLOWANCE); }
 // Golpes que recibe quien tiene 'diff' de diferencia, en el hoyo de índice si
 function golpesDif(diff, si) {
   if (diff <= 0) return 0;
@@ -1940,6 +1975,7 @@ function accionRapida(a, v, b) {
   else if (a === 'pr-ver-todos') PR.verTodos = !PR.verTodos;
   else if (a === 'pr-vista') PR.vista = v;
   else if (a === 'pr-tc') PR.vistaTc = v;
+  else if (a === 'pr-pct') PR.pct = Number(v) || ALLOWANCE;
   else if (a === 'pr-anoto') PR.anoto = (v === '' ? null : Number(v));
   else if (a === 'pr-cancha') PR.cancha = v;
   else if (a === 'pr-segunda') PR.segunda = v === '1';
