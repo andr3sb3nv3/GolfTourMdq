@@ -444,7 +444,7 @@ table.tc tr.yo .lbl{color:var(--eur);font-weight:800;box-shadow:inset 3px 0 0 va
   cursor:pointer;-webkit-tap-highlight-color:transparent}
 .pr-pct button[aria-pressed="true"]{border-color:var(--navy);background:var(--navy);color:#fff}
 
-.pr-quien i b.tiro{font-weight:800;color:var(--eur)}
+
 
 /* Las instrucciones viven todas juntas al pie de la pantalla, después de lo
    que se toca. Se leen si hacen falta y no estorban mientras se juega. */
@@ -455,3 +455,18 @@ table.tc tr.yo .lbl{color:var(--eur);font-weight:800;box-shadow:inset 3px 0 0 va
 .notas .candado{margin:0;border-radius:0;background:transparent;border:0;
   padding:7px 14px;align-items:flex-start}
 .notas .candado + .candado{border-top:1px solid var(--linea)}
+
+/* Cómo va el match, del color del que va arriba */
+.estado-match{margin:2px 14px 12px;padding:11px 14px;border-radius:12px;text-align:center;
+  border:2px solid var(--linea-2);background:var(--panel);color:var(--navy)}
+.estado-match .em-quien{display:block;font-family:Archivo,system-ui,sans-serif;font-size:10.5px;
+  font-weight:800;letter-spacing:.14em;text-transform:uppercase;opacity:.85}
+.estado-match .em-val{display:block;font-family:Archivo,system-ui,sans-serif;font-size:30px;
+  font-weight:800;line-height:1.05;margin:2px 0 3px;letter-spacing:-.02em}
+.estado-match .em-pie{display:block;font-size:11.5px;font-weight:600;opacity:.72}
+.estado-match.es-rojo{border-color:var(--usa);background:#FDF0F2;color:var(--usa)}
+.estado-match.es-azul{border-color:var(--eur);background:#EFF4FD;color:var(--eur)}
+.pin.gana-rojo{border-color:var(--usa);color:var(--usa);background:#FDF0F2}
+.pin.gana-azul{border-color:var(--eur);color:var(--eur);background:#EFF4FD}
+.pr-quien i b.tiro{display:inline-block;padding:1px 8px;border-radius:999px;font-size:10.5px;
+  font-weight:800;border:1.5px solid currentColor;margin-left:1px}

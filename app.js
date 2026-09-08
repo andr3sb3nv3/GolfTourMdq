@@ -1489,6 +1489,30 @@ function esFoursomes(c, j) {
    cuatro (o dos, en singles), dice quién tiene golpe en el hoyo que están por
    jugar y cómo va el match. Los demás la miran desde su celular: es la misma
    pantalla, con los mismos números. */
+/* Cómo va el match, del color del que está arriba: rojo Team USA, azul Team
+   Europe, azul marino si van iguales. Es lo primero que se mira entre hoyo y
+   hoyo, así que va grande y arriba de la carga. */
+function estadoMatchHTML(pr) {
+  var dif = Math.abs(pr.arriba);
+  var lado = pr.arriba > 0 ? 'rojo' : (pr.arriba < 0 ? 'azul' : '');
+  var cls = lado === 'rojo' ? ' es-rojo' : (lado === 'azul' ? ' es-azul' : ' es-iguales');
+  var quien = lado ? nombreEquipo(lado) : 'Van iguales', val, pie;
+  var restan = 18 - pr.jugados;
+  if (!pr.jugados) {
+    quien = 'Sin empezar'; val = '–'; pie = 'todavía no hay golpes cargados'; cls = ' es-iguales';
+  } else if (pr.cerrado && pr.cerradoEn) {
+    val = restan > 0 ? dif + '&' + restan : dif + ' arriba';
+    pie = 'partido cerrado en el hoyo ' + pr.jugados;
+  } else if (pr.jugados === 18 && pr.arriba === 0) {
+    val = 'AS'; pie = 'empatado · medio punto para cada uno';
+  } else {
+    val = pr.arriba === 0 ? 'AS' : dif + ' arriba';
+    pie = 'hoyo ' + pr.jugados + ' · quedan ' + restan;
+  }
+  return '<div class="estado-match' + cls + '"><span class="em-quien">' + esc(quien) + '</span>' +
+    '<b class="em-val">' + esc(val) + '</b><span class="em-pie">' + esc(pie) + '</span></div>';
+}
+
 function vistaLinea() {
   var c = canchaActual(), y = yo();
   var m = partidoDe(c.id, y.matricula);
@@ -1502,13 +1526,14 @@ function vistaLinea() {
 
   // encabezado del hoyo, con el estado del match
   var h = '<div class="pila">' + chipsCancha(c.id, 'sel-cancha', false) + selectorCarga(m) +
-    '<section class="card"><div class="p-cab"><span class="eyebrow">' + esc(c.nombre) + ' · ' +
-    (FORMATOS[m.formato || c.formato] || 'match') + '</span>' +
-    '<span class="p-estado">' + esc(pr.texto) + '</span></div>' +
+    '<section class="card"><div class="p-cab"><span class="eyebrow">' + esc(c.nombre) + '</span>' +
+    '<span class="p-estado">' + esc(FORMATOS[m.formato || c.formato] || 'match') + '</span></div>' +
+    estadoMatchHTML(pr) +
     '<div class="hoyo" style="padding-bottom:8px"><div class="n">' + (i + 1) + '</div>' +
     '<div class="datos"><span class="pin">Par ' + par + '</span><span class="pin">SI ' + si + '</span>' +
-    (hh.gana ? '<span class="pin recibe">' + esc(hh.gana === 'usa' ? nombreEquipo('rojo') : nombreEquipo('azul')) +
-      ' gana el hoyo</span>' : '') + '</div></div>';
+    (hh.gana ? '<span class="pin ' + (hh.gana === 'usa' ? 'gana-rojo' : 'gana-azul') + '">' +
+      esc(hh.gana === 'usa' ? nombreEquipo('rojo') : nombreEquipo('azul')) + ' gana el hoyo</span>' : '') +
+    '</div></div>';
 
   // una fila por jugador; en foursomes, una por pareja
   var filas = [];
@@ -1539,7 +1564,7 @@ function vistaLinea() {
     return '<div class="pr-fila' + (f.golpes ? ' mejor' : '') + '">' +
       '<div class="pr-quien"><b class="' + f.clase.trim() + '">' + esc(f.etiqueta) + '</b>' +
       '<i>' + esc(f.sub) + (f.golpes ? ' · ' : '') +
-      (f.golpes ? '<b class="tiro">tira ' + f.golpes + '</b>' : '') + '</i></div>' +
+      (f.golpes ? '<b class="tiro' + f.clase + '">tira ' + f.golpes + '</b>' : '') + '</i></div>' +
       (puedo ? '<button class="rd chico" data-acc="ln-menos" data-v="' + f.destino + '">−</button>' : '<span></span>') +
       '<span class="pr-golpes' + (f.valor == null ? ' sin' : '') + '">' + (f.valor == null ? '–' : f.valor) + '</span>' +
       (puedo ? '<button class="rd chico" data-acc="ln-mas" data-v="' + f.destino + '">+</button>' : '<span></span>') +
