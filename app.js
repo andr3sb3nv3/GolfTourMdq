@@ -335,7 +335,7 @@ function vistaIngreso() {
   h += '<button class="btn pri" data-acc="' + (alta ? 'registrar' : 'entrar') + '">' +
     (alta ? 'Crear mi acceso' : 'Entrar') + '</button>' +
     (alta ? '' : '<button class="btn fin" data-acc="modo" data-v="olvide">Me olvidé la contraseña</button>') +
-    '<span class="hint">Se guarda la sesión en este celular: entrás una vez y listo.</span>' +
+    nota('<div class="candado"><span>📱</span><span>Se guarda la sesión en este celular: entrás una vez y listo.</span></div>') +
     '<button class="btn fin" data-acc="probar">Probar la conexión con la planilla</button>' +
     '<button class="btn fin" data-acc="test-entrar">🧪 Entrar en modo testeo (datos de prueba)</button>' +
     '</div></section></div>';
@@ -354,7 +354,7 @@ function vistaOlvide() {
     h += '<div class="campo"><label for="o-mat">Tu matrícula</label>' +
       '<input id="o-mat" type="text" inputmode="numeric" placeholder="la que usás para entrar"></div>' +
       '<button class="btn pri" data-acc="olvide-pedir">Pedir un código</button>' +
-      '<span class="hint">El código le llega al organizador, por mail y dentro de la app. Él te lo pasa.</span>';
+      nota('<div class="candado"><span>✉️</span><span>El código le llega al organizador, por mail y dentro de la app. Él te lo pasa.</span></div>');
   } else {
     h += '<div class="campo"><label>Matrícula</label>' +
       '<input type="text" value="' + esc(UI.olvideMat) + '" disabled></div>' +
@@ -790,8 +790,8 @@ function prEditorJugadores(armando) {
 function prVistaArmado() {
   var n = PR.jugadores.length;
   var h = '<div class="pila">' +
-    '<div class="aviso"><span>⚡</span><span><b>Partida rápida.</b> Una vuelta suelta, con quien sea y en cualquier cancha. ' +
-    'Cargás los golpes una sola vez y salen todas las alternativas juntas.</span></div>' +
+    nota('<div class="candado"><span>⚡</span><span><b>Partida rápida.</b> Una vuelta suelta, con quien sea y en cualquier cancha. ' +
+    'Cargás los golpes una sola vez y salen todas las alternativas juntas.</span></div>') +
 
     '<section class="card"><div class="sec-tit"><h2>Jugadores</h2>' +
     '<span class="eyebrow">' + n + ' de 4</span></div>' +
@@ -1138,8 +1138,8 @@ function prHistorialHTML() {
 function vistaTesteo() {
   var y = yo();
   var h = '<div class="pila">' +
-    '<div class="aviso"><span>🧪</span><span><b>Base de prueba.</b> Doce jugadores inventados con las tres vueltas jugadas ' +
-    'y handicaps al azar. Todo lo que toques acá queda en este celular: no viaja a la planilla ni lo ve nadie.</span></div>' +
+    nota('<div class="candado"><span>🧪</span><span><b>Base de prueba.</b> Doce jugadores inventados con las tres vueltas jugadas ' +
+    'y handicaps al azar. Todo lo que toques acá queda en este celular: no viaja a la planilla ni lo ve nadie.</span></div>') +
     '<section class="card"><div class="sec-tit"><h2>Jugar como</h2>' +
     '<span class="eyebrow">' + E.jugadores.length + ' jugadores</span></div><div class="login-grid">' +
     E.jugadores.map(function (j) {
@@ -1435,7 +1435,8 @@ function selectorModalidad(c, admin) {
         return '<button data-acc="formato" data-v="' + c.id + '" data-i="' + f[0] + '" aria-pressed="' +
           ((c.formato || '') === f[0]) + '">' + f[1] + '</button>';
       }).join('') + '</div>' +
-    '<span class="hint">Cualquiera de las tres, cualquier día. Si cambiás la modalidad se borran los partidos ya armados de esta jornada.</span>' +
+    nota('<div class="candado"><span>🎛️</span><span>La modalidad se elige el mismo día: cualquiera de las tres, cualquier día. ' +
+    'Si la cambiás se borran los partidos ya armados de esa jornada.</span></div>') +
     '</div></div>';
 }
 
@@ -1714,7 +1715,9 @@ function vistaTarjetas() {
     });
     h += fila + '<td class="tot">' + (n || '·') + '</td><td class="tot">' + (t || '·') + '</td><td class="tot">' + r.pts + '</td></tr>';
   });
-  return h + '</tbody></table></div><div class="acc"><span class="hint">Círculo rojo = bajo par · cuadrado azul = sobre par. Doble marco: eagle o doble bogey.</span></div></section></div>';
+  return h + '</tbody></table></div></section>' +
+    nota('<div class="candado"><span>⛳</span><span>Círculo rojo: bajo par. Cuadrado azul: sobre par. ' +
+    'Doble marco: eagle o doble bogey.</span></div>') + '</div>';
 }
 
 function vistaJugadores() {
@@ -1734,7 +1737,8 @@ function vistaJugadores() {
       '</div>';
   });
   h += '</section>' + bloqueConduccion();
-  return h + '<div class="aviso"><span>🎯</span><span>Cada uno entra con su matrícula y su contraseña y aparece acá automáticamente. Nadie edita los datos ni la tarjeta de otro, el organizador tampoco.</span></div></div>';
+  return h + nota('<div class="candado"><span>🎯</span><span>Cada uno entra con su matrícula y su PIN y aparece acá automáticamente. ' +
+    'Fuera de tu propio partido nadie edita los datos ni la tarjeta de otro, el organizador tampoco.</span></div>') + '</div>';
 }
 
 function vistaCanchas() {
@@ -1777,7 +1781,8 @@ function vistaCanchas() {
       }
       if (admin) h += '<div class="acc"><button class="btn' + (c.confirmada ? '' : ' pri') + '" data-acc="confirmar" data-v="' + c.id + '">' +
         (c.confirmada ? '✓ Tarjeta oficial' : 'Marcar como tarjeta oficial') + '</button>' +
-        '<span class="hint" style="flex:1;min-width:180px">El índice va del 1 al 18: 1 es el hoyo más difícil.</span></div>';
+        '</div>' + nota('<div class="candado"><span>📋</span><span>El índice de cada hoyo va del 1 al 18: el <b>1</b> es el más difícil, ' +
+        'y es donde se dan los primeros golpes de handicap.</span></div>');
     }
     h += nota('<div class="candado"><span>🎛️</span><span><b>' + esc(diaFecha(c.dia)) + ':</b> la modalidad ' +
       'de equipos (' + (FORMATOS[c.formato] || 'sin definir') + ') se elige en la pestaña <b>Ryder</b>.</span></div>');
@@ -1813,7 +1818,8 @@ function bloquePedidos() {
   }
   return h + '<div class="acc"><button class="btn" data-acc="ver-pedidos">' +
     (PEDIDOS ? 'Actualizar' : 'Ver pedidos de contraseña') + '</button>' +
-    '<span class="hint">Cuando alguien se olvida la contraseña te llega un código por mail y aparece acá. Se lo pasás y con eso él pone una nueva.</span></div></section>';
+    '</div></section>' + nota('<div class="candado"><span>🔑</span><span>Cuando alguien se olvida el PIN te llega un código por mail y aparece acá. ' +
+    'Se lo pasás y con eso él pone uno nuevo.</span></div>');
 }
 
 function vistaPerfil() {
@@ -1899,7 +1905,7 @@ function notasHTML() {
 function pintar() {
   NOTAS = [];
   var app = document.getElementById('app');
-  if (!SES && !TEST) { app.innerHTML = vistaIngreso(); return; }
+  if (!SES && !TEST) { app.innerHTML = vistaIngreso() + notasHTML(); return; }
   if (!E) { app.innerHTML = '<div class="pantalla"><p class="vacio">Cargando el torneo…</p></div>'; return; }
   var y = yo();
   var vista = UI.tab === 'cargar' ? vistaCargar() : UI.tab === 'tarjetas' ? vistaTarjetas() :
