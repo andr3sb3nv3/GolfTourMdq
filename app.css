@@ -445,3 +445,13 @@ table.tc tr.yo .lbl{color:var(--eur);font-weight:800;box-shadow:inset 3px 0 0 va
 .pr-pct button[aria-pressed="true"]{border-color:var(--navy);background:var(--navy);color:#fff}
 
 .pr-quien i b.tiro{font-weight:800;color:var(--eur)}
+
+/* Las instrucciones viven todas juntas al pie de la pantalla, después de lo
+   que se toca. Se leen si hacen falta y no estorban mientras se juega. */
+.notas{margin-top:18px;padding-top:14px;border-top:1px solid var(--linea)}
+.notas h3{margin:0 0 8px;padding:0 14px;font-family:Archivo,system-ui,sans-serif;
+  font-size:10.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--tenue)}
+.notas .candado{margin:0;border-radius:0;background:transparent;border:0;
+  padding:7px 14px;align-items:flex-start}
+.notas .candado + .candado{border-top:1px solid var(--linea)}

@@ -807,18 +807,18 @@ function prVistaArmado() {
         (PR.cancha === c.id) + '">' + esc(c.nombre) +
         '<i>par ' + tot + '</i></button>';
     }).join('') + '</div>' +
-    '<div class="candado"><span>⛳</span><span>Tarjeta oficial: par e índice de los 18 hoyos.</span></div>' +
+    nota('<div class="candado"><span>⛳</span><span>Tarjeta oficial: par e índice de los 18 hoyos.</span></div>') +
     '</section>' +
 
     '<section class="card"><div class="sec-tit"><h2>Handicap del match</h2></div>' +
     prSelectorPct() +
-    '<div class="candado"><span>⚖️</span><span>' + prTextoPct() + '</span></div></section>' +
+    nota('<div class="candado"><span>⚖️</span><span>' + prTextoPct() + '</span></div>') + '</section>' +
 
     '<section class="card"><div class="sec-tit"><h2>Desempate del match</h2></div>' +
     '<div class="pr-eq" style="margin:0 14px 4px"><span>La segunda bola desempata</span>' +
     '<button class="a" data-acc="pr-segunda" data-v="1" aria-pressed="' + (PR.segunda !== false) + '">Sí</button>' +
     '<button class="r" data-acc="pr-segunda" data-v="0" aria-pressed="' + (PR.segunda === false) + '">No</button></div>' +
-    '<div class="candado"><span>🎯</span><span>' + prTextoDesempate() + '</span></div></section>' +
+    nota('<div class="candado"><span>🎯</span><span>' + prTextoDesempate() + '</span></div>') + '</section>' +
 
     '<div class="acc"><button class="btn pri" data-acc="pr-empezar" style="flex:1;padding:13px">Empezar la partida</button></div>' +
     '<div class="acc" style="padding-top:0"><button class="btn fin" data-acc="pr-historial">Ver partidas anteriores</button></div>' +
@@ -830,10 +830,10 @@ function prVistaArmado() {
 // Qué se va a calcular con los jugadores que hay anotados
 function prQueSale() {
   var n = PR.jugadores.length, m = prParejas(n).length, s = prTrios(n).length;
-  return '<div class="candado"><span>🧮</span><span>Con ' + n + ' jugadores salen <b>' + m + ' match' +
+  return nota('<div class="candado"><span>🧮</span><span>Con ' + n + ' jugadores salen <b>' + m + ' match' +
     (m > 1 ? 'es' : '') + '</b>' +
     (s ? ' y <b>' + s + ' sindicato' + (s > 1 ? 's' : '') + '</b>' : ' (el sindicato necesita tres)') +
-    ', todo con los mismos golpes. No hay que elegir modalidad.</span></div>';
+    ', todo con los mismos golpes. No hay que elegir modalidad.</span></div>');
 }
 
 function prSelectorPct() {
@@ -866,8 +866,8 @@ function prVistaJuego() {
   var pie = prResumen(r) +
     '<section class="card"><div class="sec-tit"><h2>Jugadores</h2>' +
     '<span class="eyebrow">nombre y hcp</span></div>' + prEditorJugadores(false) +
-    '<div class="candado"><span>✏️</span><span>Cambiá un nombre y se actualiza en todos los match, ' +
-    'en los sindicatos y en la planilla. El handicap también: se recalculan los hoyos ya cargados.</span></div></section>' +
+    nota('<div class="candado"><span>✏️</span><span>Cambiá un nombre y se actualiza en todos los match, ' +
+    'en los sindicatos y en la planilla. El handicap también: se recalculan los hoyos ya cargados.</span></div>') + '</section>' +
     '<div class="acc"><button class="btn" data-acc="pr-guardar">Guardar en la planilla</button>' +
     '<button class="btn fin peli" data-acc="pr-cerrar">Terminar y salir</button></div>' +
     (PR.guardado ? '<div class="candado solo"><span>✅</span><span>Guardada a las ' + esc(PR.guardado) + '.</span></div>' : '');
@@ -924,8 +924,8 @@ function prVistaVuelta(r) {
   });
 
   return h + '</tbody></table></div>' +
-    '<div class="candado"><span>⛳</span><span>Círculo rojo: bajo par. Cuadrado azul: sobre par. ' +
-    'Doble marco: eagle o doble bogey. La columna <b>±</b> es contra el par de los hoyos jugados.</span></div>' +
+    nota('<div class="candado"><span>⛳</span><span>Círculo rojo: bajo par. Cuadrado azul: sobre par. ' +
+    'Doble marco: eagle o doble bogey. La columna <b>±</b> es contra el par de los hoyos jugados.</span></div>') +
     '</section>';
 }
 
@@ -1054,9 +1054,9 @@ function prTiraMatch(m) {
     h += '<td class="tot">' + (arr === 0 ? 'AS' : (arr > 0 ? '+' + arr : arr)) + '</td>';
   }
   h += '</tr></tbody></table></div>' +
-    '<div class="candado"><span>🔎</span><span>Son las <b>mejores bolas netas</b> de cada lado, ya con los golpes ' +
+    nota('<div class="candado"><span>🔎</span><span>Son las <b>mejores bolas netas</b> de cada lado, ya con los golpes ' +
     'de handicap descontados. El círculo marca quién ganó el hoyo. <b>Va</b> es cómo va ' +
-    esc(prNombresLado(m.ladoA)) + ': positivo es arriba.</span></div>';
+    esc(prNombresLado(m.ladoA)) + ': positivo es arriba.</span></div>');
   return h;
 }
 
@@ -1076,8 +1076,8 @@ function prResumen(r) {
     ? '<div class="aviso" style="margin:12px 14px"><span>⚠️</span><span>Todos tienen el <b>mismo handicap</b>, ' +
       'así que no hay golpes de diferencia y el neto es igual al bruto. Si eso no es lo que querés, ' +
       'cargá los handicaps reales abajo, en <b>Jugadores</b>.</span></div>'
-    : '<div class="candado"><span>⚖️</span><span>' + prTextoPct() +
-      ' El mismo reparto vale para el match y para los sindicatos.</span></div>') + '</section>';
+    : nota('<div class="candado"><span>⚖️</span><span>' + prTextoPct() +
+      ' El mismo reparto vale para el match y para los sindicatos.</span></div>')) + '</section>';
 
   var ms = prElegidos(r.matches, claveMatch);
   h += '<section class="card"><div class="sec-tit"><h2>Match</h2>' +
@@ -1093,16 +1093,16 @@ function prResumen(r) {
     ? '<div class="aviso" style="margin:12px 14px"><span>⚠️</span><span>El match se juega con los netos, pero ' +
       'todos tienen el <b>mismo handicap</b>: no hay golpes de diferencia. Cargá los handicaps reales en ' +
       '<b>Jugadores</b>, acá abajo.</span></div>'
-    : '<div class="candado"><span>⚖️</span><span>Los match se deciden con la <b>mejor bola neta</b> de cada lado. ' +
-      'En cada hoyo ves los dos netos con los que se resolvió.</span></div>') +
-    '<div class="candado"><span>👆</span><span>Tocá el match que estés jugando: queda en <b>azul</b> ' +
-    'y el resto se esconde, acá y en cada hoyo. Volvés a tocarlo y se suelta.</span></div>' +
+    : nota('<div class="candado"><span>⚖️</span><span>Los match se deciden con la <b>mejor bola neta</b> de cada lado. ' +
+      'En cada hoyo ves los dos netos con los que se resolvió.</span></div>')) +
+    nota('<div class="candado"><span>👆</span><span>Tocá el match que estés jugando: queda en <b>azul</b> ' +
+    'y el resto se esconde, acá y en cada hoyo. Volvés a tocarlo y se suelta.</span></div>') +
     prSelectorPct() +
-    '<div class="candado"><span>⚖️</span><span>' + prTextoPct() + '</span></div>' +
+    nota('<div class="candado"><span>⚖️</span><span>' + prTextoPct() + '</span></div>') +
     '<div class="pr-eq" style="margin:10px 14px 4px"><span>La segunda bola desempata</span>' +
     '<button class="a" data-acc="pr-segunda" data-v="1" aria-pressed="' + (PR.segunda !== false) + '">Sí</button>' +
     '<button class="r" data-acc="pr-segunda" data-v="0" aria-pressed="' + (PR.segunda === false) + '">No</button></div>' +
-    '<div class="candado"><span>🎯</span><span>' + prTextoDesempate() + '</span></div></section>';
+    nota('<div class="candado"><span>🎯</span><span>' + prTextoDesempate() + '</span></div>') + '</section>';
 
   if (r.sindicatos.length) {
     var ss = prElegidos(r.sindicatos, claveSind);
@@ -1115,8 +1115,8 @@ function prResumen(r) {
           return nombreCorto(PR.jugadores[k].nombre) + ' ' + s.puntos[x];
         }).join(' · ')) + '</span><b>' + esc(s.texto) + '</b></span></button>';
     });
-    h += '<div class="candado"><span>🧮</span><span>Seis puntos por hoyo: <b>4-2-0</b> si salen distintos, ' +
-      '<b>4-1-1</b> si uno gana solo, <b>3-3-0</b> si empatan arriba y <b>2-2-2</b> si empatan los tres.</span></div></section>';
+    h += nota('<div class="candado"><span>🧮</span><span>Seis puntos por hoyo: <b>4-2-0</b> si salen distintos, ' +
+      '<b>4-1-1</b> si uno gana solo, <b>3-3-0</b> si empatan arriba y <b>2-2-2</b> si empatan los tres.</span></div>') + '</section>';
   }
   return h;
 }
@@ -1148,11 +1148,11 @@ function vistaTesteo() {
         '>' + avatar(j) + '<span><span class="' + claseTxt(j).trim() + '">' + esc(j.nombre) + '</span>' +
         '<i>HCP ' + j.handicap + (j.rol === 'admin' ? ' · organizador' : '') + '</i></span></button>';
     }).join('') + '</div>' +
-    '<div class="candado"><span>✏️</span><span>Elegís uno y con <b>Cargar</b> le cambiás los golpes hoyo por hoyo, ' +
-    'para ver cómo se mueven las posiciones y los partidos.</span></div></section>' +
+    nota('<div class="candado"><span>✏️</span><span>Elegís uno y con <b>Cargar</b> le cambiás los golpes hoyo por hoyo, ' +
+    'para ver cómo se mueven las posiciones y los partidos.</span></div>') + '</section>' +
     '<section class="card"><div class="sec-tit"><h2>La base</h2></div>' +
-    '<div class="candado" style="border-top:0"><span>📋</span><span>Día 1 four-ball · Día 2 foursomes · Día 3 singles. ' +
-    'Los partidos ya están armados por handicap y las tarjetas completas.</span></div>' +
+    nota('<div class="candado" style="border-top:0"><span>📋</span><span>Día 1 four-ball · Día 2 foursomes · Día 3 singles. ' +
+    'Los partidos ya están armados por handicap y las tarjetas completas.</span></div>') +
     '<div class="acc"><button class="btn" data-acc="test-regenerar">Sortear todo de nuevo</button>' +
     '<button class="btn pri" data-acc="test-salir">Salir del testeo</button></div></section></div>';
   return h;
@@ -1307,8 +1307,8 @@ function bloqueConduccion() {
   return '<section class="card"><div class="sec-tit"><h2>Conducción</h2>' +
     '<span class="eyebrow">por handicap</span></div>' +
     '<div class="destacados">' + dupla(c.duplaA, 1) + dupla(c.duplaB, 2) + '</div>' +
-    '<div class="candado"><span>🏌️</span><span>Capitanes: los dos mejores handicaps. Subcapitanes: el tercero y el cuarto. ' +
-    'Se arma 1.º con 4.º y 2.º con 3.º. Se recalcula solo a medida que cargan sus handicaps.</span></div></section>';
+    nota('<div class="candado"><span>🏌️</span><span>Capitanes: los dos mejores handicaps. Subcapitanes: el tercero y el cuarto. ' +
+    'Se arma 1.º con 4.º y 2.º con 3.º. Se recalcula solo a medida que cargan sus handicaps.</span></div>') + '</section>';
 }
 
 /* ============ vistas ============ */
@@ -1420,14 +1420,14 @@ function vistaRyder() {
   });
 
   if (admin) h += '<div class="acc"><button class="btn fin" data-acc="armar" data-v="' + cid + '">Rearmar los partidos de esta jornada</button></div>';
-  h += '<div class="candado solo"><span>⛳</span><span>Handicap por <b>diferencia al 100%</b>: el bando de menor handicap juega scratch y el otro recibe la diferencia en los hoyos de menor índice.</span></div>';
+  h += nota('<div class="candado solo"><span>⛳</span><span>Handicap por <b>diferencia al 100%</b>: el bando de menor handicap juega scratch y el otro recibe la diferencia en los hoyos de menor índice.</span></div>');
   return h + '</div>';
 }
 
 // La modalidad se decide el mismo día: no hay nada atado a la jornada.
 function selectorModalidad(c, admin) {
-  if (!admin) return '<div class="candado"><span>🎛️</span><span>Se juega <b>' +
-    (FORMATOS[c.formato] || 'con la modalidad que defina el organizador') + '</b>. La elige él antes de salir.</span></div>';
+  if (!admin) return nota('<div class="candado"><span>🎛️</span><span>Se juega <b>' +
+    (FORMATOS[c.formato] || 'con la modalidad que defina el organizador') + '</b>. La elige él antes de salir.</span></div>');
   return '<div class="grid2" style="grid-template-columns:1fr"><div class="campo">' +
     '<label>Con qué se juega hoy</label><div class="pick-eq pick-4">' +
     [['foursomes', 'Foursomes'], ['fourball', 'Four-ball'], ['singles', 'Singles'], ['', 'Sin definir']]
@@ -1555,13 +1555,13 @@ function vistaLinea() {
         '" aria-current="' + (k === i) + '">' + (k + 1) + '</button>';
     }).join('') + '</div></section>' +
 
-    (puedo ? '<div class="candado solo"><span>✍️</span><span>Estás anotando por <b>toda la línea</b>. ' +
-      'Los demás lo ven desde su celular sin tener que cargar nada.</span></div>'
-           : '<div class="candado solo"><span>👀</span><span>Lo está anotando otro de tu línea. ' +
-      'Acá lo ves en vivo, se actualiza solo.</span></div>') +
-    '<div class="candado solo"><span>⚖️</span><span>Todos juegan el match con el <b>85%</b> de su handicap. ' +
+    (puedo ? nota('<div class="candado solo"><span>✍️</span><span>Estás anotando por <b>toda la línea</b>. ' +
+      'Los demás lo ven desde su celular sin tener que cargar nada.</span></div>')
+           : nota('<div class="candado solo"><span>👀</span><span>Lo está anotando otro de tu línea. ' +
+      'Acá lo ves en vivo, se actualiza solo.</span></div>')) +
+    nota('<div class="candado solo"><span>⚖️</span><span>Todos juegan el match con el <b>85%</b> de su handicap. ' +
     'Sobre esos handicaps reducidos, el más bajo va scratch y los demás reciben la diferencia en los hoyos de ' +
-    'menor índice.</span></div>' +
+    'menor índice.</span></div>') +
     tiraLinea(pr) + '</div>';
   return h;
 }
@@ -1601,9 +1601,9 @@ function tiraLinea(pr) {
     h += '<td class="tot">' + (arr === 0 ? 'AS' : (arr > 0 ? '+' + arr : arr)) + '</td>';
   }
   return h + '</tr></tbody></table></div>' +
-    '<div class="candado"><span>🔎</span><span>Son las <b>mejores bolas netas</b> de cada lado, con los golpes ya ' +
+    nota('<div class="candado"><span>🔎</span><span>Son las <b>mejores bolas netas</b> de cada lado, con los golpes ya ' +
     'descontados. El círculo marca quién ganó el hoyo. <b>Va</b> es cómo va ' + esc(nombreEquipo('rojo')) +
-    '.</span></div></section>';
+    '.</span></div>') + '</section>';
 }
 
 function selectorCarga(m) {
@@ -1630,12 +1630,12 @@ function vistaCargar() {
   var aviso;
   if (fs) {
     var pareja = fs.m[fs.lado].map(jugador).filter(Boolean).map(function (x) { return nombreCorto(x.nombre); });
-    aviso = '<div class="candado solo"><span>🤝</span><span><b>Foursomes:</b> una sola pelota para ' +
-      esc(pareja.join(' y ')) + '. Lo que cargues acá cuenta para los dos — que lo cargue uno solo.</span></div>';
+    aviso = nota('<div class="candado solo"><span>🤝</span><span><b>Foursomes:</b> una sola pelota para ' +
+      esc(pareja.join(' y ')) + '. Lo que cargues acá cuenta para los dos — que lo cargue uno solo.</span></div>');
   } else {
-    aviso = '<div class="candado solo"><span>🔒</span><span>Estás cargando <b class="' + claseTxt(j).trim() +
+    aviso = nota('<div class="candado solo"><span>🔒</span><span>Estás cargando <b class="' + claseTxt(j).trim() +
       '">tu</b> tarjeta. Fuera de tu partido nadie te la puede tocar, ni el organizador. ' +
-      'Dentro de tu línea sí: anota uno por todos.</span></div>';
+      'Dentro de tu línea sí: anota uno por todos.</span></div>');
   }
 
   var h = '<div class="pila">' + aviso + chipsCancha(c.id, 'sel-cancha', false) +
@@ -1740,7 +1740,7 @@ function vistaJugadores() {
 function vistaCanchas() {
   var admin = esAdmin();
   var h = '<div class="pila">';
-  if (!admin) h += '<div class="candado solo"><span>🔒</span><span>Las canchas las carga el organizador. Acá las ves como quedaron.</span></div>';
+  if (!admin) h += nota('<div class="candado solo"><span>🔒</span><span>Las canchas las carga el organizador. Acá las ves como quedaron.</span></div>');
   var faltan = E.canchas.filter(function (c) { return !c.confirmada; });
   if (faltan.length) h += '<div class="aviso"><span>⚠️</span><span><b>Falta' + (faltan.length > 1 ? 'n ' : ' ') + faltan.length + ' tarjeta' + (faltan.length > 1 ? 's' : '') + '.</b> ' +
     faltan.map(function (c) { return esc(c.nombre) + ' (par ' + c.par.reduce(function (m, n) { return m + n; }, 0) + ' provisorio)'; }).join(' y ') +
@@ -1763,10 +1763,10 @@ function vistaCanchas() {
             '" aria-pressed="' + mismaTarjeta(c, t) + '">' + esc(t.etiqueta) +
             '<i>' + esc(t.detalle) + '</i></button>';
         }).join('') + '</div>' +
-        '<div class="candado"><span>⛳</span><span>' + (oficiales.length > 1
-          ? 'Acantilados tiene tres nueves y se juegan combinados de a dos. Elegí la combinación del día: ' +
+        nota('<div class="candado"><span>⛳</span><span><b>' + esc(c.nombre) + ':</b> ' + (oficiales.length > 1
+          ? 'tiene tres nueves y se juegan combinados de a dos. Elegí la combinación del día y ' +
             'se cargan los 18 pares e índices de la tarjeta del club.'
-          : 'Carga los 18 pares e índices de la tarjeta del club.') + '</span></div>';
+          : 'el botón carga los 18 pares e índices de la tarjeta del club.') + '</span></div>');
     }
     if (abierta) {
       h += '<div class="hoyo-ed" style="padding-bottom:8px"><span></span><span class="eyebrow">Par</span><span class="eyebrow">Hcp hoyo</span></div>';
@@ -1779,8 +1779,8 @@ function vistaCanchas() {
         (c.confirmada ? '✓ Tarjeta oficial' : 'Marcar como tarjeta oficial') + '</button>' +
         '<span class="hint" style="flex:1;min-width:180px">El índice va del 1 al 18: 1 es el hoyo más difícil.</span></div>';
     }
-    h += '<div class="candado"><span>🎛️</span><span>La modalidad de equipos de este día (' +
-      (FORMATOS[c.formato] || 'sin definir') + ') se elige en la pestaña <b>Ryder</b>.</span></div>';
+    h += nota('<div class="candado"><span>🎛️</span><span><b>' + esc(diaFecha(c.dia)) + ':</b> la modalidad ' +
+      'de equipos (' + (FORMATOS[c.formato] || 'sin definir') + ') se elige en la pestaña <b>Ryder</b>.</span></div>');
     h += '</section>';
   });
 
@@ -1844,12 +1844,12 @@ function vistaPerfil() {
     '<div class="grid2" style="grid-template-columns:1fr"><div class="campo"><label>Equipo</label>' +
     '<div class="pick-eq"><button class="a" data-acc="mi-equipo" data-v="azul" aria-pressed="' + (y.equipo === 'azul') + '">' + esc(nombreEquipo('azul')) + '</button>' +
     '<button class="r" data-acc="mi-equipo" data-v="rojo" aria-pressed="' + (y.equipo === 'rojo') + '">' + esc(nombreEquipo('rojo')) + '</button></div></div></div>' +
-    '<div class="candado"><span>⛳</span><span>Con handicap ' + esc(y.handicap) + ' recibís ' + golpes + ' golpes.</span></div></section>' +
+    nota('<div class="candado"><span>⛳</span><span>Con handicap ' + esc(y.handicap) + ' recibís ' + golpes + ' golpes.</span></div>') + '</section>' +
     '<section class="card"><div class="sec-tit"><h2>Tu acceso</h2></div>' +
     '<div class="grid2"><div class="campo"><label for="p-pass">Cambiar contraseña</label>' +
     '<input id="p-pass" type="password" inputmode="numeric" maxlength="4" placeholder="4 números" data-acc="ed-pass"></div></div>' +
-    '<div class="candado" style="border-top:0"><span>🔒</span><span>Editás <b>tu</b> perfil y <b>tu</b> tarjeta.' +
-    (esAdmin() ? ' Como organizador además cargás las canchas y los nombres de los equipos — pero los datos y las tarjetas de los demás tampoco los tocás.' : '') + '</span></div>' +
+    nota('<div class="candado" style="border-top:0"><span>🔒</span><span>Editás <b>tu</b> perfil y <b>tu</b> tarjeta.' +
+    (esAdmin() ? ' Como organizador además cargás las canchas y los nombres de los equipos — pero los datos y las tarjetas de los demás tampoco los tocás.' : '') + '</span></div>') +
     '<div class="acc"><button class="btn fin" data-acc="salir">Cerrar sesión en este celular</button></div></section>' +
     (esAdmin() && !TEST ? bloquePedidos() : '') + '</div>';
 }
@@ -1884,7 +1884,20 @@ function barraEstado() {
   if (!navigator.onLine) return '<div class="barra-estado">📴 Sin señal · todo lo que cargues se guarda igual</div>';
   return '';
 }
+/* Las explicaciones no van intercaladas con lo que se toca: se juntan acá y
+   salen todas juntas al pie de la pantalla. Los avisos de problema (.aviso) sí
+   quedan donde está el problema. */
+var NOTAS = [];
+function nota(html) { NOTAS.push(html); return ''; }
+function notasHTML() {
+  if (!NOTAS.length) return '';
+  var h = '<section class="notas"><h3>Cómo funciona</h3>' + NOTAS.join('') + '</section>';
+  NOTAS = [];
+  return h;
+}
+
 function pintar() {
+  NOTAS = [];
   var app = document.getElementById('app');
   if (!SES && !TEST) { app.innerHTML = vistaIngreso(); return; }
   if (!E) { app.innerHTML = '<div class="pantalla"><p class="vacio">Cargando el torneo…</p></div>'; return; }
@@ -1908,7 +1921,7 @@ function pintar() {
       return '<button data-acc="tab" data-v="' + t[0] + '" aria-current="' + (UI.tab === t[0]) + '">' + t[1] + '</button>';
     }).join('') + '</nav></div></div>' +
     desplegableJugadores() +
-    '<div class="wrap"><main>' + vista + '</main>' +
+    '<div class="wrap"><main>' + vista + notasHTML() + '</main>' +
     '<footer class="pie">Ryder MDQ · ' + esc(E.torneo.edicion || '') +
     (E.sello ? '<small>actualizado ' + hora(E.sello) + '</small>' : '') + '</footer></div>';
 }
