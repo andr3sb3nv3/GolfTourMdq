@@ -1847,13 +1847,19 @@ function bloquePedidos() {
     'Se lo pasás y con eso él pone uno nuevo.</span></div>');
 }
 
+/* Escudo del equipo, debajo de la foto. Las imágenes las pasó el organizador.
+   Si algún día conviene tenerlas en el repo para que anden sin señal, se cambian
+   estas dos líneas por rutas locales y listo. */
+var ESCUDOS = {
+  azul: 'https://res.cloudinary.com/dzrqhomvz/image/upload/v1788882853/c3mngqkqjolpmiiczlus.png',
+  rojo: 'https://res.cloudinary.com/dzrqhomvz/image/upload/v1788882997/n9mnggyfp5uyl2iepmtw.png'
+};
+
 function vistaPerfil() {
   var y = yo();
   if (!y) return '<p class="vacio">Cargando…</p>';
-  var golpes = E.canchas.map(function (c) {
-    var n = 0; for (var i = 0; i < 18; i++) n += golpesHoyo(hcpJuego(y), Number(c.si[i]) || (i + 1));
-    return esc(c.nombre) + ': ' + n;
-  }).join(' · ');
+  var medal = hcpJuego(y);          // Medal Play Neto: handicap completo
+  var match = ph(y);                // Match de la Ryder: el 85% de la casa
   return '<div class="pila">' + bloqueInstalar() + '<section class="card">' +
     '<div class="perfil-cab"><div class="perfil-foto' + claseEq(y) + '">' +
     (y.foto ? '<img src="' + y.foto + '" alt="">'
@@ -1861,12 +1867,16 @@ function vistaPerfil() {
                         : esc(inicial(y)))) + '</div>' +
     '<div><h2 class="' + claseTxt(y).trim() + '">' + esc(y.nombre) + '</h2>' +
     '<div class="lb-meta">Matrícula ' + esc(y.matricula) + ' · HCP ' + esc(y.handicap) +
-    ' · juega con ' + hcpJuego(y) + ' golpes · ' + esc(nombreEquipo(y.equipo)) + '</div>' +
+    ' · Medal ' + medal + ' · Match ' + match + ' · ' + esc(nombreEquipo(y.equipo)) + '</div>' +
     '<div class="fotos">' +
     '<label class="subir">🖼️ Galería<input type="file" accept="image/*" data-acc="ed-foto"></label>' +
     '<label class="subir">📷 Cámara<input type="file" accept="image/*" capture="environment" data-acc="ed-foto"></label>' +
     ((y.foto || y.fotoId) ? '<button class="btn fin" data-acc="quitar-foto">Quitar</button>' : '') +
     '</div></div></div>' +
+    '<div class="escudo-eq' + claseEq(y) + '">' +
+    '<img src="' + esc(ESCUDOS[y.equipo === 'azul' ? 'azul' : 'rojo']) + '" alt="' +
+    esc(nombreEquipo(y.equipo)) + '" loading="lazy">' +
+    '<span>' + esc(nombreEquipo(y.equipo)) + '</span></div>' +
     '<div class="grid2">' +
     '<div class="campo"><label for="p-nom">Nombre</label><input id="p-nom" type="text" value="' + esc(y.nombre) + '" data-acc="ed-perfil" data-v="nombre"></div>' +
     '<div class="campo"><label for="p-hcp">Handicap</label><input id="p-hcp" type="text" inputmode="decimal" value="' + esc(y.handicap) + '" data-acc="ed-perfil" data-v="handicap"></div>' +
@@ -1875,7 +1885,13 @@ function vistaPerfil() {
     '<div class="grid2" style="grid-template-columns:1fr"><div class="campo"><label>Equipo</label>' +
     '<div class="pick-eq"><button class="a" data-acc="mi-equipo" data-v="azul" aria-pressed="' + (y.equipo === 'azul') + '">' + esc(nombreEquipo('azul')) + '</button>' +
     '<button class="r" data-acc="mi-equipo" data-v="rojo" aria-pressed="' + (y.equipo === 'rojo') + '">' + esc(nombreEquipo('rojo')) + '</button></div></div></div>' +
-    nota('<div class="candado"><span>⛳</span><span>Con handicap ' + esc(y.handicap) + ' recibís ' + golpes + ' golpes.</span></div>') + '</section>' +
+    nota('<div class="candado"><span>📊</span><span><b>Medal Play Neto:</b> jugás con tu handicap completo, ' +
+    '<b>' + medal + ' golpes</b>. Es el campeonato individual.</span></div>') +
+    nota('<div class="candado"><span>⚔️</span><span><b>Match de la Ryder:</b> jugás con el <b>' +
+    Math.round(ALLOWANCE * 100) + '%</b> de tu handicap, o sea <b>' + match + '</b>. Ojo: en el match no ' +
+    'recibís esos ' + match + ' golpes — recibís la <b>diferencia</b> contra el handicap más bajo de tu línea, ' +
+    'ya reducido al ' + Math.round(ALLOWANCE * 100) + '%. Los golpes caen en los hoyos de menor índice.</span></div>') +
+    '</section>' +
     '<section class="card"><div class="sec-tit"><h2>Tu acceso</h2></div>' +
     '<div class="grid2"><div class="campo"><label for="p-pass">Cambiar contraseña</label>' +
     '<input id="p-pass" type="password" inputmode="numeric" maxlength="4" placeholder="4 números" data-acc="ed-pass"></div></div>' +
