@@ -10,6 +10,7 @@ var E   = leerLS(LS.est, null);          // último estado conocido del servidor
 var COLA = leerLS(LS.cola, []);          // golpes pendientes de sincronizar
 var UI = Object.assign({ tab: 'posiciones', cancha: null, canchaLb: 'general',
   metrica: 'neto', hoyo: 0, vistaTc: 'bruto', editando: null, ingreso: 'entrar', canchaRyder: null,
+  modoCarga: 'linea',
   jugador: null }, leerLS(LS.ui, {}));
 
 var sincronizando = false, ultimoError = '', reloj = null, promptInstalar = null;
@@ -49,7 +50,22 @@ function yo() {
   return SES ? jugador(SES.matricula) : null;
 }
 function esAdmin() { var y = yo(); return !!y && y.rol === 'admin'; }
-function puedeEditar(mat) { var y = yo(); return !!y && String(mat) === String(y.matricula); }
+/* La tarjeta propia siempre. La de otro, sólo si juegan el mismo partido:
+   en la Ryder anota uno por toda la línea. */
+function puedeEditar(mat, cid) {
+  var y = yo();
+  if (!y) return false;
+  if (String(mat) === String(y.matricula)) return true;
+  var c = cid || (canchaActual() || {}).id;
+  var m = c ? partidoDe(c, y.matricula) : null;
+  return !!m && enPartido(m, mat);
+}
+function enPartido(m, mat) {
+  return m.usa.concat(m.eur).some(function (x) { return String(x) === String(mat); });
+}
+function jugadoresDeLinea(m) {
+  return m.usa.concat(m.eur).map(jugador).filter(Boolean);
+}
 function nombreEquipo(k) { return (E && E.equipos && E.equipos[k] && E.equipos[k].nombre) || (k === 'azul' ? 'Azul' : 'Rojo'); }
 function claseEq(j) { return j && j.equipo === 'azul' ? ' eq-azul' : (j && j.equipo === 'rojo' ? ' eq-rojo' : ''); }
 function claseTxt(j) { return j && j.equipo === 'azul' ? ' txt-azul' : (j && j.equipo === 'rojo' ? ' txt-rojo' : ''); }
@@ -175,16 +191,21 @@ function sincronizar() {
   var lote = COLA.slice(0, 40);
   var grupos = {};
   lote.forEach(function (x) {
-    var k = x.partido ? 'p:' + x.partido : 'c:' + x.cancha;
+    var k = x.partido ? 'p:' + x.partido : 'c:' + x.cancha + '|' + x.matricula;
     (grupos[k] = grupos[k] || []).push(x);
   });
   var cadena = Promise.resolve();
   Object.keys(grupos).forEach(function (k) {
     cadena = cadena.then(function () {
       var items = grupos[k];
-      var cuerpo = k.charAt(0) === 'p'
-        ? { accion: 'golpesEquipo', token: SES.token, partido: k.slice(2) }
-        : { accion: 'golpes', token: SES.token, cancha: k.slice(2) };
+      var cuerpo;
+      if (k.charAt(0) === 'p') {
+        cuerpo = { accion: 'golpesEquipo', token: SES.token, partido: k.slice(2) };
+      } else {
+        var corte = k.lastIndexOf('|');
+        cuerpo = { accion: 'golpes', token: SES.token,
+                   cancha: k.slice(2, corte), matricula: k.slice(corte + 1) };
+      }
       cuerpo.hoyos = items.map(function (x) { return { hoyo: x.hoyo, golpes: x.golpes }; });
       return pedir(cuerpo).then(function (res) {
         if (res && res.ok) {
@@ -352,6 +373,7 @@ function textoError(e) {
     no_registrado: 'Esa matrícula todavía no está registrada. Entrá por "Primera vez".',
     password_incorrecta: 'La contraseña no coincide.',
     ya_registrado: 'Esa matrícula ya tiene acceso. Entrá con tu contraseña.',
+    no_es_tu_linea: 'Sólo podés cargar las tarjetas de tu propio partido.',
     pin_invalido: 'El PIN son 4 números.',
     password_corta: 'El PIN son 4 números.',
     falta_matricula: 'Falta la matrícula.',
@@ -1462,9 +1484,142 @@ function esFoursomes(c, j) {
   var m = partidoDe(c.id, j.matricula);
   return m ? { m: m, lado: ladoDe(m, j.matricula) } : null;
 }
+/* En la Ryder anota uno solo por toda la línea. Esta vista muestra a los
+   cuatro (o dos, en singles), dice quién tiene golpe en el hoyo que están por
+   jugar y cómo va el match. Los demás la miran desde su celular: es la misma
+   pantalla, con los mismos números. */
+function vistaLinea() {
+  var c = canchaActual(), y = yo();
+  var m = partidoDe(c.id, y.matricula);
+  if (!m) return null;
+  var pr = calcularPartido(m);
+  if (!pr) return null;
+  var i = Math.min(Math.max(UI.hoyo, 0), 17);
+  var par = Number(c.par[i]) || 4, si = Number(c.si[i]) || (i + 1);
+  var fs = (m.formato || c.formato) === 'foursomes';
+  var hh = pr.hoyos[i];
+
+  // encabezado del hoyo, con el estado del match
+  var h = '<div class="pila">' + chipsCancha(c.id, 'sel-cancha', false) + selectorCarga(m) +
+    '<section class="card"><div class="p-cab"><span class="eyebrow">' + esc(c.nombre) + ' · ' +
+    (FORMATOS[m.formato || c.formato] || 'match') + '</span>' +
+    '<span class="p-estado">' + esc(pr.texto) + '</span></div>' +
+    '<div class="hoyo" style="padding-bottom:8px"><div class="n">' + (i + 1) + '</div>' +
+    '<div class="datos"><span class="pin">Par ' + par + '</span><span class="pin">SI ' + si + '</span>' +
+    (hh.gana ? '<span class="pin recibe">' + esc(hh.gana === 'usa' ? nombreEquipo('rojo') : nombreEquipo('azul')) +
+      ' gana el hoyo</span>' : '') + '</div></div>';
+
+  // una fila por jugador; en foursomes, una por pareja
+  var filas = [];
+  if (fs) {
+    ['usa', 'eur'].forEach(function (lado) {
+      var js = m[lado].map(jugador).filter(Boolean);
+      filas.push({ etiqueta: js.map(function (x) { return nombreCorto(x.nombre); }).join(' y '),
+                   sub: nombreEquipo(lado === 'usa' ? 'rojo' : 'azul'),
+                   clase: lado === 'usa' ? ' txt-rojo' : ' txt-azul',
+                   golpes: golpesLadoFoursomes(m, lado, si),
+                   valor: tarjetaEquipo(m.id, lado)[i],
+                   destino: 'lado:' + lado });
+    });
+  } else {
+    var js = jugadoresDeLinea(m);
+    var base = Math.min.apply(null, js.map(ph));
+    js.forEach(function (x) {
+      filas.push({ etiqueta: nombreCorto(x.nombre), sub: 'HCP ' + x.handicap + ' · juega ' + ph(x),
+                   clase: claseTxt(x),
+                   golpes: golpesDif(ph(x) - base, si),
+                   valor: hoyosDe(c.id, x.matricula)[i],
+                   destino: 'jug:' + x.matricula });
+    });
+  }
+
+  var puedo = enPartido(m, y.matricula);      // cualquiera de la línea puede anotar
+  h += filas.map(function (f) {
+    return '<div class="pr-fila' + (f.golpes ? ' mejor' : '') + '">' +
+      '<div class="pr-quien"><b class="' + f.clase.trim() + '">' + esc(f.etiqueta) + '</b>' +
+      '<i>' + esc(f.sub) + (f.golpes ? ' · ' : '') +
+      (f.golpes ? '<b class="tiro">tira ' + f.golpes + '</b>' : '') + '</i></div>' +
+      (puedo ? '<button class="rd chico" data-acc="ln-menos" data-v="' + f.destino + '">−</button>' : '<span></span>') +
+      '<span class="pr-golpes' + (f.valor == null ? ' sin' : '') + '">' + (f.valor == null ? '–' : f.valor) + '</span>' +
+      (puedo ? '<button class="rd chico" data-acc="ln-mas" data-v="' + f.destino + '">+</button>' : '<span></span>') +
+      '<span class="pr-pts">' + (f.valor == null ? '' : 'neto ' + (f.valor - f.golpes)) + '</span>' +
+      '</div>';
+  }).join('');
+
+  h += '<div class="navh" style="margin:12px 14px"><button data-acc="hoyo-prev"' + (i === 0 ? ' disabled' : '') +
+    '>← Hoyo ' + (i || 1) + '</button><button class="pri" data-acc="hoyo-next">' +
+    (i === 17 ? 'Terminar' : 'Hoyo ' + (i + 2) + ' →') + '</button></div>' +
+    '<div class="dots">' + c.par.map(function (_, k) {
+      var lleno = pr.hoyos[k].usa != null && pr.hoyos[k].eur != null;
+      return '<button data-acc="ir-hoyo" data-v="' + k + '" class="' + (lleno ? 'hecho' : '') +
+        '" aria-current="' + (k === i) + '">' + (k + 1) + '</button>';
+    }).join('') + '</div></section>' +
+
+    (puedo ? '<div class="candado solo"><span>✍️</span><span>Estás anotando por <b>toda la línea</b>. ' +
+      'Los demás lo ven desde su celular sin tener que cargar nada.</span></div>'
+           : '<div class="candado solo"><span>👀</span><span>Lo está anotando otro de tu línea. ' +
+      'Acá lo ves en vivo, se actualiza solo.</span></div>') +
+    '<div class="candado solo"><span>⚖️</span><span>Todos juegan el match con el <b>85%</b> de su handicap. ' +
+    'Sobre esos handicaps reducidos, el más bajo va scratch y los demás reciben la diferencia en los hoyos de ' +
+    'menor índice.</span></div>' +
+    tiraLinea(pr) + '</div>';
+  return h;
+}
+
+// Golpes que recibe un lado en foursomes: la diferencia entre los promedios
+function golpesLadoFoursomes(m, lado, si) {
+  var usa = m.usa.map(jugador).filter(Boolean), eur = m.eur.map(jugador).filter(Boolean);
+  if (!usa.length || !eur.length) return 0;
+  var hu = usa.reduce(function (a, x) { return a + ph(x); }, 0) / usa.length;
+  var he = eur.reduce(function (a, x) { return a + ph(x); }, 0) / eur.length;
+  var dif = Math.round(Math.abs(hu - he)), recibeUsa = hu > he;
+  if ((lado === 'usa') !== recibeUsa) return 0;
+  return golpesDif(dif, si);
+}
+
+// Cómo se viene resolviendo el match, hoyo por hoyo
+function tiraLinea(pr) {
+  if (!pr.jugados) return '';
+  var h = '<section class="card"><div class="sec-tit"><h2>Cómo va el match</h2>' +
+    '<span class="eyebrow">' + pr.jugados + ' hoyos</span></div>' +
+    '<div class="scroll" style="margin:0 14px 12px"><table class="tc"><thead><tr><th class="lbl">Hoyo</th>';
+  var k;
+  for (k = 0; k < pr.jugados; k++) h += '<th>' + (k + 1) + '</th>';
+  h += '</tr></thead><tbody>';
+  [['usa', nombreEquipo('rojo')], ['eur', nombreEquipo('azul')]].forEach(function (f) {
+    h += '<tr><td class="lbl">' + esc(f[1]) + '</td>';
+    for (k = 0; k < pr.jugados; k++) {
+      var v = pr.hoyos[k][f[0]], gana = pr.hoyos[k].gana === f[0];
+      h += '<td>' + (v == null ? '·' : (gana ? '<span class="marca c">' + v + '</span>' : v)) + '</td>';
+    }
+    h += '</tr>';
+  });
+  h += '<tr><td class="lbl">Va</td>';
+  var arr = 0;
+  for (k = 0; k < pr.jugados; k++) {
+    if (pr.hoyos[k].gana === 'usa') arr++; else if (pr.hoyos[k].gana === 'eur') arr--;
+    h += '<td class="tot">' + (arr === 0 ? 'AS' : (arr > 0 ? '+' + arr : arr)) + '</td>';
+  }
+  return h + '</tr></tbody></table></div>' +
+    '<div class="candado"><span>🔎</span><span>Son las <b>mejores bolas netas</b> de cada lado, con los golpes ya ' +
+    'descontados. El círculo marca quién ganó el hoyo. <b>Va</b> es cómo va ' + esc(nombreEquipo('rojo')) +
+    '.</span></div></section>';
+}
+
+function selectorCarga(m) {
+  if (!m) return '';
+  return '<div class="seg" role="group">' +
+    '<button data-acc="modo-carga" data-v="linea" aria-pressed="' + (UI.modoCarga !== 'mia') + '">Mi línea</button>' +
+    '<button data-acc="modo-carga" data-v="mia" aria-pressed="' + (UI.modoCarga === 'mia') + '">Mi tarjeta</button></div>';
+}
+
 function vistaCargar() {
   var c = canchaActual(), j = yo();
   if (!c || !j) return '<p class="vacio">Cargando…</p>';
+  if (UI.modoCarga !== 'mia') {
+    var ln = vistaLinea();
+    if (ln) return ln;
+  }
   var fs = esFoursomes(c, j);
   var arr = fs ? tarjetaEquipo(fs.m.id, fs.lado) : hoyosDe(c.id, j.matricula);
   var r = fs ? calcTarjeta(c, arr, 0) : calc(c, j);
@@ -1479,10 +1634,12 @@ function vistaCargar() {
       esc(pareja.join(' y ')) + '. Lo que cargues acá cuenta para los dos — que lo cargue uno solo.</span></div>';
   } else {
     aviso = '<div class="candado solo"><span>🔒</span><span>Estás cargando <b class="' + claseTxt(j).trim() +
-      '">tu</b> tarjeta. La de cada uno la carga su dueño, nadie más.</span></div>';
+      '">tu</b> tarjeta. Fuera de tu partido nadie te la puede tocar, ni el organizador. ' +
+      'Dentro de tu línea sí: anota uno por todos.</span></div>';
   }
 
   var h = '<div class="pila">' + aviso + chipsCancha(c.id, 'sel-cancha', false) +
+    selectorCarga(partidoDe(c.id, j.matricula)) +
     '<section class="card"><div class="hoyo">' +
     '<div class="eyebrow">' + esc(c.nombre) + '</div><div class="n">' + (i + 1) + '</div>' +
     '<div class="datos"><span class="pin">Par ' + o.par + '</span><span class="pin">SI ' + o.si + '</span>' +
@@ -1806,6 +1963,8 @@ document.addEventListener('click', function (ev) {
   else if (a === 'hoyo-prev') { UI.hoyo = Math.max(0, UI.hoyo - 1); }
   else if (a === 'hoyo-next') { if (UI.hoyo === 17) { UI.tab = 'posiciones'; UI.canchaLb = canchaActual().id; } else UI.hoyo++; }
   else if (a === 'mas' || a === 'menos' || a === 'set' || a === 'borrar') { anotarGolpe(a, v); return; }
+  else if (a === 'ln-mas' || a === 'ln-menos') { anotarLinea(a === 'ln-mas' ? 'mas' : 'menos', v); return; }
+  else if (a === 'modo-carga') { UI.modoCarga = v; }
   else if (a === 'abrir-cancha') { UI.editando = (UI.editando === v ? null : v); }
   else if (a === 'preset') {
     var lista = TARJETAS_OFICIALES[v], t = lista && lista[Number(b.getAttribute('data-i'))];
@@ -2073,6 +2232,51 @@ function primerLibre() {
   return 17;
 }
 
+/* Un golpe cargado por el que anota la línea. El destino dice de quién es la
+   tarjeta: 'jug:<matrícula>' o, en foursomes, 'lado:usa' / 'lado:eur'. */
+function anotarLinea(a, destino) {
+  var c = canchaActual(), y = yo();
+  if (!c || !y) return;
+  var m = partidoDe(c.id, y.matricula);
+  if (!m) return;
+  var esLado = destino.indexOf('lado:') === 0;
+  var clave = destino.slice(destino.indexOf(':') + 1);
+  if (!esLado && !puedeEditar(clave, c.id)) return;
+  if (esLado && !enPartido(m, y.matricula)) return;
+
+  var arr = esLado ? tarjetaEquipo(m.id, clave) : hoyosDe(c.id, clave);
+  var par = Number(c.par[UI.hoyo]) || 4, act = arr[UI.hoyo];
+  var nuevo = (a === 'mas') ? (act == null ? par : act + 1)
+                            : (act == null ? par : Math.max(1, act - 1));
+
+  var t = null, i;
+  if (esLado) {
+    E.tarjetasEquipo = E.tarjetasEquipo || [];
+    for (i = 0; i < E.tarjetasEquipo.length; i++)
+      if (E.tarjetasEquipo[i].partido === m.id && E.tarjetasEquipo[i].lado === clave) { t = E.tarjetasEquipo[i]; break; }
+    if (!t) { t = { partido: m.id, lado: clave, hoyos: new Array(18).fill(null) }; E.tarjetasEquipo.push(t); }
+  } else {
+    for (i = 0; i < E.tarjetas.length; i++)
+      if (E.tarjetas[i].cancha === c.id && String(E.tarjetas[i].matricula) === String(clave)) { t = E.tarjetas[i]; break; }
+    if (!t) { t = { cancha: c.id, matricula: String(clave), hoyos: new Array(18).fill(null) }; E.tarjetas.push(t); }
+  }
+  t.hoyos[UI.hoyo] = nuevo;
+
+  if (TEST) { guardarTest(); guardarUI(); pintar(); return; }
+  guardarLS(LS.est, E);
+
+  var item = esLado ? { partido: m.id } : { cancha: c.id, matricula: String(clave) };
+  COLA = COLA.filter(function (x) {
+    var mismo = esLado ? x.partido === m.id
+                       : (x.cancha === c.id && !x.partido && String(x.matricula) === String(clave));
+    return !(mismo && x.hoyo === UI.hoyo + 1);
+  });
+  COLA.push(Object.assign({ hoyo: UI.hoyo + 1, golpes: nuevo }, item));
+  guardarLS(LS.cola, COLA);
+  guardarUI(); pintar();
+  sincronizar();
+}
+
 function anotarGolpe(a, v) {
   var c = canchaActual(), y = yo();
   if (!c || !y || !puedeEditar(y.matricula)) return;
@@ -2109,7 +2313,9 @@ function anotarGolpe(a, v) {
   // 2) se encola y se sube cuando haya señal
   var clave = fs ? { partido: fs.m.id } : { cancha: c.id, matricula: String(y.matricula) };
   COLA = COLA.filter(function (x) {
-    return !((fs ? x.partido === fs.m.id : (x.cancha === c.id && !x.partido)) && x.hoyo === UI.hoyo + 1);
+    var mismo = fs ? x.partido === fs.m.id
+                   : (x.cancha === c.id && !x.partido && String(x.matricula) === String(y.matricula));
+    return !(mismo && x.hoyo === UI.hoyo + 1);
   });
   COLA.push(Object.assign({ hoyo: UI.hoyo + 1, golpes: nuevo }, clave));
   guardarLS(LS.cola, COLA);

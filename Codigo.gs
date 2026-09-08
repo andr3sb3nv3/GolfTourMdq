@@ -421,12 +421,29 @@ function estadoCrudo() {
 /* ============================================================
    ESCRITURA
    ============================================================ */
+/* ¿Están los dos en el mismo partido de esa cancha? Es lo único que habilita
+   cargarle la tarjeta a otro. */
+function mismaLinea(a, b, cid) {
+  var ms = leer('Partidos').filter(function (m) { return m.cancha === cid; });
+  for (var i = 0; i < ms.length; i++) {
+    var en = [ms[i].usa1, ms[i].usa2, ms[i].eur1, ms[i].eur2]
+      .map(function (x) { return String(x || '').trim(); });
+    if (en.indexOf(String(a).trim()) >= 0 && en.indexOf(String(b).trim()) >= 0) return true;
+  }
+  return false;
+}
+
 function guardarGolpes(p) {
-  // Cada jugador carga SOLO su tarjeta. El organizador tampoco puede tocar la de otro.
+  /* Cada uno carga su tarjeta. La única excepción: en la Ryder anota uno solo
+     por toda la línea, así que se admite cargarle la tarjeta a alguien del
+     mismo partido. Fuera de tu partido, nadie te toca la tarjeta: tampoco el
+     organizador. */
   var j = exigir(p.token);
-  var mat = j.matricula;
+  var mat = String(p.matricula || j.matricula).trim();
   var cambios = p.hoyos || [];        // [{hoyo:1..18, golpes:4|null}]
   if (!p.cancha || !cambios.length) return { ok: false, error: 'faltan_datos' };
+  if (mat !== String(j.matricula).trim() && !mismaLinea(j.matricula, mat, p.cancha))
+    return { ok: false, error: 'no_es_tu_linea' };
 
   var lock = LockService.getScriptLock();
   lock.waitLock(20000);
@@ -448,7 +465,8 @@ function guardarGolpes(p) {
     });
     hoja.getRange(fila, 3, 1, 18).setValues([valores]);
     hoja.getRange(fila, 21).setValue(new Date());
-    anotar(j.matricula, 'golpes', p.cancha + ' · ' + cambios.length + ' hoyo(s)');
+    anotar(j.matricula, 'golpes', p.cancha + ' · ' + cambios.length + ' hoyo(s)' +
+      (mat === String(j.matricula).trim() ? '' : ' · por ' + mat));
     limpiarCache();
     return { ok: true, estado: estadoCrudo() };
   } finally { lock.releaseLock(); }
