@@ -277,6 +277,17 @@ function refrescarInstalar() {
 }
 
 /* ============ pantalla de ingreso ============ */
+/* Para entrar alcanza con la matrícula y un PIN de cuatro números.
+   Nada de claves compartidas: cada uno elige el suyo la primera vez. */
+var PIN_LARGO = 4;
+function esPin(v) { return new RegExp('^\\d{' + PIN_LARGO + '}$').test(String(v || '').trim()); }
+function campoPin(id, etiqueta, nuevo) {
+  return '<div class="campo"><label for="' + id + '">' + esc(etiqueta) + '</label>' +
+    '<input id="' + id + '" type="password" inputmode="numeric" autocomplete="' +
+    (nuevo ? 'new-password' : 'current-password') + '" maxlength="' + PIN_LARGO + '" ' +
+    'placeholder="' + PIN_LARGO + ' números"></div>';
+}
+
 function vistaIngreso() {
   if (UI.ingreso === 'olvide') return vistaOlvide();
   var alta = UI.ingreso === 'alta';
@@ -293,15 +304,12 @@ function vistaIngreso() {
     (ultimoError ? '<div class="error">' + esc(textoError(ultimoError)) + '</div>' : '') +
     '<div class="campo"><label for="i-mat">Matrícula</label>' +
     '<input id="i-mat" type="text" inputmode="numeric" autocomplete="username" placeholder="tu número de matrícula"></div>' +
-    '<div class="campo"><label for="i-pass">Contraseña</label>' +
-    '<input id="i-pass" type="password" autocomplete="' + (alta ? 'new-password' : 'current-password') + '" placeholder="' + (alta ? 'elegí una, mínimo 4 caracteres' : '') + '"></div>';
+    campoPin('i-pass', alta ? 'Elegí tu PIN' : 'PIN', alta);
   if (alta) {
     h += '<div class="campo"><label for="i-nom">Nombre y apellido</label>' +
       '<input id="i-nom" type="text" autocomplete="name"></div>' +
       '<div class="campo"><label for="i-hcp">Handicap</label>' +
-      '<input id="i-hcp" type="text" inputmode="decimal" placeholder="ej: 14,3"></div>' +
-      '<div class="campo"><label for="i-clave">Clave del viaje</label>' +
-      '<input id="i-clave" type="text" placeholder="la que pasó el organizador"></div>';
+      '<input id="i-hcp" type="text" inputmode="decimal" placeholder="ej: 14,3"></div>';
   }
   h += '<button class="btn pri" data-acc="' + (alta ? 'registrar' : 'entrar') + '">' +
     (alta ? 'Crear mi acceso' : 'Entrar') + '</button>' +
@@ -331,8 +339,7 @@ function vistaOlvide() {
       '<input type="text" value="' + esc(UI.olvideMat) + '" disabled></div>' +
       '<div class="campo"><label for="o-cod">Código de 6 números</label>' +
       '<input id="o-cod" type="text" inputmode="numeric" maxlength="6" placeholder="el que te pasó el organizador"></div>' +
-      '<div class="campo"><label for="o-pass">Contraseña nueva</label>' +
-      '<input id="o-pass" type="password" autocomplete="new-password" placeholder="mínimo 4 caracteres"></div>' +
+      campoPin('o-pass', 'PIN nuevo', true) +
       '<button class="btn pri" data-acc="olvide-aplicar">Cambiar la contraseña y entrar</button>' +
       '<button class="btn fin" data-acc="olvide-otro">Pedir otro código</button>';
   }
@@ -345,8 +352,8 @@ function textoError(e) {
     no_registrado: 'Esa matrícula todavía no está registrada. Entrá por "Primera vez".',
     password_incorrecta: 'La contraseña no coincide.',
     ya_registrado: 'Esa matrícula ya tiene acceso. Entrá con tu contraseña.',
-    clave_viaje_invalida: 'La clave del viaje no es correcta. Pedísela al organizador.',
-    password_corta: 'La contraseña necesita al menos 4 caracteres.',
+    pin_invalido: 'El PIN son 4 números.',
+    password_corta: 'El PIN son 4 números.',
     falta_matricula: 'Falta la matrícula.',
     sesion_vencida: 'Se venció la sesión. Volvé a entrar.',
     solo_admin: 'Eso lo cambia solo el organizador.',
@@ -1683,7 +1690,7 @@ function vistaPerfil() {
     '<div class="candado"><span>⛳</span><span>Con handicap ' + esc(y.handicap) + ' recibís ' + golpes + ' golpes.</span></div></section>' +
     '<section class="card"><div class="sec-tit"><h2>Tu acceso</h2></div>' +
     '<div class="grid2"><div class="campo"><label for="p-pass">Cambiar contraseña</label>' +
-    '<input id="p-pass" type="password" placeholder="mínimo 4 caracteres" data-acc="ed-pass"></div></div>' +
+    '<input id="p-pass" type="password" inputmode="numeric" maxlength="4" placeholder="4 números" data-acc="ed-pass"></div></div>' +
     '<div class="candado" style="border-top:0"><span>🔒</span><span>Editás <b>tu</b> perfil y <b>tu</b> tarjeta.' +
     (esAdmin() ? ' Como organizador además cargás las canchas y los nombres de los equipos — pero los datos y las tarjetas de los demás tampoco los tocás.' : '') + '</span></div>' +
     '<div class="acc"><button class="btn fin" data-acc="salir">Cerrar sesión en este celular</button></div></section>' +
@@ -1845,7 +1852,11 @@ document.addEventListener('change', function (ev) {
     } else p[v] = el.value.trim();
     accionar(p);
   }
-  else if (a === 'ed-pass') { if (el.value.length >= 4) accionar({ accion: 'perfil', password: el.value }).then(function () { el.value = ''; alert('Contraseña cambiada.'); }); }
+  else if (a === 'ed-pass') {
+    if (!el.value) return;
+    if (!esPin(el.value)) { alert('El PIN son ' + PIN_LARGO + ' números.'); return; }
+    accionar({ accion: 'perfil', password: el.value }).then(function () { el.value = ''; alert('PIN cambiado.'); });
+  }
   else if (a === 'ed-cancha') { accionar({ accion: 'cancha', id: v, nombre: el.value.trim() }); }
   else if (a === 'ed-par' || a === 'ed-si') {
     var c = cancha(v); if (!c) return;
@@ -1861,11 +1872,11 @@ document.addEventListener('change', function (ev) {
 function ingresar(alta) {
   var mat = (document.getElementById('i-mat') || {}).value || '';
   var pass = (document.getElementById('i-pass') || {}).value || '';
+  if (!esPin(pass)) { ultimoError = 'pin_invalido'; pintar(); return; }
   var cuerpo = { accion: alta ? 'registrar' : 'login', matricula: mat.trim(), password: pass };
   if (alta) {
     cuerpo.nombre = (document.getElementById('i-nom') || {}).value || '';
     cuerpo.handicap = numeroHcp((document.getElementById('i-hcp') || {}).value) || 0;
-    cuerpo.claveViaje = (document.getElementById('i-clave') || {}).value || '';
   }
   ultimoError = '';
   pedir(cuerpo).then(function (res) {

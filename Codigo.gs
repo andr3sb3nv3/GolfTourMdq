@@ -80,13 +80,12 @@ function borrarTodoYEmpezarDeNuevo() {
   if (vacia && ss.getSheets().length > 1) ss.deleteSheet(vacia);
 
   var cfg = ss.getSheetByName('Config');
-  cfg.getRange(2, 1, 7, 2).setValues([
+  cfg.getRange(2, 1, 6, 2).setValues([
     ['torneo',      'Ryder MDQ'],
     ['sede',        'Mar del Plata'],
     ['edicion',     '2026'],
     ['equipoAzul',  'Team Europe'],
     ['equipoRojo',  'Team USA'],
-    ['claveViaje',  'MDQ2026'],
     ['salt',        Utilities.getUuid()]
   ]);
 
@@ -108,7 +107,7 @@ function borrarTodoYEmpezarDeNuevo() {
   ss.getSheetByName('Canchas').getRange(2, 1, canchas.length, canchas[0].length).setValues(canchas);
 
   SpreadsheetApp.flush();
-  Logger.log('Listo. Clave del viaje: MDQ2026 — cambiala en la pestaña Config si querés.');
+  Logger.log('Listo. Cada jugador se registra con su matrícula y un PIN de 4 números.');
   return 'ok';
 }
 
@@ -265,9 +264,9 @@ function registrar(p) {
   var mat = String(p.matricula || '').trim();
   var pass = String(p.password || '');
   if (!mat) return { ok: false, error: 'falta_matricula' };
-  if (pass.length < 4) return { ok: false, error: 'password_corta' };
-  if (String(p.claveViaje || '').trim().toUpperCase() !== String(config().claveViaje).trim().toUpperCase())
-    return { ok: false, error: 'clave_viaje_invalida' };
+  // Para entrar alcanza con la matrícula y un PIN de cuatro números: ya no hay
+  // clave del viaje. La fila claveViaje de la hoja Config queda sin uso.
+  if (!/^\d{4}$/.test(pass)) return { ok: false, error: 'password_corta' };
 
   var lock = LockService.getScriptLock();
   lock.waitLock(20000);
@@ -345,7 +344,7 @@ function resetAplicar(p) {
   var mat = String(p.matricula || '').trim();
   var j = jugadorPorMatricula(mat);
   if (!j) return { ok: false, error: 'no_registrado' };
-  if (String(p.password || '').length < 4) return { ok: false, error: 'password_corta' };
+  if (!/^\d{4}$/.test(String(p.password || ''))) return { ok: false, error: 'password_corta' };
   if (!j.resetCodigo || String(j.resetCodigo).trim() !== String(p.codigo || '').trim())
     return { ok: false, error: 'codigo_invalido' };
   if (Number(j.resetVence || 0) < Date.now()) return { ok: false, error: 'codigo_vencido' };
@@ -470,7 +469,7 @@ function guardarPerfil(p) {
     if (k === 'equipo' && v !== 'azul' && v !== 'rojo') return;
     hoja.getRange(fila, campos[k]).setValue(v);
   });
-  if (p.password && String(p.password).length >= 4) hoja.getRange(fila, 9).setValue(hashear(mat, String(p.password)));
+  if (p.password && /^\d{4}$/.test(String(p.password))) hoja.getRange(fila, 9).setValue(hashear(mat, String(p.password)));
   anotar(j.matricula, 'perfil', 'actualizó su perfil');
   limpiarCache();
   return { ok: true, estado: estadoCrudo() };
