@@ -368,8 +368,20 @@ function vistaOlvide() {
     '</div></section></div>';
 }
 
+/* El backend manda el motivo real en 'detalle' cuando algo se rompe adentro.
+   Sin eso, todo queda en "algo falló" y no hay por dónde agarrarlo. */
+function mensajeError(res, porDefecto) {
+  var e = (res && res.error) || porDefecto || 'fallo';
+  var t = textoError(e);
+  if (res && res.detalle) t += '\n\n(' + res.detalle + ')';
+  return t;
+}
 function textoError(e) {
   var t = {
+    error_servidor: 'El Apps Script se cortó en el medio. El motivo va entre paréntesis; si no alcanza, ' +
+      'miralo en el editor de Apps Script, en Ejecuciones.',
+    jugadores_invalidos: 'La partida rápida es de 2 a 4 jugadores.',
+    partida_inexistente: 'No se encontró esa partida en la planilla.',
     no_registrado: 'Esa matrícula todavía no está registrada. Entrá por "Primera vez".',
     password_incorrecta: 'La contraseña no coincide.',
     ya_registrado: 'Esa matrícula ya tiene acceso. Entrá con tu contraseña.',
@@ -385,7 +397,7 @@ function textoError(e) {
     sin_api: 'La app no está conectada a la planilla todavía.',
     codigo_invalido: 'Ese código no coincide. Fijate que sea el último que te pasaron.',
     codigo_vencido: 'El código venció. Pedí uno nuevo.',
-    falta_migrar: 'Falta correr la migración de contraseñas en el Apps Script.'
+    falta_migrar: 'Falta una migración en el Apps Script: pegá el Codigo.gs nuevo y corré migrarRapidas().'
   };
   return t[e] || ('Algo falló: ' + e);
 }
@@ -2241,7 +2253,7 @@ function prEmpezar() {
       return { nombre: j.nombre, hcp: j.hcp, equipo: '' };
     }) }).then(function (res) {
     if (res && res.ok) { PR.id = res.id; guardarPR(); pintar(); }
-    else { alert(textoError((res && res.error) || 'fallo')); }
+    else { alert(mensajeError(res)); }
   }, function () { alert('Sin conexión. La partida arranca igual y la guardás cuando vuelva la señal.');
     PR.id = 'local-' + Date.now(); guardarPR(); pintar(); });
 }
@@ -2270,7 +2282,7 @@ function prGuardarRemoto(avisar) {
       PR.guardado = new Date().toTimeString().slice(0, 5);
       guardarPR(); pintar();
       if (avisar) alert('Guardada en la planilla.');
-    } else if (avisar) alert(textoError((res && res.error) || 'fallo'));
+    } else if (avisar) alert(mensajeError(res));
   }, function () { if (avisar) alert('Sin conexión: quedó guardada en el celular.'); });
 }
 

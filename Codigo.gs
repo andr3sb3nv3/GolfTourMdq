@@ -214,7 +214,12 @@ function despachar(p) {
       default:          return { ok: false, error: 'accion_desconocida' };
     }
   } catch (err) {
-    return { ok: false, error: 'error_servidor', detalle: String(err && err.message || err) };
+    var msg = String(err && err.message || err);
+    // exigir() lanza estos dos. Son del pedido, no del servidor: si caen en el
+    // catch genérico, la app dice "falló el servidor" cuando lo único que pasa
+    // es que hay que volver a entrar.
+    if (msg === 'sesion_vencida' || msg === 'solo_admin') return { ok: false, error: msg };
+    return { ok: false, error: 'error_servidor', detalle: msg };
   }
 }
 
@@ -642,6 +647,11 @@ function guardarGolpesEquipo(p) {
    Cada partida vive en su propia hoja y queda listada en "Partidas".
    ============================================================ */
 function prHojaNombre(id) { return 'PR ' + id; }
+// Acá se escribe con coma decimal, y Number('10,5') es NaN.
+function numHcp(v) {
+  var n = parseFloat(String(v == null ? '' : v).replace(',', '.'));
+  return isNaN(n) ? 0 : n;
+}
 
 function prCrear(p) {
   var j = exigir(p.token);
@@ -655,7 +665,10 @@ function prCrear(p) {
   var lock = LockService.getScriptLock();
   lock.waitLock(20000);
   try {
-    var id = Utilities.formatDate(new Date(), 'GMT-3', 'yyyyMMdd-HHmmss');
+    // insertSheet revienta si ya existe una hoja con ese nombre, y el id tiene
+    // resolución de un segundo: si dos partidas arrancan juntas, se desempata.
+    var id = Utilities.formatDate(new Date(), 'GMT-3', 'yyyyMMdd-HHmmss'), base = id, n = 2;
+    while (ss.getSheetByName(prHojaNombre(id))) { id = base + '-' + n; n++; }
     var hoja = ss.insertSheet(prHojaNombre(id));
 
     hoja.getRange(1, 1, 4, 2).setValues([
@@ -674,7 +687,7 @@ function prCrear(p) {
     hoja.setFrozenRows(6);
 
     var filas = jug.map(function (x) {
-      var f = [String(x.nombre || ''), Number(x.hcp) || 0, String(x.equipo || '')];
+      var f = [String(x.nombre || ''), numHcp(x.hcp), String(x.equipo || '')];
       for (var k = 0; k < 18; k++) f.push('');
       return f.concat(['', '', '']);
     });
@@ -696,7 +709,7 @@ function prGuardar(p) {
 
   var jug = p.jugadores || [];
   var filas = jug.map(function (x) {
-    var f = [String(x.nombre || ''), Number(x.hcp) || 0, String(x.equipo || '')];
+    var f = [String(x.nombre || ''), numHcp(x.hcp), String(x.equipo || '')];
     for (var k = 0; k < 18; k++) {
       var v = (x.hoyos || [])[k];
       f.push(v === null || v === undefined || v === '' ? '' : Number(v));
