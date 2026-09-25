@@ -192,6 +192,7 @@ function despachar(p) {
   try {
     switch (p.accion) {
       case 'ping':      return { ok: true, version: 1 };
+      case 'diag':      return diagnostico();
       case 'registrar': return registrar(p);
       case 'login':     return login(p);
       case 'estado':    return { ok: true, estado: estado(p.token) };
@@ -221,6 +222,55 @@ function despachar(p) {
     if (msg === 'sesion_vencida' || msg === 'solo_admin') return { ok: false, error: msg };
     return { ok: false, error: 'error_servidor', detalle: msg };
   }
+}
+
+/* ============================================================
+   DIAGNÓSTICO — se abre en el navegador con  ?accion=diag
+   Corre uno por uno los pasos que hace crear una partida rápida y dice
+   cuál se rompe. No pide sesión y no toca datos: la hoja de prueba que
+   crea la borra enseguida.
+   ============================================================ */
+function diagnostico() {
+  var r = { ok: true, pasos: [] };
+  function paso(nombre, fn) {
+    try {
+      r.pasos.push(nombre + ' → ' + fn());
+    } catch (e) {
+      r.ok = false;
+      r.pasos.push(nombre + ' → ERROR: ' + String(e && e.message || e));
+    }
+  }
+  paso('abrir la planilla', function () { return SpreadsheetApp.openById(SS_ID).getName(); });
+  paso('hojas que tiene', function () {
+    return SpreadsheetApp.openById(SS_ID).getSheets().length;
+  });
+  paso('hoja Partidas', function () {
+    return SpreadsheetApp.openById(SS_ID).getSheetByName('Partidas')
+      ? 'existe' : 'FALTA — hay que correr migrarRapidas()';
+  });
+  paso('salt en Config', function () {
+    return config().salt ? 'está' : 'FALTA — sin esto no se puede validar ninguna sesión';
+  });
+  paso('firmar un token', function () { return firmar('prueba') ? 'anda' : 'devolvió vacío'; });
+  paso('candado del script', function () {
+    var l = LockService.getScriptLock();
+    if (!l.tryLock(3000)) return 'OCUPADO — hay otra ejecución trabada tomándolo';
+    l.releaseLock();
+    return 'libre';
+  });
+  paso('crear y borrar una hoja', function () {
+    var ss = SpreadsheetApp.openById(SS_ID);
+    var h = ss.insertSheet('PR diag ' + Date.now());
+    ss.deleteSheet(h);
+    return 'anda';
+  });
+  paso('partidas ya guardadas', function () { return leer('Partidas').length; });
+  paso('jugadores registrados', function () { return leer('Jugadores').length; });
+  // Un paso puede fallar sin lanzar (una hoja que falta, el candado tomado):
+  // el resumen tiene que reflejarlo igual.
+  r.ok = !r.pasos.some(function (p) { return /ERROR|FALTA|OCUPADO/.test(p); });
+  r.resumen = r.ok ? 'Todo en orden.' : 'Hay algo roto: mirá el paso que dice ERROR, FALTA u OCUPADO.';
+  return r;
 }
 
 /* ============================================================
