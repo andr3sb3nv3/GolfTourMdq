@@ -2,6 +2,7 @@
 (function () {
 'use strict';
 
+var VERSION = 'v43';                     // tiene que coincidir con el CACHE del sw.js
 var LS = { ses: 'gtm-sesion', est: 'gtm-estado', cola: 'gtm-cola', ui: 'gtm-ui' };
 var API = (window.GTM_CONFIG && window.GTM_CONFIG.api) || '';
 
@@ -370,6 +371,17 @@ function vistaOlvide() {
 
 /* El backend manda el motivo real en 'detalle' cuando algo se rompe adentro.
    Sin eso, todo queda en "algo falló" y no hay por dónde agarrarlo. */
+/* Versión corta, para meter en una frase: el cartel de "está sólo en el celular"
+   ya explica qué hacer, no hace falta repetir el instructivo entero. */
+function motivoCorto(res) {
+  var e = (res && res.error) || 'fallo';
+  var c = { error_servidor: 'el Apps Script se cortó', sesion_vencida: 'se venció la sesión',
+            sin_conexion: 'no hay conexión', necesita_login: 'el Apps Script pide iniciar sesión',
+            falta_migrar: 'falta una migración en el Apps Script',
+            respuesta_invalida: 'el Apps Script contestó algo raro' };
+  var t = c[e] || textoError(e);
+  return t + (res && res.detalle ? ' — ' + res.detalle : '') + '.';
+}
 function mensajeError(res, porDefecto) {
   var e = (res && res.error) || porDefecto || 'fallo';
   var t = textoError(e);
@@ -460,7 +472,7 @@ function guardarPR() { guardarLS('gtm-pr', PR); }
 
 function prNueva() {
   return { id: null, cancha: 'jockey-roja', hoyo: 0, guardado: null, segunda: true, destacados: [],
-    vista: 'hoyo', vistaTc: 'bruto', anoto: null, pct: ALLOWANCE,
+    vista: 'hoyo', vistaTc: 'bruto', anoto: null, pct: ALLOWANCE, motivoLocal: '',
     jugadores: [{ nombre: 'Jugador 1', hcp: 18, hoyos: nulos() },
                 { nombre: 'Jugador 2', hcp: 18, hoyos: nulos() }] };
 }
@@ -875,7 +887,12 @@ function prVistaJuego() {
   var seg = '<div class="seg" role="group">' +
     '<button data-acc="pr-vista" data-v="hoyo" aria-pressed="' + (PR.vista !== 'vuelta') + '">Hoyo</button>' +
     '<button data-acc="pr-vista" data-v="vuelta" aria-pressed="' + (PR.vista === 'vuelta') + '">La vuelta</button></div>';
-  var pie = prResumen(r) +
+  var pie = (PR.motivoLocal
+    ? '<div class="aviso"><span>📴</span><span><b>Esta vuelta está sólo en este celular.</b> ' +
+      'La planilla no la pudo abrir porque ' + esc(PR.motivoLocal) + ' Jugá tranquilo: ' +
+      'se guarda acá y la subís cuando se pueda.</span></div>' +
+      '<div class="acc" style="padding-top:0"><button class="btn pri" data-acc="pr-subir">Subirla a la planilla</button></div>'
+    : '') + prResumen(r) +
     '<section class="card"><div class="sec-tit"><h2>Jugadores</h2>' +
     '<span class="eyebrow">nombre y hcp</span></div>' + prEditorJugadores(false) +
     nota('<div class="candado"><span>✏️</span><span>Cambiá un nombre y se actualiza en todos los match, ' +
@@ -1981,7 +1998,7 @@ function pintar() {
     }).join('') + '</nav></div></div>' +
     desplegableJugadores() +
     '<div class="wrap"><main>' + vista + notasHTML() + '</main>' +
-    '<footer class="pie">Ryder MDQ · ' + esc(E.torneo.edicion || '') +
+    '<footer class="pie">Ryder MDQ · ' + esc(E.torneo.edicion || '') + ' · ' + VERSION +
     (E.sello ? '<small>actualizado ' + hora(E.sello) + '</small>' : '') + '</footer></div>';
 }
 
@@ -2232,6 +2249,7 @@ function accionRapida(a, v, b) {
       ? (act == null ? par : act + 1)
       : (act == null ? par : Math.max(1, act - 1));
   }
+  else if (a === 'pr-subir') { prSubirAhora(b); return; }
   else if (a === 'pr-guardar') { prGuardarRemoto(true); return; }
   else if (a === 'pr-cerrar') {
     if (!confirm('¿Terminar la partida? Se guarda en la planilla y volvés al armado.')) return;
@@ -2243,19 +2261,41 @@ function accionRapida(a, v, b) {
   guardarPR(); pintar();
 }
 
-function prEmpezar() {
-  if (TEST || !SES) {                       // en testeo la partida no viaja a la planilla
-    PR.id = 'local-' + Date.now(); guardarPR(); pintar(); return;
-  }
-  pedir({ accion: 'prCrear', token: SES.token, cancha: canchaPR(PR.cancha).nombre,
+/* Lo que hay que mandarle a la planilla para abrir la partida. */
+function prAlta() {
+  return { accion: 'prCrear', token: SES && SES.token, cancha: canchaPR(PR.cancha).nombre,
     modalidad: prEtiquetaModalidad(),
     jugadores: PR.jugadores.map(function (j) {
       return { nombre: j.nombre, hcp: j.hcp, equipo: '' };
-    }) }).then(function (res) {
-    if (res && res.ok) { PR.id = res.id; guardarPR(); pintar(); }
-    else { alert(mensajeError(res)); }
-  }, function () { alert('Sin conexión. La partida arranca igual y la guardás cuando vuelva la señal.');
-    PR.id = 'local-' + Date.now(); guardarPR(); pintar(); });
+    }) };
+}
+function prArrancarLocal(motivo) {
+  PR.id = 'local-' + Date.now();
+  PR.motivoLocal = motivo || '';
+  guardarPR(); pintar();
+}
+
+/* La vuelta arranca SIEMPRE. Si la planilla no la puede abrir, se juega en el
+   celular y se sube después: una partida rápida no se pierde porque el backend
+   conteste mal. Antes, un error del servidor te dejaba parado en el armado. */
+function prEmpezar() {
+  if (TEST || !SES) { prArrancarLocal(TEST ? '' : 'Entrá con tu matrícula para que quede en la planilla.'); return; }
+  pedir(prAlta()).then(function (res) {
+    if (res && res.ok) { PR.id = res.id; PR.motivoLocal = ''; guardarPR(); pintar(); }
+    else prArrancarLocal(motivoCorto(res));
+  }, function () { prArrancarLocal('Sin conexión con la planilla.'); });
+}
+
+/* Segundo intento, a pedido: abre la partida en la planilla y le sube lo jugado. */
+function prSubirAhora(boton) {
+  if (!SES || TEST) return;
+  boton.textContent = 'Subiendo…'; boton.disabled = true;
+  pedir(prAlta()).then(function (res) {
+    if (res && res.ok) {
+      PR.id = res.id; PR.motivoLocal = ''; guardarPR();
+      prGuardarRemoto(true);
+    } else { PR.motivoLocal = motivoCorto(res); guardarPR(); pintar(); }
+  }, function () { PR.motivoLocal = 'Sin conexión con la planilla.'; guardarPR(); pintar(); });
 }
 
 // Cómo se rotula la partida en la planilla: ya no hay una sola modalidad
@@ -2268,7 +2308,8 @@ function prEtiquetaModalidad() {
 function prGuardarRemoto(avisar) {
   var r = prTodo();
   if (!PR.id || PR.id.indexOf('local-') === 0 || !SES || TEST) {
-    if (avisar) alert('Esta partida se está guardando solo en el celular.');
+    if (avisar) alert('Esta partida está sólo en el celular. Para mandarla a la planilla usá ' +
+      '"Subirla a la planilla", arriba.');
     return Promise.resolve();
   }
   return pedir({ accion: 'prGuardar', token: SES.token, id: PR.id, resultado: prTextoGuardado(r),
