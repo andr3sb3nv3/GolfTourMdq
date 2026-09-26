@@ -2,7 +2,7 @@
 (function () {
 'use strict';
 
-var VERSION = 'v44';                     // tiene que coincidir con el CACHE del sw.js
+var VERSION = 'v45';                     // tiene que coincidir con el CACHE del sw.js
 var LS = { ses: 'gtm-sesion', est: 'gtm-estado', cola: 'gtm-cola', ui: 'gtm-ui' };
 var API = (window.GTM_CONFIG && window.GTM_CONFIG.api) || '';
 
@@ -450,9 +450,11 @@ function mismaTarjeta(c, t) {
 }
 
 var CANCHAS_PR = [
-  { id: 'jockey-roja', nombre: 'Jockey Club Roja',
+  // De la tarjeta del club. El id queda como estaba para no romper las partidas
+  // ya guardadas en los celulares; lo que cambia es el nombre y el índice.
+  { id: 'jockey-roja', nombre: 'Jockey Club Colorada',
     par: [4,4,3,5,4,4,4,3,4, 5,5,3,4,4,5,4,3,4],
-    si:  [5,13,17,1,11,9,3,15,7, 6,4,18,8,12,2,10,16,14] },
+    si:  [5,11,17,9,13,7,1,15,3, 4,12,18,2,6,10,8,16,14] },
   // De la tarjeta del club. Donde figura "4/5" el par de hombres es el primero;
   // lo mismo con los índices tipo "5/3". Los totales impresos (38 / 34 / 72)
   // confirman la lectura.

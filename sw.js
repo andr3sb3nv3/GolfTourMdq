@@ -1,6 +1,6 @@
 /* Service worker: la app funciona sin señal.
    El caparazón se cachea; los datos van siempre a la red y quedan en localStorage. */
-var CACHE = 'gtm-v44';   // subir este número en cada cambio: obliga al celular a bajar la versión nueva
+var CACHE = 'gtm-v45';   // subir este número en cada cambio: obliga al celular a bajar la versión nueva
 var ARCHIVOS = ['./', 'index.html', 'app.css', 'app.js', 'config.js',
                 'manifest.webmanifest', 'escudo.png',
                 'icono-192.png', 'icono-512.png', 'icono-maskable.png'];
@@ -35,6 +35,16 @@ self.addEventListener('fetch', function (e) {
   }
   if (url.origin !== self.location.origin) return;              // fuentes y fotos: que decida el navegador
 
+  // El caparazón (html, js, css) va a la RED PRIMERO. Antes era al revés: se
+  // servía lo guardado y lo nuevo recién se aplicaba en el arranque siguiente,
+  // así que después de cada cambio había que cerrar y abrir la app dos veces.
+  // Si la red no contesta en 4 segundos, o no hay señal, sale lo guardado.
+  if (/\.(?:html|js|css|webmanifest)$/.test(url.pathname) || url.pathname.slice(-1) === '/') {
+    e.respondWith(redPrimero(e.request, 4000));
+    return;
+  }
+
+  // El resto (íconos, escudo) cambia poco: primero lo guardado.
   e.respondWith(
     caches.match(e.request).then(function (guardado) {
       var red = fetch(e.request).then(function (res) {
@@ -44,7 +54,26 @@ self.addEventListener('fetch', function (e) {
         }
         return res;
       }).catch(function () { return guardado; });
-      return guardado || red;                                    // cache primero, red de fondo
+      return guardado || red;
     })
   );
 });
+
+function redPrimero(req, espera) {
+  return new Promise(function (resolver) {
+    var listo = false;
+    function dar(r) { if (!listo && r) { listo = true; resolver(r); } }
+    var reloj = setTimeout(function () { caches.match(req).then(dar); }, espera);
+    fetch(req).then(function (res) {
+      clearTimeout(reloj);
+      if (res && res.status === 200) {
+        var copia = res.clone();
+        caches.open(CACHE).then(function (c) { c.put(req, copia); });
+      }
+      dar(res);
+    }).catch(function () {
+      clearTimeout(reloj);
+      caches.match(req).then(function (g) { dar(g || new Response('', { status: 504 })); });
+    });
+  });
+}
