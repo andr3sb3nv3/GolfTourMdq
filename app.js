@@ -2,7 +2,7 @@
 (function () {
 'use strict';
 
-var VERSION = 'v43';                     // tiene que coincidir con el CACHE del sw.js
+var VERSION = 'v44';                     // tiene que coincidir con el CACHE del sw.js
 var LS = { ses: 'gtm-sesion', est: 'gtm-estado', cola: 'gtm-cola', ui: 'gtm-ui' };
 var API = (window.GTM_CONFIG && window.GTM_CONFIG.api) || '';
 
@@ -453,9 +453,12 @@ var CANCHAS_PR = [
   { id: 'jockey-roja', nombre: 'Jockey Club Roja',
     par: [4,4,3,5,4,4,4,3,4, 5,5,3,4,4,5,4,3,4],
     si:  [5,13,17,1,11,9,3,15,7, 6,4,18,8,12,2,10,16,14] },
+  // De la tarjeta del club. Donde figura "4/5" el par de hombres es el primero;
+  // lo mismo con los índices tipo "5/3". Los totales impresos (38 / 34 / 72)
+  // confirman la lectura.
   { id: 'jockey-azul', nombre: 'Jockey Club Azul',
-    par: [5,5,4,4,3,4,3,4,4, 5,3,4,4,3,4,4,5,4],
-    si:  [5,1,15,9,17,13,11,3,7, 4,14,8,2,16,18,12,6,10] },
+    par: [5,5,4,4,3,4,4,5,4, 5,3,4,4,3,4,3,4,4],
+    si:  [5,1,9,3,15,17,13,7,11, 4,14,16,8,18,12,10,2,6] },
   { id: 'newman',      nombre: 'Club Newman',
     par: [4,4,4,5,3,4,5,3,5, 4,4,4,5,3,4,3,5,4],
     si:  [15,11,9,7,17,1,5,13,3, 6,12,2,10,14,16,18,4,8] },
