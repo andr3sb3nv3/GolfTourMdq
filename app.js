@@ -2,7 +2,7 @@
 (function () {
 'use strict';
 
-var VERSION = 'v46';                     // tiene que coincidir con el CACHE del sw.js
+var VERSION = 'v47';                     // tiene que coincidir con el CACHE del sw.js
 var LS = { ses: 'gtm-sesion', est: 'gtm-estado', cola: 'gtm-cola', ui: 'gtm-ui' };
 var API = (window.GTM_CONFIG && window.GTM_CONFIG.api) || '';
 
@@ -462,7 +462,8 @@ var CANCHAS_PR = [
     par: [5,5,4,4,3,4,4,5,4, 5,3,4,4,3,4,3,4,4],
     si:  [5,1,9,3,15,17,13,7,11, 4,14,16,8,18,12,10,2,6] },
   { id: 'newman',      nombre: 'Club Newman',
-    par: [4,4,4,5,3,4,5,3,5, 4,4,4,5,3,4,3,5,4],
+    // El hoyo 4 hoy se juega par 4 (antes figuraba 5); el índice no cambió.
+    par: [4,4,4,4,3,4,5,3,5, 4,4,4,5,3,4,3,5,4],
     si:  [15,11,9,7,17,1,5,13,3, 6,12,2,10,14,16,18,4,8] },
   // De la foto de la tarjeta. Verificada contra sus propios totales: par
   // 36+36=72 y yardas del azul 3264+3374=6638, los tres impresos en la tarjeta.
