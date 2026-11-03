@@ -62,7 +62,7 @@ var DATOS = {
    "salida": "Mañana · a definir",
    "lineas": "",
    "juego": "Stableford + fourball",
-   "green_fee": "",
+   "green_fee": "80000",
    "estado": "Falta reservar",
    "gestiona": "Andrés",
    "nota": "Pedir salidas a la mañana."

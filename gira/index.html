@@ -279,7 +279,7 @@ var RESPALDO = {
   ],
   Canchas: [
     { dia: 'Vie 27', cancha: 'Miramar Links', salida: '13:40 · 13:50 · 14:00', lineas: '3 de 4', juego: 'Stableford + fourball', green_fee: '50000', estado: 'Confirmada', gestiona: 'Andrés', nota: 'Primera ronda.' },
-    { dia: 'Sáb 28 AM', cancha: 'Acantilados', salida: 'Mañana · a definir', lineas: '', juego: 'Stableford + fourball', green_fee: '', estado: 'Falta reservar', gestiona: 'Andrés', nota: 'Pedir salidas a la mañana.' },
+    { dia: 'Sáb 28 AM', cancha: 'Acantilados', salida: 'Mañana · a definir', lineas: '', juego: 'Stableford + fourball', green_fee: '80000', estado: 'Falta reservar', gestiona: 'Andrés', nota: 'Pedir salidas a la mañana.' },
     { dia: 'Sáb 28 PM', cancha: 'Marayui Golf', salida: '16:30 · 16:40 · 16:50 · 17:00', lineas: '4 líneas de 3', juego: 'Scramble de a 3 · 9 hoyos', green_fee: '55000', estado: 'Confirmada', gestiona: 'Andrés', nota: 'Cuenta solo para la Ryder. Pagamos 18: hay luz y el que quiera sigue jugando, pero no suma.' },
     { dia: 'Dom 29', cancha: 'La Catedral', salida: '13:00', lineas: '3 de 4', juego: 'Stableford + fourball', green_fee: '150000', estado: 'En trámite', gestiona: 'Andrés', nota: 'Mar del Plata Golf Club. Después: almuerzo y premios.' }
   ],
@@ -431,7 +431,7 @@ function calculos() {
 var COLOR_RUBRO = ['var(--navy)', 'var(--usa)', 'var(--eur)', 'var(--oro)', 'var(--vivo)', 'var(--navy-3)', 'var(--tenue)'];
 function monto(v) { return Number(String(v == null ? '' : v).replace(/[^\d]/g, '')) || 0; }
 function lineasPresupuesto() {
-  var est = monto(cfg('green_fee_estimado')) || 150000;   // Acantilados: estimado hasta que confirmen la tarifa
+  var est = monto(cfg('green_fee_estimado')) || 80000;   // Acantilados: $80.000 hasta que se cargue en la planilla
   var golf = D.Canchas.map(function (c) {
     var fee = monto(c.green_fee);
     return { rubro: 'Golf', concepto: c.cancha, detalle: c.dia + (fee ? '' : ' · estimado, falta confirmar la tarifa'), por_persona: String(fee || est),
