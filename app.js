@@ -1446,6 +1446,23 @@ function calcScramble(m, usa, eur) {
   r.restan = N - r.jugados;
   if (!r.jugados) { r.texto = 'sin empezar'; r.badge = '–'; r.sub = ''; return r; }
   var dif = 0;
+  // Penalidad: el equipo que no cumple el mínimo de salidas pierde el match.
+  // Si no lo cumplen los dos, se define por neto como siempre.
+  var pierdeU = su.imposible || (su.completo && !su.cumple), pierdeE = se.imposible || (se.completo && !se.cumple);
+  r.penalizado = pierdeU !== pierdeE ? (pierdeU ? 'usa' : 'eur') : null;
+  if (r.penalizado && (su.completo && se.completo)) {
+    r.cerrado = true;
+    r.ganador = r.penalizado === 'usa' ? 'eur' : 'usa';
+    r[r.ganador === 'usa' ? 'puntoUsa' : 'puntoEur'] = 1;
+    r.arriba = r.ganador === 'usa' ? 1 : -1; r.lider = r.ganador;
+    r.badge = 'Salidas'; r.sub = 'final'; r.texto = 'por falta de salidas';
+    return r;
+  }
+  if (r.penalizado) {
+    r.arriba = r.penalizado === 'usa' ? -1 : 1; r.lider = r.penalizado === 'usa' ? 'eur' : 'usa';
+    r.badge = 'Salidas'; r.sub = 'hoyo ' + r.jugados; r.texto = 'falta de salidas';
+    return r;
+  }
   if (su.completo && se.completo) {
     r.cerrado = true;
     dif = r1(se.neto - su.neto);
@@ -1765,7 +1782,7 @@ function notaScramble() {
     'pelota y desde ahí vuelven a tirar los tres. Una sola tarjeta por equipo. <b>Neto = golpes de los 9 hoyos − handicap del equipo.</b> ' +
     'En cada partido de 3 contra 3, el equipo de menor neto gana el punto; empate, ½ cada uno. El handicap del equipo lo fija el comité ' +
     '(si no lo carga, la app usa 20% del más bajo + 15% del medio + 10% del más alto, a la mitad por ser 9 hoyos). ' +
-    'En cada hoyo se anota <b>de quién fue la salida</b>: mínimo ' + MIN_SALIDAS + ' de cada jugador. ' +
+    'En cada hoyo se anota <b>de quién fue la salida</b>: mínimo ' + MIN_SALIDAS + ' de cada jugador; el equipo que no llega <b>pierde el match</b>. ' +
     'Cuenta solo para la Ryder: si siguen jugando los otros 9, no suman.</span></div>';
 }
 function detalleScramble(p, admin) {
@@ -1857,7 +1874,10 @@ function estadoMatchHTML(pr) {
   var cls = lado === 'rojo' ? ' es-rojo' : (lado === 'azul' ? ' es-azul' : ' es-iguales');
   var quien = lado ? nombreEquipo(lado) : 'Van iguales', val, pie;
   var N = pr.n || 18, restan = N - pr.jugados;
-  if (pr.medal) {
+  if (pr.medal && pr.penalizado) {
+    val = pr.cerrado ? 'Gana' : 'Gana si sigue así';
+    pie = nombreEquipo(pr.penalizado === 'usa' ? 'rojo' : 'azul') + ' no llega al mínimo de salidas: pierde el match';
+  } else if (pr.medal) {
     var ab = Math.abs(pr.arriba);
     if (!pr.jugados) { quien = 'Sin empezar'; val = '–'; pie = 'todavía no hay golpes cargados'; cls = ' es-iguales'; }
     else {
@@ -2082,7 +2102,7 @@ function avisoSalidas(st) {
   if (st.cumple) return '<p class="sal-aviso ok">Mínimo de salidas cumplido.</p>';
   var txt = st.faltan.map(function (x) { return nombreCorto(x.j.nombre) + ' ' + x.n; }).join(' · ');
   return '<p class="sal-aviso' + (st.imposible ? ' mal' : (st.totalFaltan >= st.libres ? ' justo' : '')) + '">' +
-    (st.imposible ? 'Ya no se llega al mínimo. ' : '') + 'Faltan salidas: ' + esc(txt) +
+    (st.imposible ? 'Ya no se llega al mínimo: el equipo pierde el match. ' : '') + 'Faltan salidas: ' + esc(txt) +
     ' · quedan ' + st.libres + ' hoyo' + (st.libres === 1 ? '' : 's') + '</p>';
 }
 
