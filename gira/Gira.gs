@@ -61,7 +61,7 @@ var DATOS = {
    "salida": "8:10 · 8:20 · 8:30",
    "lineas": "3 de 4",
    "juego": "Stableford + fourball",
-   "green_fee": "",
+   "green_fee": "55000",
    "estado": "Confirmada",
    "gestiona": "Andrés",
    "nota": "Almuerzo en el clubhouse."
