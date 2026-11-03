@@ -482,3 +482,15 @@ table.tc tr.yo .lbl{color:var(--eur);font-weight:800;box-shadow:inset 3px 0 0 va
 .escudo-eq.eq-azul span{color:var(--eur)}
 .escudo-eq.eq-rojo{border-color:var(--usa);background:#FDF0F2}
 .escudo-eq.eq-rojo span{color:var(--usa)}
+
+/* Botón a la web de organización de la gira */
+.link-gira{display:flex;align-items:center;gap:6px;margin:0 -2px;padding:7px 2px 6px;border-bottom:1px solid rgba(255,255,255,.14);
+  color:#E8EEF7;text-decoration:none;font-size:12px;white-space:nowrap;overflow:hidden}
+.link-gira span{opacity:.7;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.link-gira i{font-style:normal;margin-left:auto;padding-left:6px}
+.btn-gira{display:flex;align-items:center;gap:12px;margin:14px 0 0;padding:14px 16px;border-radius:14px;
+  background:var(--navy);color:#fff;text-decoration:none}
+.btn-gira>span:first-child{font-size:24px}
+.btn-gira>span:nth-child(2){flex:1;display:grid;gap:2px}
+.btn-gira small{opacity:.8;font-size:13px}
+.btn-gira i{font-style:normal;font-size:20px}
