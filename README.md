@@ -83,3 +83,11 @@ organizador, se cambia a mano la columna `rol` en la pestaña `Jugadores`.
 - Las contraseñas nunca viajan ni se guardan en claro, pero esto es seguridad de
   club de golf: alcanza para que nadie te toque la tarjeta, no para datos sensibles.
 - No compartas la pestaña `Jugadores` publicándola en la web: ahí viven los hashes.
+
+## Web de la gira
+
+En `gira/` está la web de la Gira Amigolf 2026. Lee los datos de la planilla de Google *Gira Golf Mar del Plata Organización* (tiene que estar compartida como "cualquiera con el enlace puede ver").
+
+## Deploy en Vercel
+
+Importar este repo en Vercel (Framework: Other, sin build). `vercel.json` hace que el `sw.js` y el HTML no queden cacheados, así cada cambio llega al toque.
