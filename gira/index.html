@@ -196,6 +196,29 @@ body.editando main{padding-bottom:70px}
 .login{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .login input{font:500 16px var(--texto);border:1px solid var(--linea-2);border-radius:999px;padding:8px 14px;background:var(--panel);min-width:0;flex:1 1 160px}
 
+/* Presupuesto */
+.presu{display:grid;gap:12px}
+.presu-cab{display:flex;justify-content:space-between;align-items:flex-end;gap:10px;flex-wrap:wrap}
+.presu-total{font:800 30px/1 var(--titulo);letter-spacing:-.02em;color:var(--navy)}
+.presu-barra{display:flex;height:12px;border-radius:999px;overflow:hidden;background:var(--panel-2)}
+.presu-barra i{display:block;height:100%}
+details.rubro{border-top:1px solid var(--linea)}
+details.rubro summary{display:grid;grid-template-columns:10px minmax(0,1fr) auto auto;gap:10px;align-items:center;padding:11px 0;cursor:pointer;list-style:none;font-weight:700}
+details.rubro summary::-webkit-details-marker{display:none}
+details.rubro summary::after{content:"▾";grid-column:5;color:var(--tenue);font-size:12px}
+details.rubro[open] summary::after{content:"▴"}
+details.rubro .pto{width:10px;height:10px;border-radius:3px;display:block}
+details.rubro .pct{font:600 12px/1 var(--num);color:var(--tenue)}
+details.rubro summary b{font-size:15px}
+details.rubro ul{list-style:none;margin:0 0 10px;padding:0 0 0 20px;display:grid;gap:8px}
+details.rubro li{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;font-size:14px}
+details.rubro li > div:first-child{min-width:0}
+details.rubro li small{display:block;color:var(--tinta-2);font-size:12.5px;line-height:1.35}
+details.rubro .pm{display:grid;justify-items:end;gap:4px;text-align:right;flex:0 0 auto}
+.presu-pie{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;border-top:1px solid var(--linea);padding-top:12px}
+.presu-pie .dato b{font-size:19px}
+@media (max-width:520px){.presu-pie{grid-template-columns:1fr 1fr}.presu-pie .dato:last-child{grid-column:1 / -1}}
+
 .aviso{border-left:4px solid var(--oro);background:var(--oro-suave);border-radius:0 10px 10px 0;padding:10px 12px;font-size:14px}
 
 footer{border-top:1px solid var(--linea);padding-block:18px 30px;font-size:13.5px;color:var(--tinta-2);display:grid;gap:8px}
@@ -301,12 +324,29 @@ var RESPALDO = {
     { tarea: 'App en Stableford', detalle: '', responsable: 'Andrés', seccion: 'formato', hecho: '' },
     { tarea: 'Miramar confirmado', detalle: 'Vie 27, 13:40 a 14:00.', responsable: 'Andrés', seccion: 'reservas', hecho: 'Sí' },
     { tarea: 'Marayui confirmado', detalle: 'Sáb 28, 16:30 a 17:00, 4 líneas.', responsable: 'Andrés', seccion: 'reservas', hecho: 'Sí' }
+  ],
+  Presupuesto: [
+    { rubro: 'Viaje', concepto: 'Nafta', detalle: 'Autos de a 4 (3 autos). Unos 1.000 km por auto entre ida, vuelta y traslados a las canchas: ~105 litros a $1.800. Toba viene de Córdoba: su viaje va aparte.', por_persona: '47250', estado: 'Estimado', opcional: '' },
+    { rubro: 'Viaje', concepto: 'Peajes', detalle: 'Ruta 2 ida y vuelta: ~$35.000 por auto, dividido 4.', por_persona: '8750', estado: 'Estimado', opcional: '' },
+    { rubro: 'Comidas afuera', concepto: 'Almuerzo del sábado en Marayui', detalle: 'Clubhouse, antes de salir. Con bebida.', por_persona: '35000', estado: 'Estimado', opcional: '' },
+    { rubro: 'Comidas afuera', concepto: 'Almuerzo del domingo en La Catedral', detalle: 'Después de la ronda, con la entrega de premios.', por_persona: '40000', estado: 'Estimado', opcional: '' },
+    { rubro: 'Casa y súper', concepto: 'Asado del viernes', detalle: 'Carne, achuras, pan y ensalada para 12.', por_persona: '16000', estado: 'Estimado', opcional: '' },
+    { rubro: 'Casa y súper', concepto: 'Previa del sábado', detalle: 'Picada y algo para comer en la casa.', por_persona: '12000', estado: 'Estimado', opcional: '' },
+    { rubro: 'Casa y súper', concepto: 'Desayunos y almuerzo del viernes', detalle: 'Desayunos de vie, sáb y dom, y algo liviano antes de Miramar.', por_persona: '12000', estado: 'Estimado', opcional: '' },
+    { rubro: 'Casa y súper', concepto: 'Bebidas', detalle: 'Cerveza, vino, fernet, gaseosas y agua para todo el fin de semana.', por_persona: '30000', estado: 'Estimado', opcional: '' },
+    { rubro: 'Casa y súper', concepto: 'Carbón, hielo y descartables', detalle: 'Más bolsas, servilletas y lo que falte en la casa.', por_persona: '5000', estado: 'Estimado', opcional: '' },
+    { rubro: 'Merch y premios', concepto: 'Chomba del equipo', detalle: 'Del color del equipo, con apellido. Green Golf.', por_persona: '45000', estado: 'Estimado', opcional: '' },
+    { rubro: 'Merch y premios', concepto: 'Premios', detalle: 'Campeón Stableford y equipo ganador de la Ryder.', por_persona: '10000', estado: 'Estimado', opcional: '' },
+    { rubro: 'Imprevistos', concepto: 'Varios', detalle: 'Pelotas perdidas, café en las canchas y propinas.', por_persona: '15000', estado: 'Estimado', opcional: '' },
+    { rubro: 'Aparte', concepto: 'Salida a Bruto', detalle: 'Sábado a la noche: entrada y tragos. Opcional.', por_persona: '40000', estado: 'Estimado', opcional: 'Sí' },
+    { rubro: 'Aparte', concepto: 'Llegar antes (mié o jue)', detalle: 'Comida extra en la casa, por día.', por_persona: '15000', estado: 'Estimado', opcional: 'Sí' },
+    { rubro: 'Aparte', concepto: 'Ronda de práctica del jueves', detalle: 'Green fee aparte, según la cancha.', por_persona: '', estado: 'A definir', opcional: 'Sí' }
   ]
 };
 
 /* ------------------------------------------------------------------ */
 var D = null, ORIGEN = 'respaldo';
-var PESTANAS = ['Config', 'Canchas', 'Agenda', 'Jugadores', 'Viajes', 'Pendientes'];
+var PESTANAS = ['Config', 'Canchas', 'Agenda', 'Jugadores', 'Viajes', 'Pendientes', 'Presupuesto'];
 
 function csv(texto) {
   var filas = [], fila = [], campo = '', comillas = false;
@@ -384,6 +424,56 @@ function calculos() {
   };
 }
 
+/* ------------------------------------------------------------------
+   PRESUPUESTO por persona. Los green fees salen de Canchas; el resto, de la
+   pestaña Presupuesto. Lo marcado como opcional va aparte y no suma.
+   ------------------------------------------------------------------ */
+var COLOR_RUBRO = ['var(--navy)', 'var(--usa)', 'var(--eur)', 'var(--oro)', 'var(--vivo)', 'var(--navy-3)', 'var(--tenue)'];
+function monto(v) { return Number(String(v == null ? '' : v).replace(/[^\d]/g, '')) || 0; }
+function lineasPresupuesto() {
+  var est = monto(cfg('green_fee_estimado')) || 150000;   // Acantilados: estimado hasta que confirmen la tarifa
+  var golf = D.Canchas.map(function (c) {
+    var fee = monto(c.green_fee);
+    return { rubro: 'Golf', concepto: c.cancha, detalle: c.dia + (fee ? '' : ' · estimado, falta confirmar la tarifa'), por_persona: String(fee || est),
+             estado: fee ? 'Confirmado' : 'Estimado', opcional: '', link: 'reservas' };
+  });
+  var resto = (D.Presupuesto && D.Presupuesto.length) ? D.Presupuesto : RESPALDO.Presupuesto;
+  return golf.concat(resto);
+}
+function presupuestoHTML() {
+  var lineas = lineasPresupuesto(), rubros = [], aparte = [];
+  lineas.forEach(function (l) {
+    if (si(l.opcional)) { aparte.push(l); return; }
+    var r = rubros.filter(function (x) { return x.n === l.rubro; })[0];
+    if (!r) rubros.push(r = { n: l.rubro || 'Otros', items: [], total: 0 });
+    r.items.push(l); r.total += monto(l.por_persona);
+  });
+  var total = rubros.reduce(function (s, r) { return s + r.total; }, 0);
+  var n = D.Jugadores.length || 12, cuotas = (monto(cfg('cuota')) || 75000) * 3;
+  var item = function (l) {
+    var est = /confirm/i.test(l.estado) ? '<span class="chip ok">Confirmado</span>' : (monto(l.por_persona) ? '<span class="chip gris">' + esc(l.estado || 'Estimado') + '</span>' : '<span class="chip tram">A definir</span>');
+    var ed = l.link ? (EDIT.on ? ' <a class="lapiz" href="#' + l.link + '">Editar</a>' : '') : lapiz('Presupuesto', l);
+    return '<li><div><b>' + esc(l.concepto) + '</b>' + (l.detalle ? '<small>' + esc(l.detalle) + '</small>' : '') + '</div>' +
+      '<div class="pm"><span class="num">' + (monto(l.por_persona) ? pesos(l.por_persona) : '—') + '</span>' + est + ed + '</div></li>';
+  };
+  return '<div class="card presu"><div class="presu-cab"><div><h3 style="margin:0">Presupuesto por persona</h3><span class="eyebrow">Estimado · precios de noviembre 2026</span></div>' +
+    '<b class="presu-total num">' + pesos(total) + '</b></div>' +
+    '<div class="presu-barra" role="img" aria-label="Reparto del presupuesto por rubro">' + rubros.map(function (r, i) {
+      return '<i style="width:' + (total ? r.total / total * 100 : 0) + '%;background:' + COLOR_RUBRO[i % COLOR_RUBRO.length] + '" title="' + esc(r.n) + '"></i>';
+    }).join('') + '</div>' +
+    rubros.map(function (r, i) {
+      return '<details class="rubro"><summary><i class="pto" style="background:' + COLOR_RUBRO[i % COLOR_RUBRO.length] + '"></i><span>' + esc(r.n) + '</span>' +
+        '<span class="pct">' + (total ? Math.round(r.total / total * 100) : 0) + '%</span><b class="num">' + pesos(r.total) + '</b></summary><ul>' + r.items.map(item).join('') + '</ul></details>';
+    }).join('') +
+    (aparte.length ? '<details class="rubro aparte"><summary><i class="pto" style="background:var(--linea-2)"></i><span>Aparte, opcional</span><span class="pct"></span><b class="num tenue">no suma</b></summary><ul>' + aparte.map(item).join('') + '</ul></details>' : '') +
+    mas('Presupuesto', 'Agregar gasto') +
+    '<div class="presu-pie"><div class="dato"><b class="num">' + pesos(total * n) + '</b><span>total del grupo (' + n + ')</span></div>' +
+      '<div class="dato"><b class="num">' + pesos(cuotas) + '</b><span>ya aportado en cuotas</span></div>' +
+      '<div class="dato"><b class="num">' + pesos(Math.max(0, total - cuotas)) + '</b><span>diferencia estimada por persona</span></div></div>' +
+    '<p class="chico tenue">Supuestos: autos de a 4, dos comidas afuera (sábado y domingo al mediodía) y el resto en la casa, que no tiene costo. ' +
+      'Asumimos que las cuotas van a estos gastos. Tocá un rubro para ver el detalle.</p></div>';
+}
+
 var TABS = [['inicio', 'Inicio'], ['agenda', 'Agenda'], ['reservas', 'Reservas'], ['pagos', 'Pagos'], ['jugadores', 'Jugadores'],
   ['formato', 'Formato'], ['autos', 'Autos'], ['casa', 'Casa'], ['merch', 'Merch'], ['pendientes', 'Pendientes']];
 
@@ -401,6 +491,7 @@ var V = {
         '<a class="card dato" href="#pagos"><span class="eyebrow">Pagos</span><b>' + (k.total ? Math.round(k.pagas / k.total * 100) : 0) + '%</b><span>de las cuotas pagas</span></a>' +
         '<a class="card dato" href="#jugadores"><span class="eyebrow">Handicap</span><b>' + (D.Jugadores.length - k.sinHcp.length) + '/' + D.Jugadores.length + '</b><span>con handicap activo</span></a>' +
       '</div>' +
+      presupuestoHTML() +
       '<div class="card"><h3>Lo próximo</h3><div class="prox">' + k.tareas.slice(0, 5).map(function (p) {
         return '<a href="#' + esc(p.seccion) + '"><b>' + esc(p.tarea) + '</b><span>' + esc(p.responsable) + '</span></a>';
       }).join('') + '</div></div>';
@@ -550,16 +641,18 @@ var LISTAS = {
   'Jugadores.ago': ['', '✅', 'ok'], 'Jugadores.sep': ['', '✅', 'ok'], 'Jugadores.oct': ['', '✅', 'ok'],
   'Jugadores.excluido': ['', 'Sí'], 'Jugadores.capitan': ['', 'Sí'], 'Jugadores.equipo': ['', 'USA', 'Europe'],
   'Pendientes.hecho': ['', 'Sí'],
+  'Presupuesto.estado': ['Estimado', 'Confirmado', 'A definir'], 'Presupuesto.opcional': ['', 'Sí'],
+  'Presupuesto.rubro': ['Viaje', 'Comidas afuera', 'Casa y súper', 'Merch y premios', 'Imprevistos', 'Aparte'],
   'Pendientes.seccion': ['inicio', 'agenda', 'reservas', 'pagos', 'jugadores', 'formato', 'autos', 'casa', 'merch', 'pendientes']
 };
 var LARGOS = { nota: 1, detalle: 1, como: 1 };
-var ETIQ = { dia: 'Día', cancha: 'Cancha', salida: 'Salida', lineas: 'Líneas', juego: 'Juego', green_fee: 'Green fee ($, solo números)', estado: 'Estado',
+var ETIQ = { rubro: 'Rubro', concepto: 'Concepto', por_persona: 'Monto por persona ($, solo números)', opcional: 'Opcional (no suma)', dia: 'Día', cancha: 'Cancha', salida: 'Salida', lineas: 'Líneas', juego: 'Juego', green_fee: 'Green fee ($, solo números)', estado: 'Estado',
   gestiona: 'Gestiona', nota: 'Nota', fecha: 'Día del mes (número)', hora: 'Hora', titulo: 'Título', detalle: 'Detalle', nombre: 'Nombre', apodo: 'Apodo',
   handicap: 'Handicap', ago: 'Cuota agosto', sep: 'Cuota septiembre', oct: 'Cuota octubre', excluido: 'Excluido del pago', equipo: 'Equipo', capitan: 'Capitán',
   jugador: 'Jugador', llega: 'Llega', como: 'Cómo viaja', auto: 'Auto', tarea: 'Tarea', responsable: 'Responsable', seccion: 'Sección de la web', hecho: 'Hecho',
   inicio: 'Fecha de inicio (aaaa-mm-dd)', cuota: 'Cuota ($)', alias: 'Alias', tesorero: 'Tesorero', app: 'Link de la app' };
-var BORRABLES = { Agenda: 1, Canchas: 1, Viajes: 1, Pendientes: 1 };
-var TITULOS = { Agenda: 'actividad', Canchas: 'cancha', Viajes: 'viaje', Pendientes: 'pendiente', Jugadores: 'jugador' };
+var BORRABLES = { Agenda: 1, Canchas: 1, Viajes: 1, Pendientes: 1, Presupuesto: 1 };
+var TITULOS = { Agenda: 'actividad', Canchas: 'cancha', Viajes: 'viaje', Pendientes: 'pendiente', Jugadores: 'jugador', Presupuesto: 'gasto' };
 
 function columnas(tab) { return Object.keys(RESPALDO[tab][0]); }
 function fila(tab, n) { return D[tab].filter(function (r) { return String(r._fila) === String(n); })[0]; }

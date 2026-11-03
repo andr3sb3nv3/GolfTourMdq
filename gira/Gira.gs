@@ -15,7 +15,7 @@
 
 var CLAVE = 'ESCRIBI-TU-CLAVE';   // ← poné acá la clave para editar desde la web (no la subas a GitHub)
 
-var COLUMNAS = {"Config": ["clave", "valor"], "Canchas": ["dia", "cancha", "salida", "lineas", "juego", "green_fee", "estado", "gestiona", "nota"], "Agenda": ["fecha", "dia", "hora", "titulo", "detalle", "estado"], "Jugadores": ["nombre", "apodo", "handicap", "nota", "ago", "sep", "oct", "excluido", "equipo", "capitan"], "Viajes": ["jugador", "llega", "como", "auto"], "Pendientes": ["tarea", "detalle", "responsable", "seccion", "hecho"]};
+var COLUMNAS = {"Config": ["clave", "valor"], "Canchas": ["dia", "cancha", "salida", "lineas", "juego", "green_fee", "estado", "gestiona", "nota"], "Agenda": ["fecha", "dia", "hora", "titulo", "detalle", "estado"], "Jugadores": ["nombre", "apodo", "handicap", "nota", "ago", "sep", "oct", "excluido", "equipo", "capitan"], "Viajes": ["jugador", "llega", "como", "auto"], "Pendientes": ["tarea", "detalle", "responsable", "seccion", "hecho"], "Presupuesto": ["rubro", "concepto", "detalle", "por_persona", "estado", "opcional"]};
 
 var DATOS = {
  "Config": [
@@ -399,6 +399,128 @@ var DATOS = {
    "seccion": "reservas",
    "hecho": "Sí"
   }
+ ],
+ "Presupuesto": [
+  {
+   "rubro": "Viaje",
+   "concepto": "Nafta",
+   "detalle": "Autos de a 4 (3 autos). Unos 1.000 km por auto entre ida, vuelta y traslados a las canchas: ~105 litros a $1.800. Toba viene de Córdoba: su viaje va aparte.",
+   "por_persona": "47250",
+   "estado": "Estimado",
+   "opcional": ""
+  },
+  {
+   "rubro": "Viaje",
+   "concepto": "Peajes",
+   "detalle": "Ruta 2 ida y vuelta: ~$35.000 por auto, dividido 4.",
+   "por_persona": "8750",
+   "estado": "Estimado",
+   "opcional": ""
+  },
+  {
+   "rubro": "Comidas afuera",
+   "concepto": "Almuerzo del sábado en Marayui",
+   "detalle": "Clubhouse, antes de salir. Con bebida.",
+   "por_persona": "35000",
+   "estado": "Estimado",
+   "opcional": ""
+  },
+  {
+   "rubro": "Comidas afuera",
+   "concepto": "Almuerzo del domingo en La Catedral",
+   "detalle": "Después de la ronda, con la entrega de premios.",
+   "por_persona": "40000",
+   "estado": "Estimado",
+   "opcional": ""
+  },
+  {
+   "rubro": "Casa y súper",
+   "concepto": "Asado del viernes",
+   "detalle": "Carne, achuras, pan y ensalada para 12.",
+   "por_persona": "16000",
+   "estado": "Estimado",
+   "opcional": ""
+  },
+  {
+   "rubro": "Casa y súper",
+   "concepto": "Previa del sábado",
+   "detalle": "Picada y algo para comer en la casa.",
+   "por_persona": "12000",
+   "estado": "Estimado",
+   "opcional": ""
+  },
+  {
+   "rubro": "Casa y súper",
+   "concepto": "Desayunos y almuerzo del viernes",
+   "detalle": "Desayunos de vie, sáb y dom, y algo liviano antes de Miramar.",
+   "por_persona": "12000",
+   "estado": "Estimado",
+   "opcional": ""
+  },
+  {
+   "rubro": "Casa y súper",
+   "concepto": "Bebidas",
+   "detalle": "Cerveza, vino, fernet, gaseosas y agua para todo el fin de semana.",
+   "por_persona": "30000",
+   "estado": "Estimado",
+   "opcional": ""
+  },
+  {
+   "rubro": "Casa y súper",
+   "concepto": "Carbón, hielo y descartables",
+   "detalle": "Más bolsas, servilletas y lo que falte en la casa.",
+   "por_persona": "5000",
+   "estado": "Estimado",
+   "opcional": ""
+  },
+  {
+   "rubro": "Merch y premios",
+   "concepto": "Chomba del equipo",
+   "detalle": "Del color del equipo, con apellido. Green Golf.",
+   "por_persona": "45000",
+   "estado": "Estimado",
+   "opcional": ""
+  },
+  {
+   "rubro": "Merch y premios",
+   "concepto": "Premios",
+   "detalle": "Campeón Stableford y equipo ganador de la Ryder.",
+   "por_persona": "10000",
+   "estado": "Estimado",
+   "opcional": ""
+  },
+  {
+   "rubro": "Imprevistos",
+   "concepto": "Varios",
+   "detalle": "Pelotas perdidas, café en las canchas y propinas.",
+   "por_persona": "15000",
+   "estado": "Estimado",
+   "opcional": ""
+  },
+  {
+   "rubro": "Aparte",
+   "concepto": "Salida a Bruto",
+   "detalle": "Sábado a la noche: entrada y tragos. Opcional.",
+   "por_persona": "40000",
+   "estado": "Estimado",
+   "opcional": "Sí"
+  },
+  {
+   "rubro": "Aparte",
+   "concepto": "Llegar antes (mié o jue)",
+   "detalle": "Comida extra en la casa, por día.",
+   "por_persona": "15000",
+   "estado": "Estimado",
+   "opcional": "Sí"
+  },
+  {
+   "rubro": "Aparte",
+   "concepto": "Ronda de práctica del jueves",
+   "detalle": "Green fee aparte, según la cancha.",
+   "por_persona": "",
+   "estado": "A definir",
+   "opcional": "Sí"
+  }
  ]
 };
 
@@ -408,7 +530,8 @@ var LISTAS = {
   'Jugadores.handicap': ['Activo', 'A resolver', 'Sin handicap'],
   'Jugadores.ago': ['', '✅', 'ok'], 'Jugadores.sep': ['', '✅', 'ok'], 'Jugadores.oct': ['', '✅', 'ok'],
   'Jugadores.excluido': ['', 'Sí'], 'Jugadores.capitan': ['', 'Sí'], 'Jugadores.equipo': ['', 'USA', 'Europe'],
-  'Pendientes.hecho': ['', 'Sí']
+  'Pendientes.hecho': ['', 'Sí'],
+  'Presupuesto.estado': ['Estimado', 'Confirmado', 'A definir'], 'Presupuesto.opcional': ['', 'Sí']
 };
 
 /* Primera ejecución: crea las pestañas que falten. Se puede correr las veces que haga falta. */
@@ -482,7 +605,8 @@ function ayuda_(ss) {
     ['Agenda', 'Una fila por actividad. fecha: número del día. estado opcional.'],
     ['Jugadores', 'handicap: Activo / A resolver / Sin handicap. ago, sep, oct: ✅ pagó · ok = avisó · vacío = no pagó.'],
     ['Viajes', 'jugador (igual que en Jugadores), llega, como, auto.'],
-    ['Pendientes', 'hecho: Sí cuando se cumple.']
+    ['Pendientes', 'hecho: Sí cuando se cumple.'],
+    ['Presupuesto', 'Gastos por persona. por_persona: solo números. opcional: Sí si no suma (va aparte). Los green fees salen de Canchas.']
   ];
   h.getRange(1, 1, t.length, 2).setValues(t);
   h.getRange(1, 1).setFontWeight('bold');
