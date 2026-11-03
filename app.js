@@ -2,7 +2,7 @@
 (function () {
 'use strict';
 
-var VERSION = 'v51';                     // tiene que coincidir con el CACHE del sw.js
+var VERSION = 'v52';                     // tiene que coincidir con el CACHE del sw.js
 var LS = { ses: 'gtm-sesion', est: 'gtm-estado', cola: 'gtm-cola', ui: 'gtm-ui' };
 var API = (window.GTM_CONFIG && window.GTM_CONFIG.api) || '';
 
@@ -308,6 +308,146 @@ function bloqueInstalar() {
 function refrescarInstalar() {
   var n = document.getElementById('bloque-instalar');
   if (n) n.outerHTML = bloqueInstalar();   // se cambia solo ese bloque para no borrar lo que estés tipeando
+}
+
+/* ============ avisos push (birdies, águilas…) ============
+   Web Push estándar. La clave pública la da el backend (pushClave) y la
+   suscripción de cada celular queda en la pestaña Suscripciones. En iPhone
+   solo anda con la app agregada a la pantalla de inicio (iOS 16.4 o más). */
+var AVISO = { est: 'cargando', ocupado: false, msj: '' };
+function soportaPush() { return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window; }
+function b64aBytes(t) {
+  t = String(t).replace(/-/g, '+').replace(/_/g, '/');
+  while (t.length % 4) t += '=';
+  var raw = atob(t), out = new Uint8Array(raw.length);
+  for (var i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+  return out;
+}
+function mismaClave(sub, clave) {
+  try {
+    var a = new Uint8Array(sub.options.applicationServerKey), b = b64aBytes(clave);
+    if (a.length !== b.length) return false;
+    for (var i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+    return true;
+  } catch (e) { return true; }      // si el navegador no lo informa, se asume que sí
+}
+function nombreDispositivo() {
+  var u = navigator.userAgent;
+  return (/iphone|ipad/i.test(u) ? 'iPhone' : /android/i.test(u) ? 'Android' : 'Compu') + (yaInstalada() ? ' · app' : ' · navegador');
+}
+function claveAvisos() {
+  var guardada = leerLS('gtm-push-clave', null);
+  if (guardada) return Promise.resolve(guardada);
+  return pedir({ accion: 'pushClave' }).then(function (r) {
+    if (!r || !r.ok || !r.clave) throw new Error((r && r.error) || 'sin_clave');
+    guardarLS('gtm-push-clave', r.clave);
+    return r.clave;
+  });
+}
+var avisosAnotados = false;
+function revisarAvisos() {
+  if (!soportaPush()) { AVISO.est = (esIOS() && !yaInstalada()) ? 'ios-instalar' : 'nosoporta'; refrescarAvisos(); return; }
+  if (Notification.permission === 'denied') { AVISO.est = 'bloqueado'; refrescarAvisos(); return; }
+  navigator.serviceWorker.ready.then(function (reg) { return reg.pushManager.getSubscription(); }).then(function (sub) {
+    AVISO.est = (sub && Notification.permission === 'granted') ? 'activo' : 'inactivo';
+    refrescarAvisos();
+    // Una vez por arranque se le recuerda al backend este celular (por si se borró la fila).
+    if (sub && SES && !TEST && !avisosAnotados) {
+      avisosAnotados = true;
+      pedir({ accion: 'pushAlta', token: SES.token, endpoint: sub.endpoint, dispositivo: nombreDispositivo() }).catch(function () {});
+    }
+  }, function () { AVISO.est = 'inactivo'; refrescarAvisos(); });
+}
+function activarAvisos() {
+  if (TEST) { alert('En modo testeo no se activan los avisos.'); return; }
+  if (!soportaPush()) { revisarAvisos(); return; }
+  AVISO.ocupado = true; AVISO.msj = ''; refrescarAvisos();
+  // El permiso se pide primero y en el mismo toque: iPhone lo exige.
+  Notification.requestPermission().then(function (perm) {
+    if (perm !== 'granted') throw new Error(perm === 'denied' ? 'bloqueado' : 'sin_permiso');
+    return Promise.all([claveAvisos(), navigator.serviceWorker.ready]);
+  }).then(function (x) {
+    var clave = x[0], reg = x[1];
+    return reg.pushManager.getSubscription().then(function (vieja) {
+      if (vieja && mismaClave(vieja, clave)) return vieja;
+      return (vieja ? vieja.unsubscribe() : Promise.resolve()).then(function () {
+        return reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64aBytes(clave) });
+      });
+    });
+  }).then(function (sub) {
+    return pedir({ accion: 'pushAlta', token: SES.token, endpoint: sub.endpoint, dispositivo: nombreDispositivo() });
+  }).then(function (r) {
+    if (!r || !r.ok) throw new Error((r && r.error) || 'fallo');
+    avisosAnotados = true;
+    AVISO.ocupado = false; AVISO.est = 'activo'; AVISO.msj = '✅ Listo. Tocá “Probar” para ver cómo llega.';
+    refrescarAvisos();
+  }).catch(function (e) {
+    AVISO.ocupado = false;
+    var m = String(e && e.message || e);
+    if (m === 'bloqueado') AVISO.est = 'bloqueado';
+    AVISO.msj = m === 'sin_permiso' ? 'No diste permiso. Volvé a tocar “Activar” y elegí Permitir.'
+              : m === 'bloqueado' ? '' : 'No se pudo activar (' + m + '). Probá de nuevo con señal.';
+    refrescarAvisos();
+  });
+}
+function desactivarAvisos() {
+  AVISO.ocupado = true; refrescarAvisos();
+  navigator.serviceWorker.ready.then(function (reg) { return reg.pushManager.getSubscription(); }).then(function (sub) {
+    if (!sub) return;
+    var ep = sub.endpoint;
+    return sub.unsubscribe().then(function () {
+      return pedir({ accion: 'pushBaja', token: SES.token, endpoint: ep }).catch(function () {});
+    });
+  }).then(function () {
+    AVISO.ocupado = false; AVISO.est = 'inactivo'; AVISO.msj = 'Avisos apagados en este celular.'; refrescarAvisos();
+  }, function () { AVISO.ocupado = false; refrescarAvisos(); });
+}
+function probarAvisos() {
+  AVISO.ocupado = true; AVISO.msj = ''; refrescarAvisos();
+  navigator.serviceWorker.ready.then(function (reg) { return reg.pushManager.getSubscription(); }).then(function (sub) {
+    if (!sub) throw new Error('sin_suscripcion');
+    return pedir({ accion: 'pushPrueba', token: SES.token, endpoint: sub.endpoint });
+  }).then(function (r) {
+    AVISO.ocupado = false;
+    AVISO.msj = r && r.ok ? 'Enviado. En unos segundos te tiene que llegar el aviso.'
+      : 'El servidor no pudo mandarlo (' + ((r && (r.detalle || r.error)) || 'fallo') + ').';
+    refrescarAvisos();
+  }).catch(function (e) {
+    AVISO.ocupado = false; AVISO.msj = 'No se pudo probar (' + String(e && e.message || e) + ').'; refrescarAvisos();
+  });
+}
+/* Tarjeta del perfil. */
+function bloqueAvisos() {
+  var st = AVISO.est, h = '<section class="card" id="card-avisos"><div class="sec-tit"><h2>🐦 Avisos de birdies</h2></div><div class="avisos">';
+  if (st === 'activo') h += '<p>✅ Activados en este celular. Te llega un aviso cada vez que alguien hace ' +
+    '🐦 birdie, 🦅 águila, 🕊️ albatros o ⛳ hoyo en uno.</p>' +
+    '<div class="acc"><button class="btn pri" data-acc="avisos-probar"' + (AVISO.ocupado ? ' disabled' : '') + '>Probar</button>' +
+    '<button class="btn fin" data-acc="avisos-apagar"' + (AVISO.ocupado ? ' disabled' : '') + '>Apagar</button></div>';
+  else if (st === 'ios-instalar') h += '<p>En iPhone los avisos solo llegan con la app en la pantalla de inicio: tocá ' +
+    '<b>Compartir</b> → <b>Agregar a pantalla de inicio</b>, abrila desde ese ícono y volvé acá.</p>';
+  else if (st === 'nosoporta') h += '<p>Este navegador no recibe avisos. En Android usá Chrome; en iPhone, la app agregada a la pantalla de inicio (iOS 16.4 o más).</p>';
+  else if (st === 'bloqueado') h += '<p>Las notificaciones de la app están bloqueadas. Activalas en los ajustes del celular ' +
+    '(Notificaciones → Ryder MDQ) y volvé a abrir la app.</p>';
+  else if (st === 'cargando') h += '<p>Revisando…</p>';
+  else h += '<p>Enterate al toque cuando alguien hace 🐦 birdie o 🦅 águila.</p>' +
+    '<div class="acc"><button class="btn pri" data-acc="avisos-activar"' + (AVISO.ocupado ? ' disabled' : '') + '>' +
+    (AVISO.ocupado ? 'Activando…' : '🔔 Activar avisos') + '</button></div>';
+  if (AVISO.msj) h += '<p class="avisos-msj">' + esc(AVISO.msj) + '</p>';
+  return h + '</div></section>';
+}
+/* Recordatorio arriba de las otras pantallas, hasta que se activen o se descarte. */
+function bannerAvisos() {
+  if (TEST || UI.avisosNo || (AVISO.est !== 'inactivo' && AVISO.est !== 'ios-instalar')) return '<div id="bloque-avisos"></div>';
+  return '<div class="instalar" id="bloque-avisos"><span>🐦 ¿Querés enterarte de cada birdie y águila?</span>' +
+    '<span class="acc-mini">' +
+    (AVISO.est === 'inactivo' ? '<button class="btn pri" data-acc="avisos-activar"' + (AVISO.ocupado ? ' disabled' : '') + '>Activar</button>'
+                              : '<button class="btn pri" data-acc="ver-perfil">Cómo</button>') +
+    '<button class="btn fin" data-acc="avisos-no" aria-label="No mostrar más">✕</button></span></div>';
+}
+function refrescarAvisos() {
+  var c = document.getElementById('card-avisos'), b = document.getElementById('bloque-avisos');
+  if (c) c.outerHTML = bloqueAvisos();
+  if (b) b.outerHTML = bannerAvisos();
 }
 
 /* ============ pantalla de ingreso ============ */
@@ -2204,6 +2344,7 @@ function vistaPerfil() {
     'recibís esos ' + match + ' golpes — recibís la <b>diferencia</b> contra el handicap más bajo de tu línea, ' +
     'ya reducido al ' + Math.round(ALLOWANCE * 100) + '%. Los golpes caen en los hoyos de menor índice.</span></div>') +
     '</section>' +
+    (TEST ? '' : bloqueAvisos()) +
     '<section class="card"><div class="sec-tit"><h2>Tu acceso</h2></div>' +
     '<div class="grid2"><div class="campo"><label for="p-pass">Cambiar contraseña</label>' +
     '<input id="p-pass" type="password" inputmode="numeric" maxlength="4" placeholder="4 números" data-acc="ed-pass"></div></div>' +
@@ -2281,7 +2422,7 @@ function pintar() {
       return '<button data-acc="tab" data-v="' + t[0] + '" aria-current="' + (UI.tab === t[0]) + '">' + t[1] + '</button>';
     }).join('') + '</nav></div></div>' +
     desplegableJugadores() +
-    '<div class="wrap"><main>' + vista + notasHTML() + '</main>' +
+    '<div class="wrap"><main>' + (UI.tab === 'perfil' ? '' : bannerAvisos()) + vista + notasHTML() + '</main>' +
     '<footer class="pie">Ryder MDQ · ' + esc(E.torneo.edicion || '') + ' · ' + VERSION +
     (E.sello ? '<small>actualizado ' + hora(E.sello) + '</small>' : '') + '</footer></div>';
 }
@@ -2308,6 +2449,10 @@ document.addEventListener('click', function (ev) {
   if (a && a.indexOf('pr-') === 0) { accionRapida(a, v, b); return; }
   if (a === 'sync') { sincronizar(); return; }
   if (a === 'probar') { probarConexion(b); return; }
+  if (a === 'avisos-activar') { activarAvisos(); return; }
+  if (a === 'avisos-apagar') { desactivarAvisos(); return; }
+  if (a === 'avisos-probar') { probarAvisos(); return; }
+  if (a === 'avisos-no') { UI.avisosNo = true; guardarUI(); refrescarAvisos(); return; }
   if (a === 'instalar') {
     if (!promptInstalar) return;
     promptInstalar.prompt();
@@ -2842,6 +2987,6 @@ if (SES && !TEST) {
   sincronizar().then(function () { return traerEstado(); }).then(pintar, function () { pintar(); });
 }
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });
-}
+  window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); revisarAvisos(); });
+} else revisarAvisos();
 })();

@@ -248,6 +248,11 @@ function despachar(p) {
       case 'prLista':   return prLista(p);
       case 'prLeer':    return prLeer(p);
       case 'borrar':    return borrarTarjetas(p);
+      case 'avisos':    return avisosPublicos(p);
+      case 'pushClave': return pushClave();
+      case 'pushAlta':  return pushAlta(p);
+      case 'pushBaja':  return pushBaja(p);
+      case 'pushPrueba': return pushPrueba(p);
       default:          return { ok: false, error: 'accion_desconocida' };
     }
   } catch (err) {
@@ -302,6 +307,11 @@ function diagnostico() {
   });
   paso('partidas ya guardadas', function () { return leer('Partidas').length; });
   paso('jugadores registrados', function () { return leer('Jugadores').length; });
+  paso('avisos push', function () {
+    if (typeof BigInt === 'undefined') return 'ERROR: este Apps Script no tiene BigInt (activar el runtime V8)';
+    var c = clavesVapid();
+    return c.pub ? 'clave lista · ' + leer('Suscripciones').length + ' celular(es) anotados' : 'FALTA la clave';
+  });
   // Un paso puede fallar sin lanzar (una hoja que falta, el candado tomado):
   // el resumen tiene que reflejarlo igual.
   r.ok = !r.pasos.some(function (p) { return /ERROR|FALTA|OCUPADO/.test(p); });
@@ -552,6 +562,7 @@ function guardarGolpes(p) {
       fila = hoja.getLastRow();
     }
     var valores = hoja.getRange(fila, 3, 1, 18).getValues()[0];
+    var antes = valores.slice();
     cambios.forEach(function (c) {
       var k = Number(c.hoyo) - 1;
       if (k < 0 || k > 17) return;
@@ -559,6 +570,9 @@ function guardarGolpes(p) {
     });
     hoja.getRange(fila, 3, 1, 18).setValues([valores]);
     hoja.getRange(fila, 21).setValue(new Date());
+    publicarAvisos(avisosDeTarjeta(p.cancha, antes, valores, function () {
+      return { quien: nombreAviso(jugadorPorMatricula(mat)) };
+    }), j.matricula);
     anotar(j.matricula, 'golpes', p.cancha + ' · ' + cambios.length + ' hoyo(s)' +
       (mat === String(j.matricula).trim() ? '' : ' · por ' + mat));
     limpiarCache();
@@ -765,6 +779,7 @@ function guardarGolpesEquipo(p) {
       fila = hoja.getLastRow();
     }
     var valores = hoja.getRange(fila, 3, 1, 18).getValues()[0];
+    var antes = valores.slice();
     (p.hoyos || []).forEach(function (c) {
       var k = Number(c.hoyo) - 1;
       if (k < 0 || k > 17) return;
@@ -784,6 +799,7 @@ function guardarGolpesEquipo(p) {
       });
       hoja.getRange(fila, col).setNumberFormat('@').setValue(sal.slice(0, 18).join(','));
     }
+    publicarAvisos(avisosDeTarjeta(m.cancha, antes, valores, function () { return avisoEquipo(m, lado); }), mat);
     anotar(mat, 'golpesEquipo', p.partido + ' · lado ' + lado);
     limpiarCache();
     return { ok: true, estado: estadoCrudo() };
@@ -897,6 +913,286 @@ function prLeer(p) {
       return { nombre: f[0], hcp: Number(f[1]) || 0, equipo: f[2], hoyos: hoyos };
     })
   } };
+}
+
+/* ============================================================
+   AVISOS PUSH — birdies, águilas y compañía
+   Cuando alguien anota un golpe bajo par, les llega una notificación a todos
+   los que activaron los avisos en el celular (menos al que lo anotó).
+   Es Web Push estándar, sin servicios de terceros: las claves (VAPID) las
+   genera este script la primera vez y quedan en Propiedades del script.
+   El aviso viaja vacío; el celular, al recibirlo, pide el texto con
+   ?accion=avisos . Así no hace falta cifrar nada.
+   ============================================================ */
+var AVISOS_HORAS = 6;        // un aviso más viejo que esto ya no se muestra
+var AVISOS_MAX = 40;
+
+function hojaSuscripciones() {
+  var ss = SpreadsheetApp.openById(SS_ID);
+  var h = ss.getSheetByName('Suscripciones');
+  if (!h) { h = ss.insertSheet('Suscripciones'); h.appendRow(['endpoint', 'matricula', 'alta', 'dispositivo']); }
+  return h;
+}
+
+/* Texto del aviso según cuántos golpes bajo par. Cada uno con su pájaro. */
+function textoAviso(quien, golpes, par) {
+  var bajo = par - golpes;
+  if (golpes === 1) return '🦅⛳ ¡HOYO EN UNO de ' + quien + '!';
+  if (bajo >= 3) return '🕊️ ¡ALBATROS de ' + quien + '!';
+  if (bajo === 2) return '🦅 ¡Águila de ' + quien + '!';
+  return '🐦 ¡Birdie de ' + quien + '!';
+}
+/* Foursomes y scramble: el birdie es del equipo, van todos los nombres. */
+function avisoEquipo(m, lado) {
+  var nombres = [m[lado + '1'], m[lado + '2'], m[lado + '3']].filter(function (x) { return String(x || '').trim(); })
+    .map(function (x) { return nombreAviso(jugadorPorMatricula(x)); });
+  var cfg = config(), eq = lado === 'usa' ? cfg.equipoRojo : cfg.equipoAzul;   // en la app, usa = rojo
+  var fmt = m.formato === 'scramble' ? 'scramble' : m.formato === 'foursomes' ? 'foursomes' : String(m.formato || '');
+  return { quien: unirNombres(nombres), extra: [fmt, eq].filter(Boolean).join(', ') };
+}
+function nombreAviso(j) { return j ? String(j.apodo || j.nombre || j.matricula) : '?'; }
+function unirNombres(n) { return n.length < 2 ? n.join('') : n.slice(0, -1).join(', ') + ' y ' + n[n.length - 1]; }
+
+/* Compara la tarjeta antes y después de guardar y arma un aviso por cada
+   hoyo que quedó bajo par y antes no tenía ese número. */
+function avisosDeTarjeta(canchaId, antes, despues, quienFn) {
+  var hay = false;
+  for (var q = 0; q < 18; q++) {
+    var gq = Number(despues[q]);
+    if (despues[q] !== '' && gq > 0 && gq <= 5 && String(antes[q]) !== String(gq)) hay = true;
+  }
+  if (!hay) return [];               // lo normal: nada bajo par, ni se lee la cancha
+  var c = null, quien = null;
+  leer('Canchas').forEach(function (x) { if (x.id === canchaId) c = x; });
+  if (!c) return [];
+  var lista = [];
+  for (var k = 0; k < 18; k++) {
+    var g = despues[k], v = antes[k];
+    if (g === '' || g === null || g === undefined) continue;
+    g = Number(g);
+    if (!(g > 0) || String(v) === String(g)) continue;
+    var par = Number(c['par' + (k + 1)]) || 4;
+    if (g >= par) continue;
+    if (!quien) quien = quienFn();
+    lista.push({ titulo: textoAviso(quien.quien, g, par),
+                 cuerpo: 'Hoyo ' + (k + 1) + ' (par ' + par + ') en ' + g + ' golpe' + (g > 1 ? 's' : '') +
+                         ' · ' + c.nombre + (quien.extra ? ' · ' + quien.extra : '') });
+  }
+  return lista;
+}
+
+function leerAvisos() {
+  try { return JSON.parse(PropertiesService.getScriptProperties().getProperty('avisos') || '[]'); }
+  catch (e) { return []; }
+}
+function guardarAvisos(nuevos) {
+  var limite = Date.now() - AVISOS_HORAS * 3600000;
+  var lista = leerAvisos().filter(function (a) { return a.t > limite; }).concat(nuevos);
+  PropertiesService.getScriptProperties().setProperty('avisos', JSON.stringify(lista.slice(-AVISOS_MAX)));
+}
+
+/* Lo llaman guardarGolpes y guardarGolpesEquipo. Nunca rompe el guardado. */
+function publicarAvisos(lista, autor) {
+  if (!lista || !lista.length) return;
+  try {
+    var t = Date.now();
+    lista.forEach(function (a, i) { a.id = t + '-' + i + '-' + Math.floor(Math.random() * 1e6); a.t = t; });
+    guardarAvisos(lista);
+    var subs = leer('Suscripciones').filter(function (s) {
+      return s.endpoint && String(s.matricula).trim() !== String(autor).trim();
+    });
+    enviarPush(subs.map(function (s) { return String(s.endpoint); }));
+  } catch (e) { anotar(autor, 'push_error', String(e && e.message || e)); }
+}
+
+function avisosPublicos(p) {
+  var limite = Date.now() - AVISOS_HORAS * 3600000, ep = String(p.ep || '');
+  return { ok: true, avisos: leerAvisos().filter(function (a) {
+    return a.t > limite && (!a.ep || a.ep === ep);
+  }).map(function (a) { return { id: a.id, t: a.t, titulo: a.titulo, cuerpo: a.cuerpo }; }) };
+}
+
+function pushAlta(p) {
+  var j = exigir(p.token);
+  var ep = String(p.endpoint || '');
+  if (!/^https:\/\//.test(ep)) return { ok: false, error: 'faltan_datos' };
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var hoja = hojaSuscripciones();
+    var fila = buscarFila(hoja, function (v) { return String(v[0]) === ep; });
+    var datos = [ep, String(j.matricula), new Date(), String(p.dispositivo || '').slice(0, 80)];
+    if (fila) hoja.getRange(fila, 1, 1, 4).setValues([datos]); else hoja.appendRow(datos);
+    return { ok: true };
+  } finally { lock.releaseLock(); }
+}
+function pushBaja(p) {
+  exigir(p.token);
+  borrarSuscripciones([String(p.endpoint || '')]);
+  return { ok: true };
+}
+function borrarSuscripciones(eps) {
+  if (!eps.length) return;
+  var hoja = hojaSuscripciones();
+  if (hoja.getLastRow() < 2) return;
+  var datos = hoja.getRange(2, 1, hoja.getLastRow() - 1, 1).getValues();
+  for (var i = datos.length - 1; i >= 0; i--) if (eps.indexOf(String(datos[i][0])) >= 0) hoja.deleteRow(i + 2);
+}
+
+/* Botón "Probar" de la app: un aviso que solo ve el celular que lo pidió. */
+function pushPrueba(p) {
+  var j = exigir(p.token);
+  var ep = String(p.endpoint || '');
+  if (!/^https:\/\//.test(ep)) return { ok: false, error: 'faltan_datos' };
+  var t = Date.now();
+  guardarAvisos([{ id: t + '-prueba', t: t, ep: ep, titulo: '🐦 ¡Birdie de prueba!',
+                   cuerpo: 'Así te va a llegar el aviso cuando alguien haga birdie, ' + nombreAviso(j) + '.' }]);
+  var r = enviarPush([ep]);
+  return { ok: r.enviados > 0, enviados: r.enviados, error: r.enviados ? '' : 'push_rechazado', detalle: r.detalle };
+}
+
+function pushClave() { return { ok: true, clave: clavesVapid().pub }; }
+
+/* Manda el push vacío a cada celular. Los que el servicio da por muertos
+   (404/410: desinstalaron la app o revocaron el permiso) se borran. */
+function enviarPush(eps) {
+  var r = { enviados: 0, detalle: '' };
+  if (!eps.length) return r;
+  var claves = clavesVapid();
+  var pedidos = eps.map(function (ep) {
+    return { url: ep, method: 'post', muteHttpExceptions: true, payload: '',
+             headers: { TTL: String(AVISOS_HORAS * 3600), Urgency: 'high',
+                        Authorization: 'vapid t=' + jwtVapid(ep, claves) + ', k=' + claves.pub } };
+  });
+  var muertos = [];
+  UrlFetchApp.fetchAll(pedidos).forEach(function (res, i) {
+    var c = res.getResponseCode();
+    if (c >= 200 && c < 300) r.enviados++;
+    else {
+      if (c === 404 || c === 410) muertos.push(eps[i]);
+      r.detalle = c + ' ' + String(res.getContentText() || '').slice(0, 120);
+    }
+  });
+  if (muertos.length) borrarSuscripciones(muertos);
+  return r;
+}
+
+/* ---------- VAPID: firma ES256 (ECDSA P-256 + SHA-256) a mano ----------
+   Apps Script no trae ECDSA, así que va acá con BigInt. Son ~60 líneas de
+   matemática de curva elíptica; está probado contra la firma de Node. */
+var EC_ = null;
+function ec() {
+  if (EC_) return EC_;
+  var B = BigInt, p = B('0xffffffff00000001000000000000000000000000ffffffffffffffffffffffff');
+  EC_ = { p: p, a: p - B(3), n: B('0xffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551'),
+          G: [B('0x6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296'),
+              B('0x4fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5')],
+          Z: B(0), U: B(1), D: B(2), T: B(3) };
+  return EC_;
+}
+function ecMod(a, m) { var r = a % m; return r < ec().Z ? r + m : r; }
+function ecInv(a, m) {
+  var C = ec(), lm = C.U, hm = C.Z, low = ecMod(a, m), high = m;
+  while (low > C.U) {
+    var q = high / low, nm = hm - lm * q, nw = high - low * q;
+    hm = lm; high = low; lm = nm; low = nw;
+  }
+  return ecMod(lm, m);
+}
+function ecSuma(P, Q) {
+  if (!P) return Q;
+  if (!Q) return P;
+  var C = ec(), p = C.p, l;
+  if (P[0] === Q[0]) {
+    if (ecMod(P[1] + Q[1], p) === C.Z) return null;
+    l = ecMod((C.T * P[0] * P[0] + C.a) * ecInv(C.D * P[1], p), p);
+  } else {
+    l = ecMod((Q[1] - P[1]) * ecInv(Q[0] - P[0], p), p);
+  }
+  var x = ecMod(l * l - P[0] - Q[0], p);
+  return [x, ecMod(l * (P[0] - x) - P[1], p)];
+}
+function ecPor(k, P) {
+  var C = ec(), R = null, A = P;
+  while (k > C.Z) {
+    if ((k & C.U) === C.U) R = ecSuma(R, A);
+    A = ecSuma(A, A);
+    k = k >> C.U;
+  }
+  return R;
+}
+function bytesABig(b) {
+  var h = '0x0';
+  for (var i = 0; i < b.length; i++) h += ('0' + (b[i] & 255).toString(16)).slice(-2);
+  return BigInt(h);
+}
+function bigABytes(x) {
+  var h = x.toString(16);
+  while (h.length < 64) h = '0' + h;
+  var b = [];
+  for (var i = 0; i < 64; i += 2) { var v = parseInt(h.substr(i, 2), 16); b.push(v > 127 ? v - 256 : v); }
+  return b;
+}
+function b64u(x) { return Utilities.base64EncodeWebSafe(x).replace(/=+$/, ''); }
+function sha256(b) { return Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, b); }
+
+function clavesVapid() {
+  var props = PropertiesService.getScriptProperties();
+  var priv = props.getProperty('vapidPriv'), pub = props.getProperty('vapidPub');
+  if (priv && pub) return { d: BigInt('0x' + priv), pub: pub };
+  var C = ec(), d = C.Z;
+  while (d === C.Z) {
+    var azar = '';
+    for (var i = 0; i < 6; i++) azar += Utilities.getUuid();
+    d = ecMod(bytesABig(sha256(Utilities.newBlob(azar + Date.now() + Math.random()).getBytes())), C.n);
+  }
+  var Q = ecPor(d, C.G);
+  pub = b64u([4].concat(bigABytes(Q[0]), bigABytes(Q[1])));
+  priv = d.toString(16);
+  props.setProperties({ vapidPriv: priv, vapidPub: pub });
+  return { d: d, pub: pub };
+}
+
+function firmarES256(texto, d) {
+  var C = ec(), msg = Utilities.newBlob(texto).getBytes();
+  var e = bytesABig(sha256(msg)), db = bigABytes(d);
+  for (var intento = 0; intento < 50; intento++) {
+    var semilla = sha256(msg).concat(Utilities.newBlob(Utilities.getUuid() + intento).getBytes());
+    var k = ecMod(bytesABig(Utilities.computeHmacSignature(Utilities.MacAlgorithm.HMAC_SHA_256, semilla, db)), C.n);
+    if (k === C.Z) continue;
+    var r = ecMod(ecPor(k, C.G)[0], C.n);
+    if (r === C.Z) continue;
+    var s = ecMod(ecInv(k, C.n) * (e + r * d), C.n);
+    if (s === C.Z) continue;
+    return b64u(bigABytes(r).concat(bigABytes(s)));
+  }
+  throw new Error('no_se_pudo_firmar');
+}
+
+/* Un JWT por servicio de push (Google, Apple, Mozilla), guardado 50 minutos. */
+function jwtVapid(endpoint, claves) {
+  var aud = endpoint.match(/^https:\/\/[^\/]+/)[0];
+  var cache = CacheService.getScriptCache(), llave = 'jwt:' + aud;
+  var guardado = cache.get(llave);
+  if (guardado) return guardado;
+  var correo = correoOrganizador();
+  var cuerpo = { aud: aud, exp: Math.floor(Date.now() / 1000) + 12 * 3600,
+                 sub: correo ? 'mailto:' + correo : 'https://andr3sb3nv3.github.io/GolfTourMdq/' };
+  var sinFirma = b64u(JSON.stringify({ typ: 'JWT', alg: 'ES256' })) + '.' + b64u(JSON.stringify(cuerpo));
+  var jwt = sinFirma + '.' + firmarES256(sinFirma, claves.d);
+  cache.put(llave, jwt, 3000);
+  return jwt;
+}
+
+/* Correr UNA vez desde el editor después de pegar esta versión: Google pide
+   el permiso nuevo ("conectarse a un servicio externo", para mandar los push),
+   se generan las claves y se crea la pestaña Suscripciones. No toca nada más. */
+function activarAvisos() {
+  var c = clavesVapid();
+  hojaSuscripciones();
+  try { UrlFetchApp.fetch('https://www.google.com/generate_204', { muteHttpExceptions: true }); } catch (e) {}
+  Logger.log('Avisos listos. Clave pública: ' + c.pub);
+  return c.pub;
 }
 
 /* ============================================================

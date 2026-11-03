@@ -518,3 +518,10 @@ table.tc tr.yo .lbl{color:var(--eur);font-weight:800;box-shadow:inset 3px 0 0 va
 .sc-hcp{margin-left:auto;display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--tenue)}
 .sc-hcp input{width:64px;padding:6px;border:1px solid var(--linea);border-radius:8px;font:600 15px "IBM Plex Mono",monospace;color:var(--tinta);background:#fff}
 .sc-rival{margin:0 14px 4px;font-weight:700}
+
+/* ---------- avisos push ---------- */
+.avisos{padding:4px 14px 14px;font-size:14px;line-height:1.45}
+.avisos p{margin:6px 0}
+.avisos .acc{padding:6px 0 0}
+.avisos-msj{color:var(--tinta);font-weight:700}
+.acc-mini{display:flex;gap:6px;flex:0 0 auto}

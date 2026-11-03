@@ -91,3 +91,18 @@ En `gira/` está la web de la Gira Amigolf 2026. Lee los datos de la planilla de
 ## Deploy en Vercel
 
 Importar este repo en Vercel (Framework: Other, sin build). `vercel.json` hace que el `sw.js` y el HTML no queden cacheados, así cada cambio llega al toque.
+
+## Avisos push (birdies, águilas…)
+
+Cuando alguien anota un golpe bajo par, a los que activaron los avisos les llega
+una notificación: 🐦 birdie, 🦅 águila, 🕊️ albatros, 🦅⛳ hoyo en uno. En foursomes
+y scramble el aviso va con los nombres de todo el equipo. Al que lo anotó no le llega.
+
+- Es Web Push estándar, sin servicios de terceros. Las claves VAPID las genera el
+  Apps Script la primera vez y quedan en *Propiedades del script*.
+- El push viaja vacío: el service worker, al recibirlo, pide el texto con `?accion=avisos`.
+- Cada celular se activa desde **Perfil → Avisos de birdies**. En iPhone hace falta
+  iOS 16.4+ y la app agregada a la pantalla de inicio.
+- Los celulares anotados quedan en la pestaña `Suscripciones`.
+- Al pegar la versión con avisos: correr una vez `activarAvisos()` desde el editor
+  (pide el permiso para conectarse a servicios externos) y publicar una versión nueva.
