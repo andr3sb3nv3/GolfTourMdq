@@ -19,7 +19,7 @@ var HOJAS = {
   Jugadores: ['matricula', 'nombre', 'apodo', 'handicap', 'equipo', 'rol', 'club', 'fotoId', 'hash', 'alta', 'ultimoAcceso', 'resetCodigo', 'resetVence'],
   Canchas:   ['id', 'dia', 'nombre', 'confirmada', 'formato'],   // + par1..par18 + si1..si18
   Tarjetas:  ['cancha', 'matricula'],                 // + h1..h18 + actualizado
-  Partidos:  ['id', 'cancha', 'formato', 'usa1', 'usa2', 'eur1', 'eur2'],
+  Partidos:  ['id', 'cancha', 'formato', 'usa1', 'usa2', 'eur1', 'eur2', 'usa3', 'eur3'],   // usa3/eur3: scramble de a 3
   TarjetasEquipo: ['partido', 'lado'],               // + h1..h18 + actualizado
   Partidas:  ['id', 'fecha', 'cancha', 'modalidad', 'jugadores', 'creador', 'hoja', 'resultado'],
   Log:       ['fecha', 'matricula', 'accion', 'detalle']
@@ -100,8 +100,9 @@ function borrarTodoYEmpezarDeNuevo() {
 
   // el formato de equipos de cada día se define el mismo día; arranca vacío
   var canchas = [
-    ['acantilados', 1, 'Acantilados Golf', false, ''].concat(provAcan.par, provAcan.si),
-    ['miramar',     2, 'Miramar Links',    false, ''].concat(provMira.par, provMira.si),
+    ['miramar',     1, 'Miramar Links',    false, ''].concat(provMira.par, provMira.si),
+    ['acantilados', 2, 'Acantilados Golf', false, ''].concat(provAcan.par, provAcan.si),
+    ['marayui',     2, 'Marayui Golf',     false, 'scramble'].concat([4,4,3,5,4,4,3,5,4, 4,4,3,5,4,4,3,5,4], [1,3,5,7,9,11,13,15,17, 2,4,6,8,10,12,14,16,18]),
     ['catedral',    3, 'La Catedral',      true , ''].concat(catedral.par, catedral.si)
   ];
   ss.getSheetByName('Canchas').getRange(2, 1, canchas.length, canchas[0].length).setValues(canchas);
@@ -116,6 +117,37 @@ function borrarTodoYEmpezarDeNuevo() {
  * Agrega la columna "formato" a la pestaña Canchas sin tocar nada de lo cargado.
  * NO correr configurar() de nuevo: eso borra jugadores y tarjetas.
  */
+/**
+ * MIGRACIÓN SCRAMBLE — correr UNA vez después de pegar esta versión. No borra nada.
+ *  · Agrega Marayui Golf (sábado a la tarde, scramble de a 3, 9 hoyos) si no está.
+ *  · Ordena los días como quedó la gira: vie Miramar · sáb Acantilados y Marayui · dom La Catedral.
+ *  · Agrega las columnas usa3 y eur3 a Partidos.
+ * La tarjeta de Marayui queda provisoria: cargá la oficial desde la app (Canchas).
+ */
+function migrarScramble() {
+  var ss = SpreadsheetApp.openById(SS_ID), hechas = [];
+  var hoja = ss.getSheetByName('Canchas');
+  var v = hoja.getDataRange().getValues();
+  var fila = {};
+  for (var i = 1; i < v.length; i++) fila[String(v[i][0])] = i + 1;
+  if (!fila.marayui) {
+    var par = [4,4,3,5,4,4,3,5,4, 4,4,3,5,4,4,3,5,4], si = [1,3,5,7,9,11,13,15,17, 2,4,6,8,10,12,14,16,18];
+    hoja.appendRow(['marayui', 2, 'Marayui Golf', false, 'scramble'].concat(par, si));
+    hechas.push('Marayui agregada (tarjeta provisoria)');
+  }
+  var dias = { miramar: 1, acantilados: 2, marayui: 2, catedral: 3 };
+  Object.keys(dias).forEach(function (id) {
+    if (!fila[id]) return;
+    if (Number(hoja.getRange(fila[id], 2).getValue()) !== dias[id]) { hoja.getRange(fila[id], 2).setValue(dias[id]); hechas.push(id + ' → día ' + dias[id]); }
+  });
+  var pt = ss.getSheetByName('Partidos');
+  if (pt) { var antes = pt.getLastColumn(); columnasTrio(pt); if (pt.getLastColumn() > antes) hechas.push('Partidos: columnas usa3 y eur3'); }
+  limpiarCache();
+  var texto = hechas.length ? hechas.join('\n') : 'Ya estaba todo, no se tocó nada.';
+  Logger.log(texto);
+  return texto;
+}
+
 /**
  * MIGRACIÓN 2 — crea las pestañas del match play sin tocar lo cargado.
  */
@@ -454,8 +486,8 @@ function estadoCrudo() {
     }).sort(function (a, b) { return a.dia - b.dia; }),
     partidos: leer('Partidos').map(function (m) {
       return { id: String(m.id), cancha: m.cancha, formato: m.formato,
-               usa: [String(m.usa1 || ''), String(m.usa2 || '')].filter(Boolean),
-               eur: [String(m.eur1 || ''), String(m.eur2 || '')].filter(Boolean) };
+               usa: [String(m.usa1 || ''), String(m.usa2 || ''), String(m.usa3 || '')].filter(Boolean),
+               eur: [String(m.eur1 || ''), String(m.eur2 || ''), String(m.eur3 || '')].filter(Boolean) };
     }),
     tarjetasEquipo: leer('TarjetasEquipo').map(function (t) {
       var h = [];
@@ -481,7 +513,7 @@ function estadoCrudo() {
 function mismaLinea(a, b, cid) {
   var ms = leer('Partidos').filter(function (m) { return m.cancha === cid; });
   for (var i = 0; i < ms.length; i++) {
-    var en = [ms[i].usa1, ms[i].usa2, ms[i].eur1, ms[i].eur2]
+    var en = [ms[i].usa1, ms[i].usa2, ms[i].usa3, ms[i].eur1, ms[i].eur2, ms[i].eur3]
       .map(function (x) { return String(x || '').trim(); });
     if (en.indexOf(String(a).trim()) >= 0 && en.indexOf(String(b).trim()) >= 0) return true;
   }
@@ -638,11 +670,13 @@ function guardarPartidos(p) {
       var datos = hoja.getRange(2, 1, hoja.getLastRow() - 1, hoja.getLastColumn()).getValues();
       for (var i = datos.length - 1; i >= 0; i--) if (datos[i][1] === p.cancha) hoja.deleteRow(i + 2);
     }
+    columnasTrio(hoja);
     var fmt = String(p.formato || '');
     (p.lista || []).forEach(function (m, k) {
       var usa = m.usa || [], eur = m.eur || [];
       hoja.appendRow([p.cancha + '-' + (k + 1), p.cancha, fmt,
-        String(usa[0] || ''), String(usa[1] || ''), String(eur[0] || ''), String(eur[1] || '')]);
+        String(usa[0] || ''), String(usa[1] || ''), String(eur[0] || ''), String(eur[1] || ''),
+        String(usa[2] || ''), String(eur[2] || '')]);
     });
     anotar(j.matricula, 'partidos', p.cancha + ' · ' + (p.lista || []).length + ' partido(s) de ' + (fmt || 'sin formato'));
     limpiarCache();
@@ -650,9 +684,22 @@ function guardarPartidos(p) {
   } finally { lock.releaseLock(); }
 }
 
+/* La pestaña Partidos nació con dos jugadores por lado. Para el scramble de a 3
+   se agregan las columnas usa3 y eur3 al final, sin mover nada de lo cargado. */
+function columnasTrio(hoja) {
+  var cab = hoja.getRange(1, 1, 1, Math.max(1, hoja.getLastColumn())).getValues()[0].map(String);
+  ['usa3', 'eur3'].forEach(function (c) {
+    if (cab.indexOf(c) >= 0) return;
+    cab.push(c);
+    hoja.getRange(1, cab.length).setValue(c).setFontWeight('bold').setBackground('#EDF0E8');
+  });
+}
+
 /**
- * Foursomes: la pareja juega una sola pelota, así que la tarjeta es del LADO.
- * La carga cualquiera de los dos; el servidor comprueba que juegue ese partido.
+ * Foursomes y scramble: el lado juega una sola pelota, así que la tarjeta es del LADO.
+ * En la Ryder anota uno por toda la línea: cualquiera que juegue el partido puede
+ * cargar la tarjeta de cualquiera de los dos lados (p.lado). Si no viene p.lado
+ * (versiones viejas de la app), se carga la de su propio lado, como antes.
  */
 function guardarGolpesEquipo(p) {
   var j = exigir(p.token);
@@ -662,9 +709,10 @@ function guardarGolpesEquipo(p) {
   if (!m) return { ok: false, error: 'partido_inexistente' };
 
   var mat = String(j.matricula);
-  var lado = (String(m.usa1) === mat || String(m.usa2) === mat) ? 'usa'
-           : (String(m.eur1) === mat || String(m.eur2) === mat) ? 'eur' : null;
-  if (!lado) return { ok: false, error: 'no_jugas_ese_partido' };
+  var miLado = (String(m.usa1) === mat || String(m.usa2) === mat || String(m.usa3 || '') === mat) ? 'usa'
+             : (String(m.eur1) === mat || String(m.eur2) === mat || String(m.eur3 || '') === mat) ? 'eur' : null;
+  if (!miLado) return { ok: false, error: 'no_jugas_ese_partido' };
+  var lado = (p.lado === 'usa' || p.lado === 'eur') ? p.lado : miLado;
 
   var lock = LockService.getScriptLock();
   lock.waitLock(20000);

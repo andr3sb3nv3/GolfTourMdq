@@ -2,7 +2,7 @@
 (function () {
 'use strict';
 
-var VERSION = 'v49';                     // tiene que coincidir con el CACHE del sw.js
+var VERSION = 'v50';                     // tiene que coincidir con el CACHE del sw.js
 var LS = { ses: 'gtm-sesion', est: 'gtm-estado', cola: 'gtm-cola', ui: 'gtm-ui' };
 var API = (window.GTM_CONFIG && window.GTM_CONFIG.api) || '';
 
@@ -113,8 +113,10 @@ function calcTarjeta(c, arr, p) {
   r.vsPar = r.bruto - r.parJug; r.vsParNeto = r.neto - r.parJug;
   return r;
 }
+// El scramble cuenta solo para la Ryder: no entra en el individual.
+function canchasIndividual() { return E.canchas.filter(function (c) { return c.formato !== 'scramble'; }); }
 function acumulado(cid) {
-  var cs = (cid === 'general') ? E.canchas : E.canchas.filter(function (c) { return c.id === cid; });
+  var cs = (cid === 'general') ? canchasIndividual() : E.canchas.filter(function (c) { return c.id === cid; });
   return E.jugadores.map(function (j, idx) {
     var a = { jug: j, orden: idx, thru: 0, bruto: 0, neto: 0, pts: 0, vsPar: 0, vsParNeto: 0, birdies: 0, eagles: 0, vueltas: 0 };
     cs.forEach(function (c) {
@@ -192,7 +194,7 @@ function sincronizar() {
   var lote = COLA.slice(0, 40);
   var grupos = {};
   lote.forEach(function (x) {
-    var k = x.partido ? 'p:' + x.partido : 'c:' + x.cancha + '|' + x.matricula;
+    var k = x.partido ? 'p:' + x.partido + '|' + (x.lado || '') : 'c:' + x.cancha + '|' + x.matricula;
     (grupos[k] = grupos[k] || []).push(x);
   });
   var cadena = Promise.resolve();
@@ -201,7 +203,9 @@ function sincronizar() {
       var items = grupos[k];
       var cuerpo;
       if (k.charAt(0) === 'p') {
-        cuerpo = { accion: 'golpesEquipo', token: SES.token, partido: k.slice(2) };
+        var corteP = k.lastIndexOf('|');
+        cuerpo = { accion: 'golpesEquipo', token: SES.token, partido: k.slice(2, corteP) };
+        if (k.slice(corteP + 1)) cuerpo.lado = k.slice(corteP + 1);
       } else {
         var corte = k.lastIndexOf('|');
         cuerpo = { accion: 'golpes', token: SES.token,
@@ -717,15 +721,19 @@ function golpeFicticio(par, hcp) {
 
 function generarTest() {
   var base = leerLS(LS.est, null);
-  var canchas = (base && base.canchas && base.canchas.length === 3)
+  var canchas = (base && base.canchas && base.canchas.length >= 3)
     ? JSON.parse(JSON.stringify(base.canchas))
-    : [{ id: 'acantilados', dia: 1, nombre: 'Acantilados Golf', confirmada: false,
-         par: [4,4,3,5,4,4,3,4,4,4,3,4,5,4,3,4,4,4], si: [5,3,17,11,1,9,15,7,13,6,12,4,10,2,18,8,14,16] },
-       { id: 'miramar', dia: 2, nombre: 'Miramar Links', confirmada: false,
+    : [{ id: 'miramar', dia: 1, nombre: 'Miramar Links', confirmada: false,
          par: [4,4,3,5,4,4,3,4,5,4,3,5,4,4,3,4,5,4], si: [5,3,17,11,1,9,15,7,13,6,12,4,10,2,18,8,14,16] },
+       { id: 'acantilados', dia: 2, nombre: 'Acantilados Golf', confirmada: false,
+         par: [4,4,3,5,4,4,3,4,4,4,3,4,5,4,3,4,4,4], si: [5,3,17,11,1,9,15,7,13,6,12,4,10,2,18,8,14,16] },
        { id: 'catedral', dia: 3, nombre: 'La Catedral', confirmada: true,
          par: [4,3,5,4,3,4,5,3,4,4,4,3,5,3,4,4,4,4], si: [3,13,1,11,15,7,5,17,9,14,8,16,4,18,6,10,2,12] }];
-  canchas[0].formato = 'fourball'; canchas[1].formato = 'foursomes'; canchas[2].formato = 'singles';
+  if (!canchas.some(function (c) { return c.id === 'marayui'; }))
+    canchas.splice(2, 0, { id: 'marayui', dia: 2, nombre: 'Marayui Golf', confirmada: false,
+      par: [4,4,3,5,4,4,3,5,4, 4,4,3,5,4,4,3,5,4], si: [1,3,5,7,9,11,13,15,17, 2,4,6,8,10,12,14,16,18] });
+  var rota = ['fourball', 'foursomes', 'singles'], kf = 0;
+  canchas.forEach(function (c) { c.formato = c.id === 'marayui' ? 'scramble' : rota[kf++ % 3]; });
 
   var jugadores = APELLIDOS.map(function (ap, i) {
     return { matricula: String(9001 + i), nombre: ap, apodo: '',
@@ -736,6 +744,7 @@ function generarTest() {
 
   var tarjetas = [];
   canchas.forEach(function (c) {
+    if (c.formato === 'scramble') return;          // en el scramble no hay tarjetas individuales
     jugadores.forEach(function (j) {
       tarjetas.push({ cancha: c.id, matricula: j.matricula,
         hoyos: c.par.map(function (par) { return golpeFicticio(par, j.handicap); }) });
@@ -752,13 +761,13 @@ function generarTest() {
       for (i = 0; i < Math.min(usa.length, eur.length); i++)
         lista.push({ usa: [usa[i].matricula], eur: [eur[i].matricula] });
     } else {
-      var pu = duplas(usa), pe = duplas(eur);
+      var pu = c.formato === 'scramble' ? trios(usa) : duplas(usa), pe = c.formato === 'scramble' ? trios(eur) : duplas(eur);
       for (i = 0; i < Math.min(pu.length, pe.length); i++) lista.push({ usa: pu[i], eur: pe[i] });
     }
     lista.forEach(function (m, k) {
       var id = c.id + '-' + (k + 1);
       partidos.push({ id: id, cancha: c.id, formato: c.formato, usa: m.usa, eur: m.eur });
-      if (c.formato === 'foursomes') {
+      if (unaPelota(c.formato)) {
         ['usa', 'eur'].forEach(function (lado) {
           var hcp = m[lado].reduce(function (s, mat) { return s + jugador2(jugadores, mat).handicap; }, 0) / m[lado].length;
           tarjetasEquipo.push({ partido: id, lado: lado,
@@ -1202,7 +1211,45 @@ function vistaTesteo() {
 }
 
 /* ============ match play ============ */
-var FORMATOS = { foursomes: 'Foursomes', fourball: 'Four-ball', singles: 'Singles' };
+var FORMATOS = { foursomes: 'Foursomes', fourball: 'Four-ball', singles: 'Singles', scramble: 'Scramble de a 3' };
+// Foursomes y scramble: cada lado juega una sola pelota, así que la tarjeta es del lado.
+function unaPelota(fmt) { return fmt === 'foursomes' || fmt === 'scramble'; }
+// El scramble se juega a 9 hoyos (los del 1 al 9). El resto, a 18.
+function hoyosFmt(fmt) { return fmt === 'scramble' ? 9 : 18; }
+function hoyosCancha(c) { return hoyosFmt(c && c.formato); }
+/* Handicap de un equipo de scramble de a 3: 20% del más bajo, 15% del del medio
+   y 10% del más alto (lo habitual en scramble de tres), y a la mitad porque son 9 hoyos. */
+function hcpScramble(js) {
+  var h = js.map(function (j) { return Number(j.handicap) || 0; }).sort(function (a, b) { return a - b; });
+  var pct = [0.20, 0.15, 0.10];
+  return h.reduce(function (s, x, k) { return s + x * (pct[k] != null ? pct[k] : 0.10); }, 0) / 2;
+}
+/* Golpes que recibe cada lado, hoyo por hoyo, cuando juegan una sola pelota.
+   El lado de menor handicap va scratch; el otro recibe la diferencia en los hoyos
+   de menor índice de los que se juegan. */
+function golpesUnaPelota(m) {
+  var c = cancha(m.cancha), fmt = m.formato || (c && c.formato) || '';
+  var n = hoyosFmt(fmt), r = { usa: [], eur: [], n: n, hcpUsa: 0, hcpEur: 0, dif: 0 };
+  var usa = m.usa.map(jugador).filter(Boolean), eur = m.eur.map(jugador).filter(Boolean);
+  var i;
+  for (i = 0; i < n; i++) { r.usa.push(0); r.eur.push(0); }
+  if (!c || !usa.length || !eur.length) return r;
+  if (fmt === 'scramble') { r.hcpUsa = hcpScramble(usa); r.hcpEur = hcpScramble(eur); }
+  else {
+    r.hcpUsa = usa.reduce(function (s, j) { return s + ph(j); }, 0) / usa.length;
+    r.hcpEur = eur.reduce(function (s, j) { return s + ph(j); }, 0) / eur.length;
+  }
+  r.dif = Math.round(Math.abs(r.hcpUsa - r.hcpEur));
+  var recibe = r.hcpUsa > r.hcpEur ? 'usa' : 'eur';
+  var sis = []; for (i = 0; i < n; i++) sis.push({ i: i, si: Number(c.si[i]) || (i + 1) });
+  if (n === 18) { for (i = 0; i < n; i++) r[recibe][i] = golpesDif(r.dif, sis[i].si); }
+  else {
+    sis.slice().sort(function (a, b) { return a.si - b.si; }).forEach(function (x, rango) {
+      r[recibe][x.i] = Math.floor(r.dif / n) + (rango < r.dif % n ? 1 : 0);
+    });
+  }
+  return r;
+}
 // Handicap de juego del match: el 85% de la casa. El Medal Neto no se toca:
 // ese sigue con el handicap completo, que es lo que corresponde en medal.
 function ph(j) { return hcpDeJuego(j && j.handicap, ALLOWANCE); }
@@ -1236,18 +1283,13 @@ function calcularPartido(m) {
   var usa = m.usa.map(jugador).filter(Boolean), eur = m.eur.map(jugador).filter(Boolean);
   if (!usa.length || !eur.length) return null;
 
-  var hoyos = [], i;
-  if (fmt === 'foursomes') {
-    var hu = tarjetaEquipo(m.id, 'usa'), he = tarjetaEquipo(m.id, 'eur');
-    var hcpU = usa.reduce(function (s, j) { return s + ph(j); }, 0) / usa.length;
-    var hcpE = eur.reduce(function (s, j) { return s + ph(j); }, 0) / eur.length;
-    var dif = Math.round(Math.abs(hcpU - hcpE)), recibeUsa = hcpU > hcpE;
-    for (i = 0; i < 18; i++) {
-      var si = Number(c.si[i]) || (i + 1);
+  var hoyos = [], i, N = hoyosFmt(fmt);
+  if (unaPelota(fmt)) {
+    var hu = tarjetaEquipo(m.id, 'usa'), he = tarjetaEquipo(m.id, 'eur'), gp = golpesUnaPelota(m);
+    for (i = 0; i < N; i++) {
       var gu = hu[i], ge = he[i];
       if (gu == null || ge == null) { hoyos.push({ i: i, usa: null, eur: null, gana: null }); continue; }
-      var nu = gu - (recibeUsa ? golpesDif(dif, si) : 0);
-      var ne = ge - (recibeUsa ? 0 : golpesDif(dif, si));
+      var nu = gu - gp.usa[i], ne = ge - gp.eur[i];
       hoyos.push({ i: i, usa: nu, eur: ne, gana: nu < ne ? 'usa' : (ne < nu ? 'eur' : null) });
     }
   } else {
@@ -1275,14 +1317,14 @@ function calcularPartido(m) {
   // en cuanto la ventaja es mayor que los hoyos que quedan. Lo que se juegue
   // después (habitual entre amigos) no cuenta.
   var arriba = 0, jugados = 0, cerradoEn = 0, k;
-  for (k = 0; k < 18; k++) {
+  for (k = 0; k < N; k++) {
     if (hoyos[k].usa == null || hoyos[k].eur == null) break;
     jugados++;
     if (hoyos[k].gana === 'usa') arriba++; else if (hoyos[k].gana === 'eur') arriba--;
-    if (Math.abs(arriba) > 18 - jugados) { cerradoEn = jugados; break; }
+    if (Math.abs(arriba) > N - jugados) { cerradoEn = jugados; break; }
   }
-  var restan = 18 - jugados, dif2 = Math.abs(arriba);
-  var r = { m: m, fmt: fmt, hoyos: hoyos, arriba: arriba, jugados: jugados, restan: restan,
+  var restan = N - jugados, dif2 = Math.abs(arriba);
+  var r = { m: m, fmt: fmt, n: N, hoyos: hoyos, arriba: arriba, jugados: jugados, restan: restan,
             cerradoEn: cerradoEn, usa: usa, eur: eur, cerrado: false, ganador: null,
             puntoUsa: 0, puntoEur: 0 };
 
@@ -1295,7 +1337,7 @@ function calcularPartido(m) {
     r.texto = restan > 0 ? dif2 + '&' + restan : dif2 + ' arriba';
     r.badge = restan > 0 ? dif2 + '&' + restan : dif2 + 'UP';
     r.sub = 'final';
-  } else if (jugados === 18) {
+  } else if (jugados === N) {
     r.cerrado = true;
     r.puntoUsa = 0.5; r.puntoEur = 0.5;
     r.texto = 'empatado';
@@ -1355,11 +1397,18 @@ function bloqueConduccion() {
 }
 
 /* ============ vistas ============ */
+// "Día 2" no alcanza si hay dos canchas el mismo día: ahí va el nombre corto.
+function etiquetaCancha(c) {
+  var mismoDia = E.canchas.filter(function (x) { return x.dia === c.dia; }).length > 1;
+  if (!mismoDia && E.canchas.length <= 3) return 'Día ' + c.dia;
+  var n = String(c.nombre || c.id).replace(/\b(golf|links|club|country)\b/gi, '').replace(/^\s*la\s+/i, '').trim();
+  return n || ('Día ' + c.dia);
+}
 function chipsCancha(sel, acc, conGeneral) {
   var h = '<div class="seg" role="group">';
   if (conGeneral) h += '<button data-acc="' + acc + '" data-v="general" aria-pressed="' + (sel === 'general') + '">General</button>';
   E.canchas.forEach(function (c) {
-    h += '<button data-acc="' + acc + '" data-v="' + c.id + '" aria-pressed="' + (sel === c.id) + '">Día ' + c.dia + '</button>';
+    h += '<button data-acc="' + acc + '" data-v="' + c.id + '" aria-pressed="' + (sel === c.id) + '">' + esc(etiquetaCancha(c)) + '</button>';
   });
   return h + '</div>';
 }
@@ -1367,7 +1416,7 @@ function chipsCancha(sel, acc, conGeneral) {
 function vistaPosiciones() {
   var lista = ordenar(acumulado(UI.canchaLb));
   var c = UI.canchaLb === 'general' ? null : cancha(UI.canchaLb);
-  var titulo = c ? esc(c.nombre) + ' · ' + diaFecha(c.dia) : 'Las 3 vueltas';
+  var titulo = c ? esc(c.nombre) + ' · ' + diaFecha(c.dia) : 'Las ' + canchasIndividual().length + ' vueltas';
   var max = 1; lista.forEach(function (a) { if (UI.metrica === 'stableford' && a.pts > max) max = a.pts; });
 
   var h = '<div class="pila">' + chipsCancha(UI.canchaLb, 'lb-cancha', true) + panelEquipos(UI.canchaLb) +
@@ -1442,7 +1491,7 @@ function vistaRyder() {
   if (!ms.length) {
     h += '<p class="vacio">Todavía no están armados los partidos de esta jornada.</p>';
     if (admin) h += '<div class="acc"><button class="btn pri" data-acc="armar" data-v="' + cid + '">Armar los partidos</button>' +
-      '<span class="hint">' + (fmt === 'singles' ? '6 duelos individuales' : '3 partidos de a dos') +
+      '<span class="hint">' + (fmt === 'singles' ? '6 duelos individuales' : (fmt === 'scramble' ? '2 partidos de 3 contra 3' : '3 partidos de a dos')) +
       ', repartidos por handicap. Después los podés cambiar uno por uno.</span></div>';
     return h + '</section></div>';
   }
@@ -1463,8 +1512,15 @@ function vistaRyder() {
   });
 
   if (admin) h += '<div class="acc"><button class="btn fin" data-acc="armar" data-v="' + cid + '">Rearmar los partidos de esta jornada</button></div>';
-  h += nota('<div class="candado solo"><span>⛳</span><span>Handicap por <b>diferencia al 100%</b>: el bando de menor handicap juega scratch y el otro recibe la diferencia en los hoyos de menor índice.</span></div>');
+  h += nota(fmt === 'scramble' ? notaScramble()
+    : '<div class="candado solo"><span>⛳</span><span>Handicap por <b>diferencia al 100%</b>: el bando de menor handicap juega scratch y el otro recibe la diferencia en los hoyos de menor índice.</span></div>');
   return h + '</div>';
+}
+function notaScramble() {
+  return '<div class="candado solo"><span>⛳</span><span><b>Scramble de a 3, 9 hoyos.</b> Tiran los tres, eligen la mejor ' +
+    'pelota y desde ahí vuelven a tirar los tres. Una sola tarjeta por equipo. Handicap del equipo: 20% del más bajo + 15% del ' +
+    'medio + 10% del más alto, a la mitad por ser 9 hoyos. El equipo de mayor handicap recibe la diferencia en los hoyos de menor ' +
+    'índice. Cuenta solo para la Ryder: si siguen jugando los otros 9, no suman.</span></div>';
 }
 
 // La modalidad se decide el mismo día: no hay nada atado a la jornada.
@@ -1473,12 +1529,12 @@ function selectorModalidad(c, admin) {
     (FORMATOS[c.formato] || 'con la modalidad que defina el organizador') + '</b>. La elige él antes de salir.</span></div>');
   return '<div class="grid2" style="grid-template-columns:1fr"><div class="campo">' +
     '<label>Con qué se juega hoy</label><div class="pick-eq pick-4">' +
-    [['foursomes', 'Foursomes'], ['fourball', 'Four-ball'], ['singles', 'Singles'], ['', 'Sin definir']]
+    [['foursomes', 'Foursomes'], ['fourball', 'Four-ball'], ['singles', 'Singles'], ['scramble', 'Scramble de a 3'], ['', 'Sin definir']]
       .map(function (f) {
         return '<button data-acc="formato" data-v="' + c.id + '" data-i="' + f[0] + '" aria-pressed="' +
           ((c.formato || '') === f[0]) + '">' + f[1] + '</button>';
       }).join('') + '</div>' +
-    nota('<div class="candado"><span>🎛️</span><span>La modalidad se elige el mismo día: cualquiera de las tres, cualquier día. ' +
+    nota('<div class="candado"><span>🎛️</span><span>La modalidad se elige el mismo día: cualquiera, cualquier día. El scramble se juega a 9 hoyos y no suma para el individual. ' +
     'Si la cambiás se borran los partidos ya armados de esa jornada.</span></div>') +
     '</div></div>';
 }
@@ -1524,7 +1580,7 @@ function tiraHoyos(p) {
 }
 
 function esFoursomes(c, j) {
-  if (!c || c.formato !== 'foursomes') return null;
+  if (!c || !unaPelota(c.formato)) return null;
   var m = partidoDe(c.id, j.matricula);
   return m ? { m: m, lado: ladoDe(m, j.matricula) } : null;
 }
@@ -1540,13 +1596,13 @@ function estadoMatchHTML(pr) {
   var lado = pr.arriba > 0 ? 'rojo' : (pr.arriba < 0 ? 'azul' : '');
   var cls = lado === 'rojo' ? ' es-rojo' : (lado === 'azul' ? ' es-azul' : ' es-iguales');
   var quien = lado ? nombreEquipo(lado) : 'Van iguales', val, pie;
-  var restan = 18 - pr.jugados;
+  var N = pr.n || 18, restan = N - pr.jugados;
   if (!pr.jugados) {
     quien = 'Sin empezar'; val = '–'; pie = 'todavía no hay golpes cargados'; cls = ' es-iguales';
   } else if (pr.cerrado && pr.cerradoEn) {
     val = restan > 0 ? dif + '&' + restan : dif + ' arriba';
     pie = 'partido cerrado en el hoyo ' + pr.jugados;
-  } else if (pr.jugados === 18 && pr.arriba === 0) {
+  } else if (pr.jugados === N && pr.arriba === 0) {
     val = 'AS'; pie = 'empatado · medio punto para cada uno';
   } else {
     val = pr.arriba === 0 ? 'AS' : dif + ' arriba';
@@ -1562,9 +1618,10 @@ function vistaLinea() {
   if (!m) return null;
   var pr = calcularPartido(m);
   if (!pr) return null;
-  var i = Math.min(Math.max(UI.hoyo, 0), 17);
+  var N = pr.n || 18, fmtM = m.formato || c.formato;
+  var i = Math.min(Math.max(UI.hoyo, 0), N - 1);
   var par = Number(c.par[i]) || 4, si = Number(c.si[i]) || (i + 1);
-  var fs = (m.formato || c.formato) === 'foursomes';
+  var fs = unaPelota(fmtM), gp = fs ? golpesUnaPelota(m) : null;
   var hh = pr.hoyos[i];
 
   // encabezado del hoyo, con el estado del match
@@ -1583,10 +1640,11 @@ function vistaLinea() {
   if (fs) {
     ['usa', 'eur'].forEach(function (lado) {
       var js = m[lado].map(jugador).filter(Boolean);
-      filas.push({ etiqueta: js.map(function (x) { return nombreCorto(x.nombre); }).join(' y '),
-                   sub: nombreEquipo(lado === 'usa' ? 'rojo' : 'azul'),
+      var nombres = js.map(function (x) { return nombreCorto(x.nombre); });
+      filas.push({ etiqueta: nombres.length > 2 ? nombres.slice(0, -1).join(', ') + ' y ' + nombres[nombres.length - 1] : nombres.join(' y '),
+                   sub: nombreEquipo(lado === 'usa' ? 'rojo' : 'azul') + (fmtM === 'scramble' ? ' · hcp equipo ' + (Math.round((lado === 'usa' ? gp.hcpUsa : gp.hcpEur) * 10) / 10) : ''),
                    clase: lado === 'usa' ? ' txt-rojo' : ' txt-azul',
-                   golpes: golpesLadoFoursomes(m, lado, si),
+                   golpes: gp[lado][i],
                    valor: tarjetaEquipo(m.id, lado)[i],
                    destino: 'lado:' + lado });
     });
@@ -1604,7 +1662,7 @@ function vistaLinea() {
 
   var puedo = enPartido(m, y.matricula);      // cualquiera de la línea puede anotar
   h += filas.map(function (f) {
-    return '<div class="pr-fila' + (f.golpes ? ' mejor' : '') + '">' +
+    return '<div class="pr-fila' + (f.golpes ? ' mejor' : '') + (f.destino.indexOf('lado:') === 0 ? ' lado' : '') + '">' +
       '<div class="pr-quien"><b class="' + f.clase.trim() + '">' + esc(f.etiqueta) + '</b>' +
       '<i>' + esc(f.sub) + (f.golpes ? ' · ' : '') +
       (f.golpes ? '<b class="tiro' + f.clase + '">tira ' + f.golpes + '</b>' : '') + '</i></div>' +
@@ -1617,8 +1675,8 @@ function vistaLinea() {
 
   h += '<div class="navh" style="margin:12px 14px"><button data-acc="hoyo-prev"' + (i === 0 ? ' disabled' : '') +
     '>← Hoyo ' + (i || 1) + '</button><button class="pri" data-acc="hoyo-next">' +
-    (i === 17 ? 'Terminar' : 'Hoyo ' + (i + 2) + ' →') + '</button></div>' +
-    '<div class="dots">' + c.par.map(function (_, k) {
+    (i === N - 1 ? 'Terminar' : 'Hoyo ' + (i + 2) + ' →') + '</button></div>' +
+    '<div class="dots">' + c.par.slice(0, N).map(function (_, k) {
       var lleno = pr.hoyos[k].usa != null && pr.hoyos[k].eur != null;
       return '<button data-acc="ir-hoyo" data-v="' + k + '" class="' + (lleno ? 'hecho' : '') +
         '" aria-current="' + (k === i) + '">' + (k + 1) + '</button>';
@@ -1628,23 +1686,14 @@ function vistaLinea() {
       'Los demás lo ven desde su celular sin tener que cargar nada.</span></div>')
            : nota('<div class="candado solo"><span>👀</span><span>Lo está anotando otro de tu línea. ' +
       'Acá lo ves en vivo, se actualiza solo.</span></div>')) +
+    (fmtM === 'scramble' ? nota(notaScramble()) :
     nota('<div class="candado solo"><span>⚖️</span><span>Todos juegan el match con el <b>85%</b> de su handicap. ' +
     'Sobre esos handicaps reducidos, el más bajo va scratch y los demás reciben la diferencia en los hoyos de ' +
-    'menor índice.</span></div>') +
+    'menor índice.</span></div>')) +
     tiraLinea(pr) + '</div>';
   return h;
 }
 
-// Golpes que recibe un lado en foursomes: la diferencia entre los promedios
-function golpesLadoFoursomes(m, lado, si) {
-  var usa = m.usa.map(jugador).filter(Boolean), eur = m.eur.map(jugador).filter(Boolean);
-  if (!usa.length || !eur.length) return 0;
-  var hu = usa.reduce(function (a, x) { return a + ph(x); }, 0) / usa.length;
-  var he = eur.reduce(function (a, x) { return a + ph(x); }, 0) / eur.length;
-  var dif = Math.round(Math.abs(hu - he)), recibeUsa = hu > he;
-  if ((lado === 'usa') !== recibeUsa) return 0;
-  return golpesDif(dif, si);
-}
 
 // Cómo se viene resolviendo el match, hoyo por hoyo
 function tiraLinea(pr) {
@@ -1699,8 +1748,9 @@ function vistaCargar() {
   var aviso;
   if (fs) {
     var pareja = fs.m[fs.lado].map(jugador).filter(Boolean).map(function (x) { return nombreCorto(x.nombre); });
-    aviso = nota('<div class="candado solo"><span>🤝</span><span><b>Foursomes:</b> una sola pelota para ' +
-      esc(pareja.join(' y ')) + '. Lo que cargues acá cuenta para los dos — que lo cargue uno solo.</span></div>');
+    aviso = nota('<div class="candado solo"><span>🤝</span><span><b>' + esc(FORMATOS[c.formato] || 'Una pelota') + ':</b> una sola pelota para ' +
+      esc(pareja.join(' y ')) + '. Lo que cargues acá cuenta para todo el equipo — que lo cargue uno solo.' +
+      (c.formato === 'scramble' ? ' Para la Ryder cuentan los hoyos 1 al 9.' : '') + '</span></div>');
   } else {
     aviso = nota('<div class="candado solo"><span>🔒</span><span>Estás cargando <b class="' + claseTxt(j).trim() +
       '">tu</b> tarjeta. Fuera de tu partido nadie te la puede tocar, ni el organizador. ' +
@@ -2065,7 +2115,13 @@ document.addEventListener('click', function (ev) {
   else if (a === 'ver-jug') { UI.canchaLb = UI.canchaLb; }
   else if (a === 'ir-hoyo') { UI.hoyo = Number(v); }
   else if (a === 'hoyo-prev') { UI.hoyo = Math.max(0, UI.hoyo - 1); }
-  else if (a === 'hoyo-next') { if (UI.hoyo === 17) { UI.tab = 'posiciones'; UI.canchaLb = canchaActual().id; } else UI.hoyo++; }
+  else if (a === 'hoyo-next') {
+    var cAct = canchaActual(), ult = (UI.modoCarga !== 'mia' ? hoyosCancha(cAct) : 18) - 1;
+    if (UI.hoyo >= ult) {
+      if (cAct && cAct.formato === 'scramble') { UI.tab = 'ryder'; UI.canchaRyder = cAct.id; }
+      else { UI.tab = 'posiciones'; UI.canchaLb = cAct.id; }
+    } else UI.hoyo++;
+  }
   else if (a === 'mas' || a === 'menos' || a === 'set' || a === 'borrar') { anotarGolpe(a, v); return; }
   else if (a === 'ln-mas' || a === 'ln-menos') { anotarLinea(a === 'ln-mas' ? 'mas' : 'menos', v); return; }
   else if (a === 'modo-carga') { UI.modoCarga = v; }
@@ -2159,6 +2215,13 @@ function duplas(eq) {
   if (a === b) r.push([String(eq[a].matricula)]);
   return r;
 }
+// Tríos parejos: se reparte en serpentina por handicap (1-4-5 / 2-3-6 con seis jugadores).
+function trios(eq) {
+  var n = Math.max(1, Math.round(eq.length / 3)), g = [], i;
+  for (i = 0; i < n; i++) g.push([]);
+  eq.forEach(function (j, k) { var vuelta = Math.floor(k / n), pos = k % n; g[vuelta % 2 ? n - 1 - pos : pos].push(String(j.matricula)); });
+  return g;
+}
 function armarPartidos(cid) {
   var c = cancha(cid);
   if (!c || !c.formato) { alert('Primero elegí el formato de la jornada en la pestaña Canchas.'); return; }
@@ -2172,7 +2235,7 @@ function armarPartidos(cid) {
     n = Math.min(usa.length, eur.length);
     for (i = 0; i < n; i++) lista.push({ usa: [String(usa[i].matricula)], eur: [String(eur[i].matricula)] });
   } else {
-    var pu = duplas(usa), pe = duplas(eur);
+    var pu = c.formato === 'scramble' ? trios(usa) : duplas(usa), pe = c.formato === 'scramble' ? trios(eur) : duplas(eur);
     n = Math.min(pu.length, pe.length);
     for (i = 0; i < n; i++) lista.push({ usa: pu[i], eur: pe[i] });
   }
@@ -2355,9 +2418,9 @@ function primerLibre() {
   var c = canchaActual(), y = yo();
   if (!c || !y) return 0;
   var fs = esFoursomes(c, y);
-  var t = fs ? tarjetaEquipo(fs.m.id, fs.lado) : hoyosDe(c.id, y.matricula);
-  for (var i = 0; i < 18; i++) if (t[i] == null) return i;
-  return 17;
+  var t = fs ? tarjetaEquipo(fs.m.id, fs.lado) : hoyosDe(c.id, y.matricula), n = fs ? hoyosCancha(c) : 18;
+  for (var i = 0; i < n; i++) if (t[i] == null) return i;
+  return n - 1;
 }
 
 /* Un golpe cargado por el que anota la línea. El destino dice de quién es la
@@ -2393,9 +2456,9 @@ function anotarLinea(a, destino) {
   if (TEST) { guardarTest(); guardarUI(); pintar(); return; }
   guardarLS(LS.est, E);
 
-  var item = esLado ? { partido: m.id } : { cancha: c.id, matricula: String(clave) };
+  var item = esLado ? { partido: m.id, lado: clave } : { cancha: c.id, matricula: String(clave) };
   COLA = COLA.filter(function (x) {
-    var mismo = esLado ? x.partido === m.id
+    var mismo = esLado ? (x.partido === m.id && (x.lado || '') === clave)
                        : (x.cancha === c.id && !x.partido && String(x.matricula) === String(clave));
     return !(mismo && x.hoyo === UI.hoyo + 1);
   });
@@ -2439,9 +2502,9 @@ function anotarGolpe(a, v) {
   guardarLS(LS.est, E);
 
   // 2) se encola y se sube cuando haya señal
-  var clave = fs ? { partido: fs.m.id } : { cancha: c.id, matricula: String(y.matricula) };
+  var clave = fs ? { partido: fs.m.id, lado: fs.lado } : { cancha: c.id, matricula: String(y.matricula) };
   COLA = COLA.filter(function (x) {
-    var mismo = fs ? x.partido === fs.m.id
+    var mismo = fs ? (x.partido === fs.m.id && (x.lado || '') === fs.lado)
                    : (x.cancha === c.id && !x.partido && String(x.matricula) === String(y.matricula));
     return !(mismo && x.hoyo === UI.hoyo + 1);
   });

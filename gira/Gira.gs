@@ -71,12 +71,12 @@ var DATOS = {
    "dia": "Sáb 28 PM",
    "cancha": "Marayui Golf",
    "salida": "16:30 · 16:40 · 16:50 · 17:00",
-   "lineas": "4 líneas",
-   "juego": "Stableford + fourball",
+   "lineas": "4 líneas de 3",
+   "juego": "Scramble de a 3 · 9 hoyos",
    "green_fee": "55000",
    "estado": "Confirmada",
    "gestiona": "Andrés",
-   "nota": "Almuerzo en el clubhouse."
+   "nota": "Cuenta solo para la Ryder. Pagamos 18: hay luz y el que quiera sigue jugando, pero no suma."
   },
   {
    "dia": "Dom 29",
@@ -136,7 +136,7 @@ var DATOS = {
    "dia": "Sáb",
    "hora": "16:30",
    "titulo": "Ronda 3 · Marayui Golf",
-   "detalle": "Almuerzo en el clubhouse y 4 líneas. Stableford + fourball.",
+   "detalle": "Scramble de a 3, 9 hoyos: cuenta para la Ryder. Después, el que quiera sigue los otros 9.",
    "estado": "Confirmada"
   },
   {
