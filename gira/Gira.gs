@@ -1,10 +1,11 @@
 /* ==================================================================
    GIRA AMIGOLF 2026 · backend de la web de la gira
-   Va pegado en la planilla "Mesa Chica Data":
+   Va pegado en la planilla "Gira Golf Mar del Plata Organización":
    Extensiones → Apps Script → pegar todo esto → guardar.
 
    1. Elegir "configurar" arriba y tocar Ejecutar (la primera vez pide permisos).
-      Crea las pestañas con los datos de la gira. No pisa pestañas que ya existan.
+      Crea las pestañas que falten y completa los datos nuevos de canchas y viajes.
+      Nunca borra ni pisa lo que ya está escrito.
    2. Implementar → Nueva implementación → Aplicación web.
       Ejecutar como: yo · Quién tiene acceso: cualquier usuario.
       Copiar la URL que termina en /exec y pasársela a quien mantiene la web.
@@ -433,10 +434,37 @@ function configurar() {
     hoja.autoResizeColumns(1, cols.length);
     hecho.push(nombre + ': creada con ' + DATOS[nombre].length + ' filas');
   });
+  hecho = hecho.concat(completar_(ss, 'Canchas', 'cancha'), completar_(ss, 'Viajes', 'jugador'));
   var vacia = ss.getSheetByName('Hoja 1') || ss.getSheetByName('Sheet1');
   if (vacia && vacia.getLastRow() === 0 && ss.getSheets().length > 1) ss.deleteSheet(vacia);
   Logger.log(hecho.join('\n'));
   return hecho;
+}
+
+/* Completa celdas vacías con los datos de este archivo y agrega las filas que falten.
+   Busca cada fila por la columna "clave" (ej. el nombre de la cancha). No pisa nada escrito. */
+function completar_(ss, nombre, clave) {
+  var hoja = ss.getSheetByName(nombre), log = [];
+  if (!hoja || hoja.getLastRow() < 1) return log;
+  var v = hoja.getDataRange().getDisplayValues();
+  var cab = v[0].map(function (h) { return String(h).trim().toLowerCase().replace(/\s+/g, '_'); });
+  var ik = cab.indexOf(clave);
+  if (ik < 0) return log;
+  DATOS[nombre].forEach(function (o) {
+    var i = -1;
+    for (var r = 1; r < v.length; r++) if (String(v[r][ik]).trim() === o[clave]) { i = r; break; }
+    if (i < 0) {
+      var fila = hoja.getLastRow() + 1;
+      cab.forEach(function (h, j) { if (h && o[h]) hoja.getRange(fila, j + 1).setNumberFormat('@').setValue(String(o[h])); });
+      v.push(cab.map(function (h) { return o[h] || ''; }));
+      log.push(nombre + ': agregado ' + o[clave]);
+      return;
+    }
+    cab.forEach(function (h, j) {
+      if (h && o[h] && String(v[i][j]).trim() === '') { hoja.getRange(i + 1, j + 1).setNumberFormat('@').setValue(String(o[h])); v[i][j] = o[h]; log.push(nombre + ': ' + o[clave] + ' → ' + h); }
+    });
+  });
+  return log;
 }
 
 function ayuda_(ss) {
