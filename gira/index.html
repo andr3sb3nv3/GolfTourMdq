@@ -36,6 +36,7 @@ body{margin:0}[hidden]{display:none!important}img{max-width:100%}
   color-scheme:light;
 }
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 body{background:var(--fondo);color:var(--tinta);font-family:var(--texto);font-size:16px;line-height:1.45;-webkit-font-smoothing:antialiased}
 body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:50;background:var(--navy)}
 a{color:var(--eur)}
@@ -278,8 +279,9 @@ var RESPALDO = {
     { nombre: 'Mateo Gazzera', apodo: 'Mate', handicap: 'Activo', nota: '', ago: '⛳', sep: '⛳', oct: '', excluido: '', equipo: '', capitan: 'Sí' }
   ],
   Viajes: [
-    { jugador: 'Andrés Benvenuto', llega: 'Mié 25', como: 'Abre la casa', auto: '' },
-    { jugador: 'Ignacio Paz', llega: 'Mié 25, tarde', como: '', auto: '' },
+    { jugador: 'Andrés Benvenuto', llega: 'Mié 25', como: 'Maneja. Abre la casa.', auto: 'Auto de Benve' },
+    { jugador: 'Ignacio Paz', llega: 'Mié 25', como: '', auto: 'Auto de Benve' },
+    { jugador: 'Sebastián Bergadá', llega: 'Mié 25', como: '', auto: 'Auto de Benve' },
     { jugador: 'Tobías Benítez Cruz', llega: 'Jue 26 o vie temprano', como: 'Desde Córdoba. Lucas le lleva los palos.', auto: '' }
   ],
   Pendientes: [
@@ -481,11 +483,20 @@ var V = {
 
   autos: function () {
     var J = D.Jugadores.map(function (j) { var v = D.Viajes.filter(function (x) { return x.jugador === j.nombre; })[0] || {}; return [j, v]; });
+    var autos = [];
+    D.Viajes.forEach(function (v) { if (!v.auto) return; var x = autos.filter(function (a) { return a.n === v.auto; })[0]; if (!x) autos.push(x = { n: v.auto, gente: [] }); x.gente.push(v); });
+    var sinAuto = D.Jugadores.filter(function (j) { return !D.Viajes.some(function (v) { return v.jugador === j.nombre && v.auto; }); }).length;
     return '<div><div class="eyebrow">Ruta 2 · unos 400 km</div><h2>Autos</h2>' +
-      '<p class="bajada">Con palos entran 3 por auto (4 si el baúl es grande): hacen falta 3 o 4 autos.</p></div>' +
-      '<div class="scroll"><table><thead><tr><th>Jugador</th><th>Llega</th><th>Auto / cómo</th></tr></thead><tbody>' +
+      '<p class="bajada">Con palos entran 3 por auto (4 si el baúl es grande). ' + (sinAuto ? sinAuto + ' sin auto todavía.' : 'Están todos ubicados.') + '</p></div>' +
+      (autos.length ? '<div class="g2">' + autos.map(function (a) {
+        var dias = a.gente.map(function (v) { return v.llega; }).filter(Boolean).filter(function (d, i, l) { return l.indexOf(d) === i; });
+        return '<div class="card auto"><div class="cab2"><div><div class="eyebrow">' + (dias.length ? 'Sale ' + esc(dias.join(' / ')) : 'Día a definir') + '</div><h3 style="margin:3px 0 0">' + esc(a.n) + '</h3></div>' +
+          '<span class="chip ' + (a.gente.length >= 4 ? 'tram' : 'ok') + '">' + a.gente.length + (a.gente.length === 1 ? ' persona' : ' personas') + '</span></div>' +
+          '<ul class="lista">' + a.gente.map(function (v) { return '<li><b>' + esc(apellido(v.jugador)) + '</b>' + (v.como ? ' <span class="t2 chico">· ' + esc(v.como) + '</span>' : '') + '</li>'; }).join('') + '</ul></div>';
+      }).join('') + '</div>' : '') +
+      '<div class="scroll"><table><thead><tr><th>Jugador</th><th>Llega</th><th>Auto</th></tr></thead><tbody>' +
       J.map(function (x) {
-        var j = x[0], v = x[1], como = [v.auto, v.como].filter(Boolean).join(' · ');
+        var j = x[0], v = x[1], como = v.auto || '';
         var ed = !EDIT.on ? '' : v._fila ? ' ' + lapiz('Viajes', v) : ' <button type="button" class="lapiz" data-nuevo="Viajes" data-jugador="' + esc(j.nombre) + '">Cargar</button>';
         return '<tr><td><b>' + esc(apellido(j.nombre)) + '</b></td><td>' + (v.llega ? esc(v.llega) : '<span class="tenue">A definir</span>') + '</td><td>' + (como ? esc(como) : '<span class="chip gris">Sin auto</span>') + ed + '</td></tr>';
       }).join('') + '</tbody></table></div>' +

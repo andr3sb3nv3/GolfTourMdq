@@ -305,14 +305,20 @@ var DATOS = {
   {
    "jugador": "Andrés Benvenuto",
    "llega": "Mié 25",
-   "como": "Abre la casa",
-   "auto": ""
+   "como": "Maneja. Abre la casa.",
+   "auto": "Auto de Benve"
   },
   {
    "jugador": "Ignacio Paz",
-   "llega": "Mié 25, tarde",
+   "llega": "Mié 25",
    "como": "",
-   "auto": ""
+   "auto": "Auto de Benve"
+  },
+  {
+   "jugador": "Sebastián Bergadá",
+   "llega": "Mié 25",
+   "como": "",
+   "auto": "Auto de Benve"
   },
   {
    "jugador": "Tobías Benítez Cruz",
