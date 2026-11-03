@@ -58,25 +58,25 @@ var DATOS = {
   },
   {
    "dia": "Sáb 28 AM",
+   "cancha": "Acantilados",
+   "salida": "Mañana · a definir",
+   "lineas": "",
+   "juego": "Stableford + fourball",
+   "green_fee": "",
+   "estado": "Falta reservar",
+   "gestiona": "Andrés",
+   "nota": "Pedir salidas a la mañana."
+  },
+  {
+   "dia": "Sáb 28 PM",
    "cancha": "Marayui Golf",
-   "salida": "8:10 · 8:20 · 8:30",
-   "lineas": "3 de 4",
+   "salida": "Tarde · horarios a confirmar",
+   "lineas": "4 líneas",
    "juego": "Stableford + fourball",
    "green_fee": "55000",
    "estado": "Confirmada",
    "gestiona": "Andrés",
    "nota": "Almuerzo en el clubhouse."
-  },
-  {
-   "dia": "Sáb 28 PM",
-   "cancha": "Acantilados",
-   "salida": "A definir",
-   "lineas": "3 de 4",
-   "juego": "Stableford + fourball",
-   "green_fee": "",
-   "estado": "Falta reservar",
-   "gestiona": "Andrés",
-   "nota": "Pedimos desde las 14:30."
   },
   {
    "dia": "Dom 29",
@@ -126,18 +126,18 @@ var DATOS = {
   {
    "fecha": "28",
    "dia": "Sáb",
-   "hora": "8:10",
-   "titulo": "Ronda 2 · Marayui Golf",
-   "detalle": "Stableford + fourball. Almuerzo en el clubhouse.",
-   "estado": "Confirmada"
+   "hora": "Mañana",
+   "titulo": "Ronda 2 · Acantilados",
+   "detalle": "Stableford + fourball.",
+   "estado": "Falta reservar"
   },
   {
    "fecha": "28",
    "dia": "Sáb",
    "hora": "Tarde",
-   "titulo": "Ronda 3 · Acantilados",
-   "detalle": "Stableford + fourball.",
-   "estado": "Falta reservar"
+   "titulo": "Ronda 3 · Marayui Golf",
+   "detalle": "Almuerzo en el clubhouse y 4 líneas. Stableford + fourball.",
+   "estado": "Confirmada"
   },
   {
    "fecha": "28",
@@ -338,7 +338,7 @@ var DATOS = {
   },
   {
    "tarea": "Reservar Acantilados",
-   "detalle": "Sábado a la tarde.",
+   "detalle": "Sábado a la mañana.",
    "responsable": "Andrés",
    "seccion": "reservas",
    "hecho": ""
@@ -394,7 +394,7 @@ var DATOS = {
   },
   {
    "tarea": "Marayui confirmado",
-   "detalle": "Sáb 28, 8:10 a 8:30.",
+   "detalle": "Sáb 28 a la tarde, 4 líneas.",
    "responsable": "Andrés",
    "seccion": "reservas",
    "hecho": "Sí"
