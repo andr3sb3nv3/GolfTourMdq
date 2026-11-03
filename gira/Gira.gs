@@ -306,13 +306,13 @@ var DATOS = {
   {
    "jugador": "Andrés Benvenuto",
    "llega": "Mié 25",
-   "como": "Maneja. Abre la casa.",
+   "como": "Maneja y sale primero. Abre la casa.",
    "auto": "Auto de Benve"
   },
   {
    "jugador": "Ignacio Paz",
    "llega": "Mié 25",
-   "como": "",
+   "como": "Va con Benve.",
    "auto": "Auto de Benve"
   },
   {
@@ -522,11 +522,15 @@ function doPost(e) {
     var b = JSON.parse(e.postData.contents || '{}');
     var valida = CLAVE && CLAVE !== 'ESCRIBI-TU-CLAVE' && CLAVE.length >= 4;
     if (b.accion === 'probar') return json_({ ok: valida && b.clave === CLAVE });
-    if (!valida || b.clave !== CLAVE) return json_({ ok: false, error: 'clave' });
+    var conClave = valida && b.clave === CLAVE;
+    var cambios = b.cambios || [];
+    // Sin clave, cualquiera del grupo puede tachar pendientes y cargar su viaje/auto.
+    if (!conClave && (!cambios.length || !cambios.every(publico_))) return json_({ ok: false, error: 'clave' });
     lock.waitLock(15000);
     var ss = SpreadsheetApp.getActiveSpreadsheet();
+    if (!conClave) validarPublico_(ss, cambios);
     var borrar = [];
-    (b.cambios || []).forEach(function (c) {
+    cambios.forEach(function (c) {
       var cols = COLUMNAS[c.pestana];
       if (!cols) throw new Error('pestaña desconocida: ' + c.pestana);
       var hoja = ss.getSheetByName(c.pestana);
@@ -553,6 +557,27 @@ function doPost(e) {
   } finally {
     try { lock.releaseLock(); } catch (x) {}
   }
+}
+
+/* Cambios permitidos sin clave: tachar un pendiente y cargar o editar un viaje. */
+function publico_(c) {
+  if (!c || c.borrar) return false;
+  var campos = Object.keys(c.datos || {});
+  var solo = function (permitidos) { return campos.length && campos.every(function (k) { return permitidos.indexOf(k) >= 0; }); };
+  if (c.pestana === 'Pendientes') return !c.nueva && solo(['hecho']) && ['', 'Sí'].indexOf(String(c.datos.hecho)) >= 0;
+  if (c.pestana === 'Viajes') return solo(['jugador', 'llega', 'como', 'auto']) && campos.every(function (k) { return String(c.datos[k] || '').length <= 200; });
+  return false;
+}
+function validarPublico_(ss, cambios) {
+  var todo = leerTodo_();
+  var nombres = todo.Jugadores.map(function (j) { return j.nombre; });
+  var viajes = todo.Viajes.map(function (v) { return v.jugador; });
+  cambios.forEach(function (c) {
+    if (c.pestana !== 'Viajes') return;
+    var j = c.datos.jugador;
+    if (j != null && nombres.indexOf(j) < 0) throw new Error('jugador desconocido: ' + j);
+    if (c.nueva && (!j || viajes.indexOf(j) >= 0)) throw new Error('la_planilla_cambio');
+  });
 }
 
 function escribir_(hoja, fila, cab, datos) {

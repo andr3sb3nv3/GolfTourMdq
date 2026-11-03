@@ -279,8 +279,8 @@ var RESPALDO = {
     { nombre: 'Mateo Gazzera', apodo: 'Mate', handicap: 'Activo', nota: '', ago: '⛳', sep: '⛳', oct: '', excluido: '', equipo: '', capitan: 'Sí' }
   ],
   Viajes: [
-    { jugador: 'Andrés Benvenuto', llega: 'Mié 25', como: 'Maneja. Abre la casa.', auto: 'Auto de Benve' },
-    { jugador: 'Ignacio Paz', llega: 'Mié 25', como: '', auto: 'Auto de Benve' },
+    { jugador: 'Andrés Benvenuto', llega: 'Mié 25', como: 'Maneja y sale primero. Abre la casa.', auto: 'Auto de Benve' },
+    { jugador: 'Ignacio Paz', llega: 'Mié 25', como: 'Va con Benve.', auto: 'Auto de Benve' },
     { jugador: 'Sebastián Bergadá', llega: 'Mié 25', como: '', auto: 'Auto de Benve' },
     { jugador: 'Tobías Benítez Cruz', llega: 'Jue 26 o vie temprano', como: 'Desde Córdoba. Lucas le lleva los palos.', auto: '' }
   ],
@@ -487,7 +487,8 @@ var V = {
     D.Viajes.forEach(function (v) { if (!v.auto) return; var x = autos.filter(function (a) { return a.n === v.auto; })[0]; if (!x) autos.push(x = { n: v.auto, gente: [] }); x.gente.push(v); });
     var sinAuto = D.Jugadores.filter(function (j) { return !D.Viajes.some(function (v) { return v.jugador === j.nombre && v.auto; }); }).length;
     return '<div><div class="eyebrow">Ruta 2 · unos 400 km</div><h2>Autos</h2>' +
-      '<p class="bajada">Con palos entran 3 por auto (4 si el baúl es grande). ' + (sinAuto ? sinAuto + ' sin auto todavía.' : 'Están todos ubicados.') + '</p></div>' +
+      '<p class="bajada">Con palos entran 3 por auto (4 si el baúl es grande). ' + (sinAuto ? sinAuto + ' sin auto todavía.' : 'Están todos ubicados.') + '</p>' +
+      (ORIGEN === 'backend' ? '<p style="margin-top:10px"><button type="button" class="lapiz mas" data-viaje="">+ Cargar mi viaje</button></p>' : '') + '</div>' +
       (autos.length ? '<div class="g2">' + autos.map(function (a) {
         var dias = a.gente.map(function (v) { return v.llega; }).filter(Boolean).filter(function (d, i, l) { return l.indexOf(d) === i; });
         return '<div class="card auto"><div class="cab2"><div><div class="eyebrow">' + (dias.length ? 'Sale ' + esc(dias.join(' / ')) : 'Día a definir') + '</div><h3 style="margin:3px 0 0">' + esc(a.n) + '</h3></div>' +
@@ -497,7 +498,7 @@ var V = {
       '<div class="scroll"><table><thead><tr><th>Jugador</th><th>Llega</th><th>Auto</th></tr></thead><tbody>' +
       J.map(function (x) {
         var j = x[0], v = x[1], como = v.auto || '';
-        var ed = !EDIT.on ? '' : v._fila ? ' ' + lapiz('Viajes', v) : ' <button type="button" class="lapiz" data-nuevo="Viajes" data-jugador="' + esc(j.nombre) + '">Cargar</button>';
+        var ed = ORIGEN !== 'backend' ? '' : ' <button type="button" class="lapiz" data-viaje="' + esc(j.nombre) + '">' + (v._fila ? 'Cambiar' : 'Cargar') + '</button>';
         return '<tr><td><b>' + esc(apellido(j.nombre)) + '</b></td><td>' + (v.llega ? esc(v.llega) : '<span class="tenue">A definir</span>') + '</td><td>' + (como ? esc(como) : '<span class="chip gris">Sin auto</span>') + ed + '</td></tr>';
       }).join('') + '</tbody></table></div>' +
       '<div class="aviso">El que maneja avisa día, hora y lugares libres. Nafta y peajes se dividen por auto.</div>';
@@ -524,7 +525,7 @@ var V = {
     var orden = D.Pendientes.slice().sort(function (a, b) { return si(a.hecho) - si(b.hecho); });
     return '<div><div class="eyebrow">Al ' + esc(cfg('actualizado')) + '</div><h2>Pendientes</h2></div>' +
       '<div class="card">' + orden.map(function (p) {
-        var ck = EDIT.on && p._fila ? '<button type="button" class="ck" data-hecho="' + p._fila + '" aria-label="Marcar ' + esc(p.tarea) + '"></button>' : '<span class="ck" aria-hidden="true"></span>';
+        var ck = ORIGEN === 'backend' && p._fila ? '<button type="button" class="ck" data-hecho="' + p._fila + '" aria-label="Marcar ' + esc(p.tarea) + '"></button>' : '<span class="ck" aria-hidden="true"></span>';
         return '<div class="tarea' + (si(p.hecho) ? ' hecha' : '') + '">' + ck + '<div><b>' + esc(p.tarea) + '</b>' +
           (p.detalle ? '<p class="chico t2">' + esc(p.detalle) + '</p>' : '') + '</div><div class="q">' + esc(p.responsable) + (EDIT.on ? '<div style="margin-top:6px">' + lapiz('Pendientes', p) + '</div>' : '') + '</div></div>';
       }).join('') + '</div>' + mas('Pendientes', 'Agregar pendiente');
@@ -568,10 +569,15 @@ function enviar(cuerpo) {
   return fetch(BACKEND, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(cuerpo) })
     .then(function (r) { return r.json(); });
 }
+function leerCache() { try { var c = JSON.parse(localStorage.getItem('gira-datos') || 'null'); return c && c.Jugadores && c.Jugadores.length ? completar(c) : null; } catch (e) { return null; } }
+function guardarCache(d) { try { localStorage.setItem('gira-datos', JSON.stringify(d)); } catch (e) {} }
 function guardar(cambios) {
   return enviar({ clave: EDIT.clave, cambios: cambios }).then(function (j) {
-    if (j.ok) { D = completar(j.datos); ORIGEN = 'backend'; repintar(); aviso('Guardado en la planilla'); return true; }
-    if (j.error === 'clave') { salirEdicion(); throw new Error('La clave cambió. Volvé a entrar en modo edición.'); }
+    if (j.ok) { D = completar(j.datos); ORIGEN = 'backend'; guardarCache(D); repintar(); aviso('Guardado en la planilla'); return true; }
+    if (j.error === 'clave') {
+      if (!EDIT.on) throw new Error('Esto todavía no está habilitado para todos. Avisale a Benve.');
+      salirEdicion(); throw new Error('La clave cambió. Volvé a entrar en modo edición.');
+    }
     if (j.error === 'la_planilla_cambio') { cargar().then(function (d) { D = d; repintar(); }); throw new Error('Alguien movió filas en la planilla. Ya recargué los datos: probá de nuevo.'); }
     throw new Error('No se pudo guardar: ' + (j.detalle || j.error || 'error'));
   }, function () { throw new Error('Sin conexión con la planilla. Probá de nuevo.'); });
@@ -607,6 +613,39 @@ function abrirEditor(tab, r, previo) {
   document.getElementById('editor').hidden = false;
   var primero = document.querySelector('#ed-campos input, #ed-campos select, #ed-campos textarea'); if (primero) primero.focus();
 }
+/* Cargar el viaje propio (abierto a todos, sin clave). */
+function abrirViaje(nombre) {
+  var v = nombre ? D.Viajes.filter(function (x) { return x.jugador === nombre; })[0] : null;
+  ED = { tab: 'Viajes', r: v || null, viaje: true, borrando: false };
+  var autos = [];
+  D.Viajes.forEach(function (x) { if (x.auto && autos.indexOf(x.auto) < 0) autos.push(x.auto); });
+  var actual = v ? v.auto || '' : '';
+  var opc = [['', 'Todavía no sé / sin auto']].concat(autos.map(function (a) { return [a, 'Voy en: ' + a]; }), [['__mio', 'Llevo mi auto']]);
+  var sinViaje = D.Jugadores.filter(function (j) { return !D.Viajes.some(function (x) { return x.jugador === j.nombre; }); });
+  var quien = nombre
+    ? '<label>Jugador<input value="' + esc(nombre) + '" disabled><input type="hidden" id="ed-jugador" value="' + esc(nombre) + '"></label>'
+    : '<label>¿Quién sos?<select id="ed-jugador">' + sinViaje.map(function (j) { return '<option value="' + esc(j.nombre) + '">' + esc(j.nombre) + (j.apodo ? ' (' + esc(j.apodo) + ')' : '') + '</option>'; }).join('') + '</select></label>';
+  document.getElementById('ed-titulo').textContent = v ? 'Cambiar viaje' : 'Cargar mi viaje';
+  document.getElementById('ed-campos').innerHTML = quien +
+    '<label>Cuándo salís o llegás<input id="ed-llega" value="' + esc(v ? v.llega : '') + '" placeholder="Ej: Mié 25 a la mañana"></label>' +
+    '<label>Auto<select id="ed-auto">' + opc.map(function (o) { return '<option value="' + esc(o[0]) + '"' + (o[0] === actual ? ' selected' : '') + '>' + esc(o[1]) + '</option>'; }).join('') + '</select></label>' +
+    '<label>Detalle<textarea id="ed-como" placeholder="Ej: salgo 8 am de Capital, me quedan 2 lugares">' + esc(v ? v.como : '') + '</textarea></label>';
+  var bb = document.getElementById('ed-borrar'); bb.hidden = !(v && EDIT.on); bb.textContent = 'Borrar';
+  document.getElementById('ed-error').hidden = true;
+  document.getElementById('ed-guardar').disabled = !nombre && !sinViaje.length;
+  if (!nombre && !sinViaje.length) errorEditor(new Error('Ya están todos cargados: tocá Cambiar en tu fila.'));
+  document.getElementById('editor').hidden = false;
+  var primero = document.querySelector('#ed-campos select, #ed-campos input:not([disabled]):not([type=hidden])'); if (primero) primero.focus();
+}
+function datosViaje() {
+  var jug = document.getElementById('ed-jugador').value, auto = document.getElementById('ed-auto').value;
+  if (auto === '__mio') {
+    var j = D.Jugadores.filter(function (x) { return x.nombre === jug; })[0];
+    auto = 'Auto de ' + (j && j.apodo ? j.apodo : apellido(jug));
+  }
+  return { jugador: jug, llega: document.getElementById('ed-llega').value.trim(), auto: auto, como: document.getElementById('ed-como').value.trim() };
+}
+
 function cerrarEditor() { document.getElementById('editor').hidden = true; ED = null; }
 function errorEditor(e) { var p = document.getElementById('ed-error'); p.textContent = e.message; p.hidden = false; document.getElementById('ed-guardar').disabled = false; }
 
@@ -618,6 +657,10 @@ document.getElementById('ed-form').addEventListener('submit', function (e) {
       var r = fila('Config', inp.getAttribute('data-cfg'));
       if (r && inp.value.trim() !== r.valor) cambios.push(cambio('Config', r, { valor: inp.value.trim() }));
     });
+  } else if (ED.viaje) {
+    var dv = datosViaje();
+    if (ED.r) delete dv.jugador;
+    cambios.push(ED.r ? cambio('Viajes', ED.r, dv) : { pestana: 'Viajes', nueva: true, datos: dv });
   } else {
     var datos = {};
     columnas(ED.tab).forEach(function (c) { var el = document.getElementById('ed-' + c); if (el) datos[c] = el.value.trim(); });
@@ -641,8 +684,9 @@ document.getElementById('ed-borrar').addEventListener('click', function () {
 });
 
 document.getElementById('main').addEventListener('click', function (e) {
-  if (!EDIT.on) return;
-  var t = e.target.closest('[data-ed],[data-nuevo],[data-pago],[data-hecho]'); if (!t) return;
+  var t = e.target.closest('[data-ed],[data-nuevo],[data-pago],[data-hecho],[data-viaje]'); if (!t) return;
+  if (t.hasAttribute('data-viaje')) { abrirViaje(t.getAttribute('data-viaje')); return; }
+  if (!EDIT.on && !t.hasAttribute('data-hecho')) return;
   if (t.hasAttribute('data-ed')) { var x = t.getAttribute('data-ed').split('|'); abrirEditor(x[0], fila(x[0], x[1])); }
   else if (t.hasAttribute('data-nuevo')) abrirEditor(t.getAttribute('data-nuevo'), null, t.hasAttribute('data-jugador') ? { jugador: t.getAttribute('data-jugador') } : {});
   else if (t.hasAttribute('data-pago')) {
@@ -734,11 +778,14 @@ document.getElementById('tabs').addEventListener('click', function (e) {
 });
 window.addEventListener('hashchange', function () { mostrar(location.hash.slice(1)); window.scrollTo(0, 0); });
 
-// Primero se pinta con el respaldo; cuando llega la planilla, se vuelve a pintar.
-D = RESPALDO; cuenta(); pie(); mostrar(location.hash.slice(1) || 'inicio');
+// Se pinta con lo último que se leyó de la planilla (guardado en este navegador), nunca con datos viejos del código.
+// El respaldo del código solo se usa si la planilla no responde.
+var previo = leerCache();
+if (previo) { D = previo; ORIGEN = 'cache'; repintar(); }
+else document.getElementById('main').innerHTML = '<section class="panel"><p class="bajada">Cargando la planilla…</p></section>';
 cargar().then(function (d) {
-  if (ORIGEN === 'respaldo') return;
-  D = d;
+  if (ORIGEN === 'respaldo') { if (!previo) { D = RESPALDO; repintar(); } return; }
+  D = d; guardarCache(d);
   var c = leerClave();
   if (c && ORIGEN === 'backend') { EDIT.on = true; EDIT.clave = c; document.body.classList.add('editando'); document.getElementById('barra-ed').hidden = false; }
   repintar();
