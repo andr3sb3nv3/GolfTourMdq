@@ -496,3 +496,25 @@ table.tc tr.yo .lbl{color:var(--eur);font-weight:800;box-shadow:inset 3px 0 0 va
 .btn-gira>span:nth-child(2){flex:1;display:grid;gap:2px}
 .btn-gira small{opacity:.8;font-size:13px}
 .btn-gira i{font-style:normal;font-size:20px}
+/* scramble: de quién fue la salida */
+.sal-tit{margin-top:12px;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--tenue)}
+.salidas{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:6px}
+.salidas button{border:2px solid var(--linea);background:var(--panel);border-radius:12px;padding:8px 4px;color:var(--tinta);min-width:0}
+.salidas button b{display:block;font-family:"IBM Plex Mono",monospace;font-size:22px;line-height:1.1}
+.salidas button span{display:block;font-size:12px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.salidas button i{display:block;font-style:normal;font-size:11px;color:var(--tenue);font-weight:700}
+.salidas button i.ok{color:#1E7B3A}
+.salidas button[aria-pressed="true"]{border-color:var(--navy);background:var(--navy);color:#fff}
+.salidas button[aria-pressed="true"] i{color:#fff}
+.sal-aviso{margin:8px 0 0;font-size:12.5px;font-weight:700;color:var(--tinta-2)}
+.sal-aviso.ok{color:#1E7B3A}
+.sal-aviso.justo{color:#A15C00}
+.sal-aviso.mal{color:#B42318}
+.sc-res{display:grid;gap:6px;padding:10px 14px 12px;border-top:1px solid var(--linea)}
+.sc-l{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;font-size:13px}
+.sc-l>span:first-child{font-weight:800;min-width:96px}
+.sc-l i{font-style:normal;color:var(--tenue)}
+.sc-falta{color:#B42318;font-weight:700}
+.sc-hcp{margin-left:auto;display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--tenue)}
+.sc-hcp input{width:64px;padding:6px;border:1px solid var(--linea);border-radius:8px;font:600 15px "IBM Plex Mono",monospace;color:var(--tinta);background:#fff}
+.sc-rival{margin:0 14px 4px;font-weight:700}

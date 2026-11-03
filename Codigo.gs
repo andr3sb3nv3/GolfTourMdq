@@ -19,7 +19,7 @@ var HOJAS = {
   Jugadores: ['matricula', 'nombre', 'apodo', 'handicap', 'equipo', 'rol', 'club', 'fotoId', 'hash', 'alta', 'ultimoAcceso', 'resetCodigo', 'resetVence'],
   Canchas:   ['id', 'dia', 'nombre', 'confirmada', 'formato'],   // + par1..par18 + si1..si18
   Tarjetas:  ['cancha', 'matricula'],                 // + h1..h18 + actualizado
-  Partidos:  ['id', 'cancha', 'formato', 'usa1', 'usa2', 'eur1', 'eur2', 'usa3', 'eur3'],   // usa3/eur3: scramble de a 3
+  Partidos:  ['id', 'cancha', 'formato', 'usa1', 'usa2', 'eur1', 'eur2', 'usa3', 'eur3', 'hcpUsa', 'hcpEur'],   // usa3/eur3 y hcp del equipo: scramble de a 3
   TarjetasEquipo: ['partido', 'lado'],               // + h1..h18 + actualizado
   Partidas:  ['id', 'fecha', 'cancha', 'modalidad', 'jugadores', 'creador', 'hoja', 'resultado'],
   Log:       ['fecha', 'matricula', 'accion', 'detalle']
@@ -30,6 +30,7 @@ for (var i = 1; i <= 18; i++) HOJAS.Tarjetas.push('h' + i);
 HOJAS.Tarjetas.push('actualizado');
 for (var i = 1; i <= 18; i++) HOJAS.TarjetasEquipo.push('h' + i);
 HOJAS.TarjetasEquipo.push('actualizado');
+HOJAS.TarjetasEquipo.push('salidas');   // scramble: de quién fue la salida en cada hoyo (matrículas separadas por coma)
 
 /* ============================================================
    REVISAR — qué hay cargado hoy en la planilla.
@@ -141,7 +142,9 @@ function migrarScramble() {
     if (Number(hoja.getRange(fila[id], 2).getValue()) !== dias[id]) { hoja.getRange(fila[id], 2).setValue(dias[id]); hechas.push(id + ' → día ' + dias[id]); }
   });
   var pt = ss.getSheetByName('Partidos');
-  if (pt) { var antes = pt.getLastColumn(); columnasTrio(pt); if (pt.getLastColumn() > antes) hechas.push('Partidos: columnas usa3 y eur3'); }
+  if (pt) { var antes = pt.getLastColumn(); columnasTrio(pt); if (pt.getLastColumn() > antes) hechas.push('Partidos: columnas usa3, eur3, hcpUsa y hcpEur'); }
+  var te = ss.getSheetByName('TarjetasEquipo');
+  if (te) { var antesT = te.getLastColumn(); columnasAlFinal(te, ['salidas']); if (te.getLastColumn() > antesT) hechas.push('TarjetasEquipo: columna salidas'); }
   limpiarCache();
   var texto = hechas.length ? hechas.join('\n') : 'Ya estaba todo, no se tocó nada.';
   Logger.log(texto);
@@ -236,6 +239,7 @@ function despachar(p) {
       case 'torneo':    return guardarTorneo(p);
       case 'partidos':  return guardarPartidos(p);
       case 'golpesEquipo': return guardarGolpesEquipo(p);
+      case 'hcpEquipo': return guardarHcpEquipo(p);
       case 'resetPedir':   return resetPedir(p);
       case 'resetAplicar': return resetAplicar(p);
       case 'resetPendientes': return resetPendientes(p);
@@ -487,12 +491,15 @@ function estadoCrudo() {
     partidos: leer('Partidos').map(function (m) {
       return { id: String(m.id), cancha: m.cancha, formato: m.formato,
                usa: [String(m.usa1 || ''), String(m.usa2 || ''), String(m.usa3 || '')].filter(Boolean),
-               eur: [String(m.eur1 || ''), String(m.eur2 || ''), String(m.eur3 || '')].filter(Boolean) };
+               eur: [String(m.eur1 || ''), String(m.eur2 || ''), String(m.eur3 || '')].filter(Boolean),
+               hcpUsa: hcpONull(m.hcpUsa), hcpEur: hcpONull(m.hcpEur) };
     }),
     tarjetasEquipo: leer('TarjetasEquipo').map(function (t) {
       var h = [];
       for (var i = 1; i <= 18; i++) { var v = t['h' + i]; h.push(v === '' || v === null ? null : Number(v)); }
-      return { partido: String(t.partido), lado: t.lado, hoyos: h };
+      var sal = String(t.salidas || '').split(',').slice(0, 18).map(function (x) { return String(x).trim() || null; });
+      while (sal.length < 18) sal.push(null);
+      return { partido: String(t.partido), lado: t.lado, hoyos: h, salidas: sal };
     }),
     tarjetas: leer('Tarjetas').map(function (t) {
       var h = [];
@@ -685,14 +692,45 @@ function guardarPartidos(p) {
 }
 
 /* La pestaña Partidos nació con dos jugadores por lado. Para el scramble de a 3
-   se agregan las columnas usa3 y eur3 al final, sin mover nada de lo cargado. */
-function columnasTrio(hoja) {
+   se agregan las columnas usa3, eur3, hcpUsa y hcpEur al final, sin mover nada de lo cargado. */
+function columnasTrio(hoja) { return columnasAlFinal(hoja, ['usa3', 'eur3', 'hcpUsa', 'hcpEur']); }
+// Agrega las columnas que falten al final y devuelve la cabecera como quedó.
+function columnasAlFinal(hoja, nombres) {
   var cab = hoja.getRange(1, 1, 1, Math.max(1, hoja.getLastColumn())).getValues()[0].map(String);
-  ['usa3', 'eur3'].forEach(function (c) {
+  nombres.forEach(function (c) {
     if (cab.indexOf(c) >= 0) return;
     cab.push(c);
     hoja.getRange(1, cab.length).setValue(c).setFontWeight('bold').setBackground('#EDF0E8');
   });
+  return cab;
+}
+function hcpONull(v) {
+  if (v === '' || v === null || v === undefined) return null;
+  var n = parseFloat(String(v).replace(',', '.'));
+  return isNaN(n) ? null : n;
+}
+
+/**
+ * Scramble: el handicap de juego de cada equipo lo fija el comité (el organizador).
+ * p.hcp vacío = vuelve a la fórmula de la app.
+ */
+function guardarHcpEquipo(p) {
+  var j = exigir(p.token, true);
+  if (p.lado !== 'usa' && p.lado !== 'eur') return { ok: false, error: 'faltan_datos' };
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var hoja = SpreadsheetApp.openById(SS_ID).getSheetByName('Partidos');
+    if (!hoja) return { ok: false, error: 'falta_migrar' };
+    var cab = columnasTrio(hoja);
+    var fila = buscarFila(hoja, function (v) { return String(v[0]) === String(p.partido); });
+    if (!fila) return { ok: false, error: 'partido_inexistente' };
+    var n = hcpONull(p.hcp);
+    hoja.getRange(fila, cab.indexOf(p.lado === 'usa' ? 'hcpUsa' : 'hcpEur') + 1).setValue(n === null ? '' : n);
+    anotar(j.matricula, 'hcpEquipo', p.partido + ' · ' + p.lado + ' · ' + (n === null ? 'fórmula' : n));
+    limpiarCache();
+    return { ok: true, estado: estadoCrudo() };
+  } finally { lock.releaseLock(); }
 }
 
 /**
@@ -734,6 +772,18 @@ function guardarGolpesEquipo(p) {
     });
     hoja.getRange(fila, 3, 1, 18).setValues([valores]);
     hoja.getRange(fila, 21).setValue(new Date());
+    // scramble: de quién fue la salida elegida (solo si la app lo manda)
+    var conSalida = (p.hoyos || []).filter(function (c) { return c.salida !== undefined; });
+    if (conSalida.length) {
+      var col = columnasAlFinal(hoja, ['salidas']).indexOf('salidas') + 1;
+      var sal = String(hoja.getRange(fila, col).getValue() || '').split(',');
+      while (sal.length < 18) sal.push('');
+      conSalida.forEach(function (c) {
+        var k = Number(c.hoyo) - 1;
+        if (k >= 0 && k < 18) sal[k] = String(c.salida || '').replace(/,/g, '').trim();
+      });
+      hoja.getRange(fila, col).setNumberFormat('@').setValue(sal.slice(0, 18).join(','));
+    }
     anotar(mat, 'golpesEquipo', p.partido + ' · lado ' + lado);
     limpiarCache();
     return { ok: true, estado: estadoCrudo() };
