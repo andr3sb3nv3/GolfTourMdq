@@ -70,7 +70,7 @@ var DATOS = {
   {
    "dia": "Sáb 28 PM",
    "cancha": "Marayui Golf",
-   "salida": "Tarde · horarios a confirmar",
+   "salida": "16:30 · 16:40 · 16:50 · 17:00",
    "lineas": "4 líneas",
    "juego": "Stableford + fourball",
    "green_fee": "55000",
@@ -134,7 +134,7 @@ var DATOS = {
   {
    "fecha": "28",
    "dia": "Sáb",
-   "hora": "Tarde",
+   "hora": "16:30",
    "titulo": "Ronda 3 · Marayui Golf",
    "detalle": "Almuerzo en el clubhouse y 4 líneas. Stableford + fourball.",
    "estado": "Confirmada"
@@ -394,7 +394,7 @@ var DATOS = {
   },
   {
    "tarea": "Marayui confirmado",
-   "detalle": "Sáb 28 a la tarde, 4 líneas.",
+   "detalle": "Sáb 28, 16:30 a 17:00, 4 líneas.",
    "responsable": "Andrés",
    "seccion": "reservas",
    "hecho": "Sí"
