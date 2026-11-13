@@ -2,7 +2,7 @@
 (function () {
 'use strict';
 
-var VERSION = 'v57';                     // tiene que coincidir con el CACHE del sw.js
+var VERSION = 'v58';                     // tiene que coincidir con el CACHE del sw.js
 var LS = { ses: 'gtm-sesion', est: 'gtm-estado', cola: 'gtm-cola', ui: 'gtm-ui' };
 var API = (window.GTM_CONFIG && window.GTM_CONFIG.api) || '';
 
@@ -205,19 +205,56 @@ function traerEstado() {
   if (TEST || !SES) return Promise.resolve();
   return pedir({ accion: 'estado', token: SES.token }).then(function (res) {
     if (res && res.ok) { adoptar(res.estado); ultimoError = ''; }
-    else if (res && res.error === 'sesion_vencida') salir();
+    else if (res && res.error === 'sesion_vencida') salir(true);
     return res;
   });
 }
 function adoptar(estado) {
   if (!estado) return;
   E = estado;
+  aplicarCola();
   guardarLS(LS.est, E);
   if (!UI.cancha || !cancha(UI.cancha)) UI.cancha = E.canchas[0] ? E.canchas[0].id : null;
 }
+/* Lo que está en la cola todavía no llegó a la planilla, pero en el celular ya
+   está anotado. Cada vez que llega un estado del servidor se le vuelve a aplicar
+   encima: si no, un estado que salió antes del toque (el del reloj de 20 s, o el
+   de otro grupo de la cola) borraba de la pantalla golpes recién cargados, y el
+   siguiente "+" se calculaba desde el número viejo. */
+function aplicarCola() {
+  if (!E || !COLA.length) return;
+  E.tarjetas = E.tarjetas || [];
+  E.tarjetasEquipo = E.tarjetasEquipo || [];
+  COLA.forEach(function (x) {
+    var k = Number(x.hoyo) - 1, t = null, i;
+    if (!(k >= 0 && k < 18)) return;
+    if (x.partido) {
+      var lado = x.lado || (function () {           // versiones viejas de la cola no traen el lado
+        var m = (E.partidos || []).filter(function (p) { return p.id === x.partido; })[0];
+        return m && SES ? ladoDe(m, SES.matricula) : null;
+      })();
+      if (!lado) return;
+      for (i = 0; i < E.tarjetasEquipo.length; i++)
+        if (E.tarjetasEquipo[i].partido === x.partido && E.tarjetasEquipo[i].lado === lado) { t = E.tarjetasEquipo[i]; break; }
+      if (!t) { t = { partido: x.partido, lado: lado, hoyos: new Array(18).fill(null), salidas: new Array(18).fill(null) }; E.tarjetasEquipo.push(t); }
+      if (x.salida !== undefined) { if (!t.salidas) t.salidas = new Array(18).fill(null); t.salidas[k] = x.salida || null; }
+    } else {
+      for (i = 0; i < E.tarjetas.length; i++)
+        if (E.tarjetas[i].cancha === x.cancha && String(E.tarjetas[i].matricula) === String(x.matricula)) { t = E.tarjetas[i]; break; }
+      if (!t) { t = { cancha: x.cancha, matricula: String(x.matricula), hoyos: new Array(18).fill(null) }; E.tarjetas.push(t); }
+    }
+    t.hoyos[k] = x.golpes == null ? null : x.golpes;
+  });
+}
+/* Rechazos que no se arreglan reintentando (el partido se rearmó, ya no es tu
+   línea…). Antes quedaban en la cola para siempre y, como la subida se cortaba
+   en el primer error, frenaban también todos los golpes que venían atrás. */
+var RECHAZO_FIJO = { no_es_tu_linea: 1, partido_inexistente: 1, no_jugas_ese_partido: 1, faltan_datos: 1 };
+var descartados = 0, motivoDescarte = '';
 function sincronizar() {
   if (TEST || sincronizando || !navigator.onLine || !SES || !COLA.length) return Promise.resolve();
   sincronizando = true; pintar();
+  var fallo = null;
   var lote = COLA.slice(0, 40);
   var grupos = {};
   lote.forEach(function (x) {
@@ -243,20 +280,30 @@ function sincronizar() {
         if (x.salida !== undefined) o.salida = x.salida;      // scramble: de quién fue la salida
         return o;
       });
+      var sacar = function () {
+        COLA = COLA.filter(function (x) { return items.indexOf(x) < 0; });
+        guardarLS(LS.cola, COLA);
+      };
       return pedir(cuerpo).then(function (res) {
-        if (res && res.ok) {
-          COLA = COLA.filter(function (x) { return items.indexOf(x) < 0; });
-          guardarLS(LS.cola, COLA);
-          adoptar(res.estado);
-        } else if (res && res.error === 'sesion_vencida') { salir(); throw new Error('sesion'); }
-        else throw new Error((res && res.error) || 'fallo');
+        if (res && res.ok) { sacar(); adoptar(res.estado); }
+        else if (res && res.error === 'sesion_vencida') { throw new Error('sesion'); }
+        else if (res && RECHAZO_FIJO[res.error]) {
+          // la planilla no lo va a aceptar nunca: se descarta y se sigue con el resto
+          sacar(); descartados += items.length; motivoDescarte = res.error; fallo = fallo || res.error;
+        }
+        else fallo = fallo || (res && res.error) || 'fallo';   // se reintenta, pero no frena a los demás
+      }, function (e) {
+        if (e && e.message === 'sin_conexion') throw e;   // sin red no tiene sentido seguir probando
+        fallo = fallo || (e && e.message) || 'fallo';
       });
     });
   });
   return cadena.then(function () {
-    sincronizando = false; ultimoError = ''; pintar();
-    if (COLA.length) return sincronizar();
+    sincronizando = false; ultimoError = fallo || ''; aplicarCola(); pintar();
+    // si quedó algo que se puede reintentar, lo vuelve a intentar el reloj
+    if (COLA.length && !fallo) return sincronizar();
   }, function (err) {
+    if (err && err.message === 'sesion') { sincronizando = false; salir(true); return; }
     sincronizando = false;
     ultimoError = String(err && err.message || err);
     pintar();
@@ -306,9 +353,12 @@ function accionar(cuerpo) {
     return res;
   }, function (e) { ultimoError = 'sin_conexion'; pintar(); throw e; });
 }
-function salir() {
-  SES = null; COLA = []; UI.tab = 'posiciones';
-  try { localStorage.removeItem(LS.ses); localStorage.removeItem(LS.cola); } catch (e) {}
+/* Si se venció la sesión, los golpes que no subieron quedan guardados: suben
+   solos cuando vuelve a entrar. Solo "Cerrar sesión" a mano los descarta. */
+function salir(conservarCola) {
+  SES = null; UI.tab = 'posiciones';
+  if (!conservarCola) COLA = [];
+  try { localStorage.removeItem(LS.ses); if (!conservarCola) localStorage.removeItem(LS.cola); } catch (e) {}
   pintar();
 }
 
@@ -2620,7 +2670,7 @@ function vistaJugadores() {
       (SES && String(SES.matricula) === String(j.matricula) ? ' <span class="eyebrow">· vos</span>' : '') + '</span>' +
       '<span class="lb-meta">' + (esPrecargado(j) ? 'Sin reclamar' : 'Mat. ' + esc(j.matricula)) + ' · HCP ' + esc(j.handicap) + ' · ' + esc(nombreEquipo(j.equipo)) +
       (j.rol === 'admin' ? ' · organizador' : '') + (t && t.thru ? ' · ' + t.pts + ' pts' : '') + '</span></span>' +
-      (puedeEditar(j.matricula)
+      (yo() && String(yo().matricula) === String(j.matricula)
         ? '<button class="btn fin" data-acc="ir-perfil">Editar</button>'
         : '<span class="eyebrow" title="Solo lo edita su dueño">🔒</span>') +
       '</div>';
@@ -2797,7 +2847,12 @@ function barraEstado() {
   if (COLA.length && !navigator.onLine)
     return '<div class="barra-estado">📴 Sin señal · ' + COLA.length + ' golpe' + (COLA.length > 1 ? 's' : '') + ' esperando para subir</div>';
   if (sincronizando) return '<div class="barra-estado sync"><i class="girar"></i>Sincronizando…</div>';
-  if (COLA.length) return '<div class="barra-estado">⏳ ' + COLA.length + ' cambio' + (COLA.length > 1 ? 's' : '') + ' sin subir · <button class="btn fin" data-acc="sync">reintentar</button></div>';
+  if (descartados) return '<div class="barra-estado">⚠️ ' + descartados + ' golpe' + (descartados > 1 ? 's' : '') +
+    ' no se pudo subir: ' + esc(textoError(motivoDescarte || 'fallo')) + ' Revisá esa tarjeta. ' +
+    '<button class="btn fin" data-acc="sync-ok">entendido</button></div>';
+  if (COLA.length) return '<div class="barra-estado">⏳ ' + COLA.length + ' cambio' + (COLA.length > 1 ? 's' : '') + ' sin subir' +
+    (ultimoError && ultimoError !== 'sin_conexion' ? ' (' + esc(motivoCorto({ error: ultimoError })).replace(/\.$/, '') + ')' : '') +
+    ' · <button class="btn fin" data-acc="sync">reintentar</button></div>';
   if (!navigator.onLine) return '<div class="barra-estado">📴 Sin señal · todo lo que cargues se guarda igual</div>';
   return '';
 }
@@ -2869,6 +2924,7 @@ document.addEventListener('click', function (ev) {
   if (a === 'rapida-ryder') { UI.tab = 'rapidaRyder'; guardarUI(); pintar(); return; }
   if (a && a.indexOf('pr-') === 0) { accionRapida(a, v, b); return; }
   if (a === 'sync') { sincronizar(); return; }
+  if (a === 'sync-ok') { descartados = 0; motivoDescarte = ''; pintar(); return; }
   if (a === 'probar') { probarConexion(b); return; }
   if (a === 'avisos-activar') { activarAvisos(); return; }
   if (a === 'avisos-apagar') { desactivarAvisos(); return; }
