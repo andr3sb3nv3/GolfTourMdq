@@ -1497,7 +1497,8 @@ function prVistaHoyo(r, rr) {
       var rec = prRecibe(k, i);
       var mejor = netos[k] != null && netos[k] === mejorNeto;
       return '<div class="pr-fila' + (mejor ? ' mejor' : '') + '">' +
-        '<div class="pr-quien"><b>' + esc(nombreCorto(j.nombre)) + '</b>' +
+        '<div class="pr-quien"><b' + (PR.ryder ? ' class="' + (ryLados().a.indexOf(k) >= 0 ? 'txt-rojo' : 'txt-azul') + '"' : '') + '>' +
+        esc(nombreCorto(j.nombre)) + '</b>' +
         '<i>HCP ' + esc(j.hcp) + (rec ? ' · +' + rec + ' acá' : '') + '</i></div>' +
         '<button class="rd chico" data-acc="pr-menos" data-v="' + k + '">−</button>' +
         '<span class="pr-golpes' + (j.hoyos[i] == null ? ' sin' : '') + '">' + (j.hoyos[i] == null ? '–' : j.hoyos[i]) + '</span>' +
