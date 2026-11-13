@@ -2,7 +2,7 @@
 (function () {
 'use strict';
 
-var VERSION = 'v53';                     // tiene que coincidir con el CACHE del sw.js
+var VERSION = 'v55';                     // tiene que coincidir con el CACHE del sw.js
 var LS = { ses: 'gtm-sesion', est: 'gtm-estado', cola: 'gtm-cola', ui: 'gtm-ui' };
 var API = (window.GTM_CONFIG && window.GTM_CONFIG.api) || '';
 
@@ -51,15 +51,28 @@ function yo() {
   return SES ? jugador(SES.matricula) : null;
 }
 function esAdmin() { var y = yo(); return !!y && y.rol === 'admin'; }
-/* La tarjeta propia siempre. La de otro, sólo si juegan el mismo partido:
+/* La tarjeta propia siempre. La de otro, sólo si salen en la misma línea:
    en la Ryder anota uno por toda la línea. */
 function puedeEditar(mat, cid) {
   var y = yo();
   if (!y) return false;
   if (String(mat) === String(y.matricula)) return true;
   var c = cid || (canchaActual() || {}).id;
-  var m = c ? partidoDe(c, y.matricula) : null;
-  return !!m && enPartido(m, mat);
+  return !!c && partidosDeLinea(c, y.matricula).some(function (m) { return enPartido(m, mat); });
+}
+/* La línea es el grupo que sale junto, y depende de la modalidad del día:
+   - four-ball y foursome: el partido, 2 contra 2;
+   - singles: salen dos partidos juntos, el 1 con el 2, el 3 con el 4 y el 5 con el 6;
+   - scramble: cada trío sale en su línea (anota uno por el equipo).
+   Codigo.gs (mismaLinea) usa la misma regla. */
+function numPartido(m, k) { var n = parseInt(String(m.id).split('-').pop(), 10); return isNaN(n) ? k + 1 : n; }
+function partidosDeLinea(cid, mat) {
+  var m = partidoDe(cid, mat);
+  if (!m) return [];
+  var fmt = m.formato || (cancha(cid) || {}).formato;
+  if (fmt !== 'singles') return [m];
+  var ms = partidosDe(cid), g = Math.ceil(numPartido(m, ms.indexOf(m)) / 2);
+  return ms.filter(function (x, q) { return Math.ceil(numPartido(x, q) / 2) === g; });
 }
 function enPartido(m, mat) {
   return m.usa.concat(m.eur).some(function (x) { return String(x) === String(mat); });
@@ -633,8 +646,15 @@ function canchaPR(id) {
   for (var i = 0; i < CANCHAS_PR.length; i++) if (CANCHAS_PR[i].id === id) return CANCHAS_PR[i];
   return CANCHAS_PR[0];
 }
-var PR = leerLS('gtm-pr', null);     // partida en curso
-function guardarPR() { guardarLS('gtm-pr', PR); }
+/* Dos partidas guardadas por separado: la rápida de siempre y la de modo Ryder.
+   PR apunta a la que está en pantalla. */
+var PR_N = leerLS('gtm-pr', null), PR_R = leerLS('gtm-pr-ryder', null);
+var PR = PR_N;                       // partida en curso
+function guardarPR() {
+  if (!PR) return;
+  if (PR.ryder) { PR_R = PR; guardarLS('gtm-pr-ryder', PR); }
+  else { PR_N = PR; guardarLS('gtm-pr', PR); }
+}
 
 function prNueva() {
   return { id: null, cancha: 'jockey-roja', hoyo: 0, guardado: null, segunda: true, destacados: [],
@@ -852,6 +872,324 @@ function prTextoGuardado(r) {
   return partes.join(' | ');
 }
 
+/* ============ partida rápida modo Ryder ============
+   Cuatro jugadores, dos bandos de a dos. Uno anota los golpes de los cuatro y
+   con esos mismos golpes se ve cómo vendría el día en las cuatro modalidades
+   de la Ryder: four-ball, foursome, scramble e individual (dos singles).
+   El foursome y el scramble se juegan con una pelota por equipo, así que acá
+   se estiman con los golpes de cada uno:
+   - foursome: el promedio de los dos de la pareja;
+   - scramble: el mejor de los dos (la pelota que elegirían). */
+var RYDER_PR = [{ nombre: 'Benve', hcp: 16 }, { nombre: 'Sebas', hcp: 12 },
+                { nombre: 'Luqui', hcp: 13 }, { nombre: 'Fran', hcp: 20 }];
+var PR_PTS = { fourball: 1, foursome: 1, scramble: 1, singles: 2 };
+
+function prNuevaRyder() {
+  var p = prNueva();
+  p.ryder = true; p.cancha = 'jockey-azul'; p.pareja = null; p.segunda = false;
+  p.jugadores = RYDER_PR.map(function (j) { return { nombre: j.nombre, hcp: j.hcp, hoyos: nulos() }; });
+  return p;
+}
+function ryHcp(k) { return numeroHcp(PR.jugadores[k].hcp) || 0; }
+function ryParejaAuto() {                 // la más pareja por suma de handicaps
+  var ps = prParejas(4), mejor = 0, dif = Infinity;
+  ps.forEach(function (p, x) {
+    var d = Math.abs(ryHcp(p.a[0]) + ryHcp(p.a[1]) - ryHcp(p.b[0]) - ryHcp(p.b[1]));
+    if (d < dif) { dif = d; mejor = x; }
+  });
+  return mejor;
+}
+function ryPareja() { var k = PR.pareja; return (k == null || !prParejas(4)[k]) ? ryParejaAuto() : k; }
+function ryLados() { return prParejas(4)[ryPareja()]; }
+// En los singles se cruzan por handicap: el mejor de un lado contra el mejor del otro.
+function rySingles(l) {
+  var orden = function (x, y) { return ryHcp(x) - ryHcp(y); };
+  var a = l.a.slice().sort(orden), b = l.b.slice().sort(orden);
+  return [[a[0], b[0]], [a[1], b[1]]];
+}
+function ryNombres(lado) { return lado.map(function (k) { return nombreCorto(PR.jugadores[k].nombre); }).join(' y '); }
+
+/* Match play genérico sobre dos tiras de netos (null = hoyo sin cargar). */
+function ryMatch(na, nb) {
+  var N = 18, hoyos = [], i, arriba = 0, jugados = 0, cerradoEn = 0;
+  for (i = 0; i < N; i++) {
+    var a = na[i], b = nb[i];
+    hoyos.push({ a: a, b: b, gana: (a == null || b == null) ? null : (a < b ? 'a' : (b < a ? 'b' : '')) });
+  }
+  for (i = 0; i < N; i++) {
+    if (hoyos[i].gana === null) break;
+    jugados++;
+    if (hoyos[i].gana === 'a') arriba++; else if (hoyos[i].gana === 'b') arriba--;
+    if (Math.abs(arriba) > N - jugados) { cerradoEn = jugados; break; }
+  }
+  var m = { hoyos: hoyos, arriba: arriba, jugados: jugados, cerradoEn: cerradoEn, restan: N - jugados,
+            lider: arriba > 0 ? 'a' : (arriba < 0 ? 'b' : null) };
+  m.cerrado = !!cerradoEn || jugados === N;
+  var dif = Math.abs(arriba);
+  if (!jugados) { m.val = '–'; m.pie = 'sin empezar'; }
+  else if (cerradoEn) { m.val = m.restan > 0 ? dif + '&' + m.restan : dif + ' arriba'; m.pie = 'cerrado en el hoyo ' + jugados; }
+  else if (jugados === N && !arriba) { m.val = 'AS'; m.pie = 'empatado'; }
+  else { m.val = arriba ? dif + ' arriba' : 'AS'; m.pie = 'hoyo ' + jugados + ' · quedan ' + m.restan; }
+  return m;
+}
+// Golpes de cada uno en un hoyo, sólo si están los dos (o los cuatro) cargados
+function ryGolpes(lado, i) {
+  var gs = lado.map(function (k) { return PR.jugadores[k].hoyos[i]; });
+  return gs.some(function (g) { return g == null; }) ? null : gs;
+}
+
+function prRyder() {
+  var c = canchaPR(PR.cancha), l = ryLados(), pct = prPct(), i;
+  var ph = function (k) { return hcpDeJuego(PR.jugadores[k].hcp, pct); };
+  var siDe = function (i) { return Number(c.si[i]) || (i + 1); };
+  var r = { lados: l, mods: [] };
+
+  // Four-ball: mejor bola neta, todos contra el más bajo de los cuatro
+  var base4 = Math.min.apply(null, [0, 1, 2, 3].map(ph));
+  var fbNeto = function (lado) {
+    var t = [];
+    for (i = 0; i < 18; i++) {
+      var gs = ryGolpes(lado, i);
+      t.push(gs ? Math.min.apply(null, gs.map(function (g, x) { return g - golpesDif(ph(lado[x]) - base4, siDe(i)); })) : null);
+    }
+    return t;
+  };
+  var fb = ryMatch(fbNeto(l.a), fbNeto(l.b));
+  fb.clave = 'fourball'; fb.nombre = 'Four-ball'; fb.como = 'mejor bola neta';
+  r.mods.push(fb);
+
+  // Foursome: una pelota por pareja (acá, el promedio de los dos). Handicap del
+  // lado = promedio de los handicaps de juego; recibe la diferencia el más alto.
+  var hA = (ph(l.a[0]) + ph(l.a[1])) / 2, hB = (ph(l.b[0]) + ph(l.b[1])) / 2;
+  var difFs = Math.round(Math.abs(hA - hB)), recFs = hA > hB ? 'a' : 'b';
+  var fsNeto = function (lado, quien) {
+    var t = [];
+    for (i = 0; i < 18; i++) {
+      var gs = ryGolpes(lado, i);
+      t.push(gs ? (gs[0] + gs[1]) / 2 - (quien === recFs ? golpesDif(difFs, siDe(i)) : 0) : null);
+    }
+    return t;
+  };
+  var fs = ryMatch(fsNeto(l.a, 'a'), fsNeto(l.b, 'b'));
+  fs.clave = 'foursome'; fs.nombre = 'Foursome'; fs.como = 'promedio de la pareja';
+  fs.dif = difFs; fs.recibe = difFs ? recFs : null;
+  r.mods.push(fs);
+
+  // Scramble: medal neto. Golpes del equipo = el mejor de los dos en cada hoyo.
+  // Handicap del equipo: 35% del más bajo + 15% del más alto (scramble de a dos, 18 hoyos).
+  var hcpSc = function (lado) {
+    var hs = lado.map(ryHcp).sort(function (x, y) { return x - y; });
+    return r1(hs[0] * 0.35 + hs[1] * 0.15);
+  };
+  var scLado = function (lado) {
+    var s = { hcp: hcpSc(lado), thru: 0, bruto: 0, parJug: 0, hoyos: [] };
+    for (i = 0; i < 18; i++) {
+      var gs = ryGolpes(lado, i), g = gs ? Math.min(gs[0], gs[1]) : null;
+      s.hoyos.push(g);
+      if (g != null) { s.thru++; s.bruto += g; s.parJug += Number(c.par[i]) || 4; }
+    }
+    s.completo = s.thru === 18;
+    s.neto = s.completo ? r1(s.bruto - s.hcp) : null;
+    s.proy = s.thru ? (s.bruto - s.parJug) - s.hcp * s.thru / 18 : null;
+    return s;
+  };
+  var sa = scLado(l.a), sb = scLado(l.b);
+  var sc = { clave: 'scramble', nombre: 'Scramble', como: 'medal neto, el mejor de los dos', medal: true, sa: sa, sb: sb,
+             jugados: Math.min(sa.thru, sb.thru), hoyos: [] };
+  for (i = 0; i < 18; i++) sc.hoyos.push({ a: sa.hoyos[i], b: sb.hoyos[i],
+    gana: (sa.hoyos[i] == null || sb.hoyos[i] == null) ? null : (sa.hoyos[i] < sb.hoyos[i] ? 'a' : (sb.hoyos[i] < sa.hoyos[i] ? 'b' : '')) });
+  sc.cerrado = sa.completo && sb.completo;
+  var dsc = sc.cerrado ? r1(sb.neto - sa.neto) : (sa.thru && sb.thru ? r1(sb.proy - sa.proy) : 0);
+  sc.arriba = dsc; sc.lider = dsc > 0 ? 'a' : (dsc < 0 ? 'b' : null);
+  if (!sa.thru || !sb.thru) { sc.val = '–'; sc.pie = 'sin empezar'; }
+  else {
+    var ab = Math.abs(dsc);
+    sc.val = ab ? fmtNum(ab) + (ab === 1 ? ' golpe' : ' golpes') : 'AS';
+    sc.pie = sc.cerrado ? 'final · neto ' + fmtNum(sa.neto) + ' contra ' + fmtNum(sb.neto)
+                        : 'neto proyectado · hoyo ' + sc.jugados;
+  }
+  r.mods.push(sc);
+
+  // Individual: dos singles, cada uno con la diferencia entre los dos
+  r.singles = rySingles(l).map(function (par) {
+    var base = Math.min(ph(par[0]), ph(par[1]));
+    var tira = function (k) {
+      var t = [];
+      for (i = 0; i < 18; i++) {
+        var g = PR.jugadores[k].hoyos[i];
+        t.push(g == null ? null : g - golpesDif(ph(k) - base, siDe(i)));
+      }
+      return t;
+    };
+    var m = ryMatch(tira(par[0]), tira(par[1]));
+    m.ka = par[0]; m.kb = par[1];
+    m.dif = Math.abs(ph(par[0]) - ph(par[1]));
+    m.recibe = ph(par[0]) > ph(par[1]) ? par[0] : (ph(par[1]) > ph(par[0]) ? par[1] : null);
+    return m;
+  });
+
+  // Puntos: lo cerrado vale entero; lo que está en juego, "si terminara ahora"
+  var pts = function (m, valor) {
+    if (!m.cerrado && !(m.jugados || 0)) return [0, 0];
+    return m.lider === 'a' ? [valor, 0] : (m.lider === 'b' ? [0, valor] : [valor / 2, valor / 2]);
+  };
+  r.ptsA = 0; r.ptsB = 0; r.enJuego = 0; r.definidos = 0;
+  r.mods.forEach(function (m) {
+    var p = pts(m, 1); r.ptsA += p[0]; r.ptsB += p[1];
+    if (m.cerrado) r.definidos++; else if (m.jugados) r.enJuego++;
+  });
+  r.singles.forEach(function (m) {
+    var p = pts(m, 1); r.ptsA += p[0]; r.ptsB += p[1];
+    if (m.cerrado) r.definidos++; else if (m.jugados) r.enJuego++;
+  });
+  return r;
+}
+
+// Color de cada bando: el lado A en rojo y el B en azul, como USA y Europa.
+function ryClase(lider) { return lider === 'a' ? ' es-rojo' : (lider === 'b' ? ' es-azul' : ' es-iguales'); }
+function ryEstado(m, nombreA, nombreB, titulo) {
+  var quien = !m.jugados && !m.cerrado ? titulo + ' · sin empezar'
+    : titulo + ' · ' + (m.lider === 'a' ? nombreA : (m.lider === 'b' ? nombreB : 'van iguales'));
+  return '<div class="estado-match' + (m.jugados ? ryClase(m.lider) : ' es-iguales') + '">' +
+    '<span class="em-quien">' + esc(quien) + '</span><b class="em-val">' + esc(m.val) + '</b>' +
+    '<span class="em-pie">' + esc(m.pie) + '</span></div>';
+}
+function ryTira(m, fila) {                    // los hoyos de un match, pintados por quién lo ganó
+  var h = '<div class="p-hoyos">';
+  m.hoyos.forEach(function (x, k) {
+    if (m.cerradoEn && k >= m.cerradoEn) { h += '<i class="fin">' + (k + 1) + '</i>'; return; }
+    var cls = x.gana === 'a' ? 'u' : (x.gana === 'b' ? 'e' : (x.gana === '' ? 'h' : ''));
+    h += '<i class="' + cls + '">' + (k + 1) + '</i>';
+  });
+  return h + '</div>';
+}
+
+function prSelectorPareja() {
+  var sel = ryPareja(), auto = ryParejaAuto();
+  return '<div class="ry-parejas">' + prParejas(4).map(function (p, x) {
+    return '<button data-acc="pr-pareja" data-v="' + x + '" aria-pressed="' + (sel === x) + '">' +
+      '<span class="txt-rojo">' + esc(ryNombres(p.a)) + '</span><i>vs</i>' +
+      '<span class="txt-azul">' + esc(ryNombres(p.b)) + '</span>' +
+      (x === auto ? '<small>la más pareja</small>' : '') + '</button>';
+  }).join('') + '</div>';
+}
+
+function prVistaArmadoRyder() {
+  var l = ryLados(), s = rySingles(l);
+  return '<div class="pila">' +
+    nota('<div class="candado"><span>🏆</span><span><b>Partida rápida modo Ryder.</b> Cuatro jugadores en dos parejas. ' +
+    'Uno anota los golpes de los cuatro y con esos mismos golpes se ve, hoyo por hoyo, cómo vendría el día en ' +
+    '<b>four-ball, foursome, scramble e individual</b>.</span></div>') +
+    '<section class="card"><div class="sec-tit"><h2>Jugadores</h2><span class="eyebrow">nombre y hcp</span></div>' +
+    prEditorJugadores(false) +
+    nota('<div class="candado"><span>✏️</span><span>Vienen cargados con el handicap de la planilla de la gira. ' +
+    'Si alguno cambió, tocalo acá.</span></div>') + '</section>' +
+    '<section class="card"><div class="sec-tit"><h2>Parejas</h2></div>' + prSelectorPareja() +
+    '<p class="ry-cruces">Individual: <b>' + esc(nombreCorto(PR.jugadores[s[0][0]].nombre)) + '</b> vs <b>' +
+    esc(nombreCorto(PR.jugadores[s[0][1]].nombre)) + '</b> y <b>' + esc(nombreCorto(PR.jugadores[s[1][0]].nombre)) +
+    '</b> vs <b>' + esc(nombreCorto(PR.jugadores[s[1][1]].nombre)) + '</b></p>' +
+    nota('<div class="candado"><span>🤝</span><span>Los singles se cruzan por handicap: el más bajo de cada pareja contra ' +
+    'el más bajo de la otra. Las parejas se pueden cambiar también en medio de la vuelta y se recalcula todo.</span></div>') +
+    '</section>' +
+    '<section class="card"><div class="sec-tit"><h2>Cancha</h2></div>' +
+    '<div class="grid2" style="grid-template-columns:1fr 1fr;gap:8px">' +
+    CANCHAS_PR.map(function (c) {
+      var tot = c.par.reduce(function (a, b) { return a + b; }, 0);
+      return '<button class="pr-op" data-acc="pr-cancha" data-v="' + c.id + '" aria-pressed="' +
+        (PR.cancha === c.id) + '">' + esc(c.nombre) + '<i>par ' + tot + '</i></button>';
+    }).join('') + '</div></section>' +
+    '<section class="card"><div class="sec-tit"><h2>Handicap del match</h2></div>' + prSelectorPct() +
+    nota('<div class="candado"><span>⚖️</span><span>' + prTextoPct() + ' En la Ryder se juega al 85%.</span></div>') + '</section>' +
+    '<div class="acc"><button class="btn pri" data-acc="pr-empezar" style="flex:1;padding:13px">Empezar la partida</button></div>' +
+    '</div>';
+}
+
+/* Lo que pasó en ESTE hoyo en cada modalidad */
+function ryHoyoDetalle(rr, i) {
+  var l = rr.lados, nA = ryNombres(l.a), nB = ryNombres(l.b);
+  var res = function (x, a, b) {
+    if (x.gana === null) return '–';
+    return x.gana === '' ? 'se reparte' : (x.gana === 'a' ? a : b);
+  };
+  var fila = function (titulo, x, a, b, cifras) {
+    return '<div class="hm-fila ry-hm"><span class="hm-tic' + (x.gana === 'a' ? ' r' : (x.gana === 'b' ? ' a' : '')) + '"></span>' +
+      '<span class="hm-quien">' + esc(titulo) + '</span>' +
+      '<b class="' + (x.gana === 'a' ? 'txt-rojo' : (x.gana === 'b' ? 'txt-azul' : '')) + '">' +
+      (cifras ? '<i>' + cifras + '</i>' : '') + esc(res(x, a, b)) + '</b></div>';
+  };
+  var num = function (v) { return v == null ? '·' : fmtNum(v); };
+  var h = '<div class="pr-hm"><h4>Este hoyo · las cuatro modalidades</h4>';
+  rr.mods.forEach(function (m) {
+    var x = m.hoyos[i], fuera = m.cerradoEn && i >= m.cerradoEn;
+    h += fila(m.nombre + (fuera ? ' (ya cerrado)' : ''), fuera ? { gana: null } : x, nA, nB,
+      x.a == null ? '' : num(x.a) + '–' + num(x.b) + (m.medal ? ' golpes' : ' netos'));
+  });
+  rr.singles.forEach(function (m) {
+    var x = m.hoyos[i], a = nombreCorto(PR.jugadores[m.ka].nombre), b = nombreCorto(PR.jugadores[m.kb].nombre);
+    var fuera = m.cerradoEn && i >= m.cerradoEn;
+    h += fila('Individual ' + a + ' vs ' + b + (fuera ? ' (ya cerrado)' : ''), fuera ? { gana: null } : x, a, b,
+      x.a == null ? '' : x.a + '–' + x.b + ' netos');
+  });
+  return h + '</div>';
+}
+
+function ryResumen(rr) {
+  var l = rr.lados, nA = ryNombres(l.a), nB = ryNombres(l.b);
+  var tot = rr.ptsA + rr.ptsB, pa = tot ? Math.round(rr.ptsA / tot * 100) : 50;
+  var h = '<section class="card"><div class="sec-tit"><h2>Así vendría el día</h2>' +
+    '<span class="eyebrow">' + (rr.definidos + rr.enJuego) + ' de 5 en juego</span></div>' +
+    '<div class="ry-marcador"><div class="txt-rojo"><b>' + fmtPunto(rr.ptsA) + '</b><span>' + esc(nA) + '</span></div>' +
+    '<div class="txt-azul"><b>' + fmtPunto(rr.ptsB) + '</b><span>' + esc(nB) + '</span></div></div>' +
+    '<div class="barra-eq"><i class="r" style="width:' + pa + '%"></i><i class="a" style="width:' + (100 - pa) + '%"></i></div>' +
+    '<div class="meta-eq"><span>' + rr.enJuego + ' en juego</span><span>' + rr.definidos + ' definidos</span></div>' +
+    nota('<div class="candado"><span>🏆</span><span>Un punto por modalidad: four-ball, foursome y scramble, y uno por cada ' +
+    'single (5 en total). Lo que está en juego suma como si terminara ahora: el que va arriba se lleva el punto y si van iguales, medio.</span></div>') +
+    '</section>';
+
+  rr.mods.forEach(function (m) {
+    h += '<section class="card"><div class="sec-tit"><h2>' + esc(m.nombre) + '</h2><span class="eyebrow">' + esc(m.como) + '</span></div>' +
+      ryEstado(m, nA, nB, m.nombre) + ryTira(m);
+    if (m.clave === 'foursome') h += '<p class="ry-cruces">' + (m.recibe ? '<b>' + esc(ryNombres(l[m.recibe])) + '</b> recibe ' + m.dif +
+      ' golpe' + (m.dif === 1 ? '' : 's') : 'Sin golpes de diferencia') + '</p>';
+    if (m.clave === 'scramble') h += '<div class="sc-res">' + [[m.sa, nA, 'txt-rojo'], [m.sb, nB, 'txt-azul']].map(function (x) {
+      var s = x[0];
+      return '<div class="sc-l"><span class="' + x[2] + '">' + esc(x[1]) + '</span><span>' +
+        (s.completo ? 'Neto <b>' + fmtNum(s.neto) + '</b> <i>(' + s.bruto + ' − ' + fmtNum(s.hcp) + ')</i>'
+                    : (s.thru ? 'Bruto ' + s.bruto + ' en ' + s.thru + ' · ' + signo(s.bruto - s.parJug) : 'Sin empezar')) +
+        '</span><span>hcp ' + fmtNum(s.hcp) + '</span></div>';
+    }).join('') + '</div>';
+    h += '</section>';
+  });
+
+  h += '<section class="card"><div class="sec-tit"><h2>Individual</h2><span class="eyebrow">dos singles</span></div>';
+  rr.singles.forEach(function (m) {
+    var a = nombreCorto(PR.jugadores[m.ka].nombre), b = nombreCorto(PR.jugadores[m.kb].nombre);
+    h += ryEstado(m, a, b, a + ' vs ' + b) + ryTira(m) +
+      '<p class="ry-cruces">' + (m.recibe != null ? '<b>' + esc(nombreCorto(PR.jugadores[m.recibe].nombre)) + '</b> recibe ' + m.dif +
+        ' golpe' + (m.dif === 1 ? '' : 's') : 'Sin golpes de diferencia') + '</p>';
+  });
+  h += '</section>';
+
+  h += nota('<div class="candado"><span>🧮</span><span><b>Four-ball:</b> mejor bola neta de cada pareja; el más bajo de los cuatro va ' +
+    'scratch. <b>Foursome:</b> se juega con una pelota por pareja; acá se estima con el <b>promedio</b> de los dos, y la pareja ' +
+    'de handicap más alto recibe la diferencia entre los promedios. <b>Scramble:</b> medal neto con el <b>mejor golpe de los dos</b> ' +
+    'en cada hoyo; handicap del equipo 35% del más bajo + 15% del más alto. <b>Individual:</b> match play, cada uno contra el ' +
+    'de su mismo lugar en la otra pareja. Los colores son los de los bandos: rojo la primera pareja, azul la segunda.</span></div>');
+  return h;
+}
+
+function ryTextoGuardado(rr) {
+  var l = rr.lados, nA = ryNombres(l.a), nB = ryNombres(l.b);
+  var quien = function (m, a, b) { return m.lider === 'a' ? a : (m.lider === 'b' ? b : 'iguales'); };
+  var partes = rr.mods.map(function (m) { return m.nombre + ': ' + quien(m, nA, nB) + ' ' + m.val; });
+  rr.singles.forEach(function (m) {
+    var a = nombreCorto(PR.jugadores[m.ka].nombre), b = nombreCorto(PR.jugadores[m.kb].nombre);
+    partes.push(a + ' vs ' + b + ': ' + quien(m, a, b) + ' ' + m.val);
+  });
+  partes.push('Total ' + nA + ' ' + fmtPunto(rr.ptsA) + ' – ' + fmtPunto(rr.ptsB) + ' ' + nB);
+  return partes.join(' | ');
+}
+
 /* ============ modo testeo ============ */
 var APELLIDOS = ['Urtubey', 'Benvenuto', 'Benítez Cruz', 'Socas', 'Bergadá', 'Beccar Varela',
                  'Caputo', 'Santamarina', 'Arizu', 'Viboud', 'Paz', 'Gazzera'];
@@ -964,9 +1302,11 @@ function salirTest() {
   if (SES && navigator.onLine) traerEstado().then(pintar, function () {});
 }
 
-function vistaRapida() {
-  if (!PR) PR = prNueva();
-  return PR.id ? prVistaJuego() : prVistaArmado();
+function vistaRapida(ryder) {
+  if (ryder) PR = PR_R || (PR_R = prNuevaRyder());
+  else PR = PR_N || (PR_N = prNueva());
+  if (PR.id) return prVistaJuego();
+  return ryder ? prVistaArmadoRyder() : prVistaArmado();
 }
 
 /* Nombre y handicap de cada uno. Se puede tocar antes de empezar y también
@@ -1059,7 +1399,7 @@ function prTextoDesempate() {
 }
 
 function prVistaJuego() {
-  var r = prTodo();
+  var r = prTodo(), rr = PR.ryder ? prRyder() : null;
   var seg = '<div class="seg" role="group">' +
     '<button data-acc="pr-vista" data-v="hoyo" aria-pressed="' + (PR.vista !== 'vuelta') + '">Hoyo</button>' +
     '<button data-acc="pr-vista" data-v="vuelta" aria-pressed="' + (PR.vista === 'vuelta') + '">La vuelta</button></div>';
@@ -1068,7 +1408,8 @@ function prVistaJuego() {
       'La planilla no la pudo abrir porque ' + esc(PR.motivoLocal) + ' Jugá tranquilo: ' +
       'se guarda acá y la subís cuando se pueda.</span></div>' +
       '<div class="acc" style="padding-top:0"><button class="btn pri" data-acc="pr-subir">Subirla a la planilla</button></div>'
-    : '') + prResumen(r) +
+    : '') + (rr ? ryResumen(rr) + '<section class="card"><div class="sec-tit"><h2>Parejas</h2></div>' + prSelectorPareja() + '</section>'
+                : prResumen(r)) +
     '<section class="card"><div class="sec-tit"><h2>Jugadores</h2>' +
     '<span class="eyebrow">nombre y hcp</span></div>' + prEditorJugadores(false) +
     nota('<div class="candado"><span>✏️</span><span>Cambiá un nombre y se actualiza en todos los match, ' +
@@ -1077,7 +1418,7 @@ function prVistaJuego() {
     '<button class="btn fin peli" data-acc="pr-cerrar">Terminar y salir</button></div>' +
     (PR.guardado ? '<div class="candado solo"><span>✅</span><span>Guardada a las ' + esc(PR.guardado) + '.</span></div>' : '');
   return '<div class="pila">' + seg +
-    (PR.vista === 'vuelta' ? prVistaVuelta(r) : prVistaHoyo(r)) + pie + '</div>';
+    (PR.vista === 'vuelta' ? prVistaVuelta(r) : prVistaHoyo(r, rr)) + pie + '</div>';
 }
 
 /* La vuelta entera: los 18 hoyos de todos, con las marcas de siempre.
@@ -1134,7 +1475,7 @@ function prVistaVuelta(r) {
     '</section>';
 }
 
-function prVistaHoyo(r) {
+function prVistaHoyo(r, rr) {
   var c = canchaPR(PR.cancha), i = Math.min(Math.max(PR.hoyo, 0), 17);
   var par = Number(c.par[i]) || 4, si = Number(c.si[i]) || (i + 1);
   var netos = r.tabla[i];
@@ -1143,8 +1484,8 @@ function prVistaHoyo(r) {
 
   var h = prSelectorAnoto() +
     '<section class="card"><div class="p-cab"><span class="eyebrow">' + esc(c.nombre) + '</span>' +
-    '<span class="p-estado">' + r.matches.length + ' match' + (r.matches.length > 1 ? 'es' : '') +
-    (r.sindicatos.length ? ' · ' + r.sindicatos.length + ' sindicato' + (r.sindicatos.length > 1 ? 's' : '') : '') +
+    '<span class="p-estado">' + (rr ? 'Ryder · 4 modalidades' : r.matches.length + ' match' + (r.matches.length > 1 ? 'es' : '') +
+    (r.sindicatos.length ? ' · ' + r.sindicatos.length + ' sindicato' + (r.sindicatos.length > 1 ? 's' : '') : '')) +
     '</span></div>' +
     '<div class="hoyo" style="padding-bottom:8px"><div class="n">' + (i + 1) + '</div>' +
     '<div class="datos"><span class="pin">Par ' + par + '</span><span class="pin">SI ' + si + '</span></div></div>' +
@@ -1166,7 +1507,7 @@ function prVistaHoyo(r) {
         '</div>';
     }).join('') +
 
-    prHoyoDetalle(r, i) +
+    (rr ? ryHoyoDetalle(rr, i) : prHoyoDetalle(r, i)) +
 
     '<div class="navh" style="margin:12px 14px"><button data-acc="pr-prev"' + (i === 0 ? ' disabled' : '') + '>← Hoyo ' + (i || 1) + '</button>' +
     '<button class="pri" data-acc="pr-next">' + (i === 17 ? 'Terminar' : 'Hoyo ' + (i + 2) + ' →') + '</button></div>' +
@@ -1905,53 +2246,67 @@ function vistaLinea() {
   var c = canchaActual(), y = yo();
   var m = partidoDe(c.id, y.matricula);
   if (!m) return null;
-  var pr = calcularPartido(m);
-  if (!pr) return null;
+  var ms = partidosDeLinea(c.id, y.matricula);
+  var prs = ms.map(calcularPartido);
+  if (prs.some(function (p) { return !p; })) return null;
+  var pr = prs[ms.indexOf(m)], varios = ms.length > 1;
   var N = pr.n || 18, fmtM = m.formato || c.formato;
   var i = Math.min(Math.max(UI.hoyo, 0), N - 1);
   var par = Number(c.par[i]) || 4, si = Number(c.si[i]) || (i + 1);
-  var fs = unaPelota(fmtM), gp = fs ? golpesUnaPelota(m) : null;
-  var hh = pr.hoyos[i];
+  var fs = unaPelota(fmtM);
+  var vsDe = function (x) {
+    return x.m.usa.concat(x.m.eur).map(jugador).filter(Boolean).map(function (j) { return nombreCorto(j.nombre); }).join(' vs ');
+  };
+  var pinGana = function (x) {
+    var g = x.hoyos[i].gana;
+    return g ? '<span class="pin ' + (g === 'usa' ? 'gana-rojo' : 'gana-azul') + '">' +
+      esc(varios ? nombreCorto((g === 'usa' ? x.usa : x.eur)[0].nombre) : (g === 'usa' ? nombreEquipo('rojo') : nombreEquipo('azul'))) +
+      ' gana el hoyo</span>' : '';
+  };
 
-  // encabezado del hoyo, con el estado del match
+  // encabezado del hoyo, con el estado del match (en singles, de los dos de la línea)
   var h = '<div class="pila">' + chipsCancha(c.id, 'sel-cancha', false) + selectorCarga(m) +
     '<section class="card"><div class="p-cab"><span class="eyebrow">' + esc(c.nombre) + '</span>' +
-    '<span class="p-estado">' + esc(FORMATOS[m.formato || c.formato] || 'match') + '</span></div>' +
-    estadoMatchHTML(pr) +
+    '<span class="p-estado">' + esc(FORMATOS[fmtM] || 'match') + (varios ? ' · ' + ms.length + ' partidos en la línea' : '') + '</span></div>' +
+    prs.map(function (x) {
+      return (varios ? '<div class="linea-vs">' + esc(vsDe(x)) + '</div>' : '') + estadoMatchHTML(x);
+    }).join('') +
     '<div class="hoyo" style="padding-bottom:8px"><div class="n">' + (i + 1) + '</div>' +
     '<div class="datos"><span class="pin">Par ' + par + '</span><span class="pin">SI ' + si + '</span>' +
-    (hh.gana ? '<span class="pin ' + (hh.gana === 'usa' ? 'gana-rojo' : 'gana-azul') + '">' +
-      esc(hh.gana === 'usa' ? nombreEquipo('rojo') : nombreEquipo('azul')) + ' gana el hoyo</span>' : '') +
-    '</div></div>';
+    prs.map(pinGana).join('') + '</div></div>';
 
   // una fila por jugador; en foursomes, una por pareja
   var filas = [];
-  if (fs) {
-    ['usa', 'eur'].forEach(function (lado) {
-      var js = m[lado].map(jugador).filter(Boolean);
-      var nombres = js.map(function (x) { return nombreCorto(x.nombre); });
-      filas.push({ etiqueta: nombres.length > 2 ? nombres.slice(0, -1).join(', ') + ' y ' + nombres[nombres.length - 1] : nombres.join(' y '),
-                   sub: nombreEquipo(lado === 'usa' ? 'rojo' : 'azul') + (fmtM === 'scramble' ? ' · hcp equipo ' + (Math.round((lado === 'usa' ? gp.hcpUsa : gp.hcpEur) * 10) / 10) : ''),
-                   clase: lado === 'usa' ? ' txt-rojo' : ' txt-azul',
-                   golpes: gp[lado][i],
-                   valor: tarjetaEquipo(m.id, lado)[i],
-                   destino: 'lado:' + lado });
-    });
-  } else {
-    var js = jugadoresDeLinea(m);
-    var base = Math.min.apply(null, js.map(ph));
-    js.forEach(function (x) {
-      filas.push({ etiqueta: nombreCorto(x.nombre), sub: 'HCP ' + x.handicap + ' · juega ' + ph(x),
-                   clase: claseTxt(x),
-                   golpes: golpesDif(ph(x) - base, si),
-                   valor: hoyosDe(c.id, x.matricula)[i],
-                   destino: 'jug:' + x.matricula });
-    });
-  }
+  ms.forEach(function (mm) {
+    if (fs) {
+      var gp = golpesUnaPelota(mm);
+      ['usa', 'eur'].forEach(function (lado) {
+        var js = mm[lado].map(jugador).filter(Boolean);
+        var nombres = js.map(function (x) { return nombreCorto(x.nombre); });
+        filas.push({ etiqueta: nombres.length > 2 ? nombres.slice(0, -1).join(', ') + ' y ' + nombres[nombres.length - 1] : nombres.join(' y '),
+                     sub: nombreEquipo(lado === 'usa' ? 'rojo' : 'azul') + (fmtM === 'scramble' ? ' · hcp equipo ' + (Math.round((lado === 'usa' ? gp.hcpUsa : gp.hcpEur) * 10) / 10) : ''),
+                     clase: lado === 'usa' ? ' txt-rojo' : ' txt-azul',
+                     golpes: gp[lado][i],
+                     valor: tarjetaEquipo(mm.id, lado)[i],
+                     destino: 'lado:' + lado });
+      });
+    } else {
+      var js = jugadoresDeLinea(mm);
+      var base = Math.min.apply(null, js.map(ph));
+      js.forEach(function (x) {
+        filas.push({ etiqueta: nombreCorto(x.nombre), sub: 'HCP ' + x.handicap + ' · juega ' + ph(x),
+                     clase: claseTxt(x),
+                     golpes: golpesDif(ph(x) - base, si),
+                     valor: hoyosDe(c.id, x.matricula)[i],
+                     destino: 'jug:' + x.matricula,
+                     corte: varios && filas.length > 0 && js.indexOf(x) === 0 });
+      });
+    }
+  });
 
   var puedo = enPartido(m, y.matricula);      // cualquiera de la línea puede anotar
   h += filas.map(function (f) {
-    return '<div class="pr-fila' + (f.golpes ? ' mejor' : '') + (f.destino.indexOf('lado:') === 0 ? ' lado' : '') + '">' +
+    return '<div class="pr-fila' + (f.golpes ? ' mejor' : '') + (f.destino.indexOf('lado:') === 0 ? ' lado' : '') + (f.corte ? ' corte' : '') + '">' +
       '<div class="pr-quien"><b class="' + f.clase.trim() + '">' + esc(f.etiqueta) + '</b>' +
       '<i>' + esc(f.sub) + (f.golpes ? ' · ' : '') +
       (f.golpes ? '<b class="tiro' + f.clase + '">tira ' + f.golpes + '</b>' : '') + '</i></div>' +
@@ -1966,28 +2321,29 @@ function vistaLinea() {
     '>← Hoyo ' + (i || 1) + '</button><button class="pri" data-acc="hoyo-next">' +
     (i === N - 1 ? 'Terminar' : 'Hoyo ' + (i + 2) + ' →') + '</button></div>' +
     '<div class="dots">' + c.par.slice(0, N).map(function (_, k) {
-      var lleno = pr.hoyos[k].usa != null && pr.hoyos[k].eur != null;
+      var lleno = prs.every(function (x) { return x.hoyos[k].usa != null && x.hoyos[k].eur != null; });
       return '<button data-acc="ir-hoyo" data-v="' + k + '" class="' + (lleno ? 'hecho' : '') +
         '" aria-current="' + (k === i) + '">' + (k + 1) + '</button>';
     }).join('') + '</div></section>' +
 
-    (puedo ? nota('<div class="candado solo"><span>✍️</span><span>Estás anotando por <b>toda la línea</b>. ' +
+    (puedo ? nota('<div class="candado solo"><span>✍️</span><span>Estás anotando por <b>toda la línea</b>' +
+      (varios ? ': en singles salen ' + ms.length + ' partidos juntos y cargás a los ' + filas.length : '') + '. ' +
       'Los demás lo ven desde su celular sin tener que cargar nada.</span></div>')
            : nota('<div class="candado solo"><span>👀</span><span>Lo está anotando otro de tu línea. ' +
       'Acá lo ves en vivo, se actualiza solo.</span></div>')) +
     (fmtM === 'scramble' ? nota(notaScramble()) :
     nota('<div class="candado solo"><span>⚖️</span><span>Todos juegan el match con el <b>85%</b> de su handicap. ' +
-    'Sobre esos handicaps reducidos, el más bajo va scratch y los demás reciben la diferencia en los hoyos de ' +
-    'menor índice.</span></div>')) +
-    tiraLinea(pr) + '</div>';
+    'Sobre esos handicaps reducidos, el más bajo ' + (varios ? 'de cada partido ' : '') + 'va scratch y ' +
+    (varios ? 'el otro recibe' : 'los demás reciben') + ' la diferencia en los hoyos de menor índice.</span></div>')) +
+    prs.map(function (x) { return tiraLinea(x, varios ? vsDe(x) : ''); }).join('') + '</div>';
   return h;
 }
 
 
 // Cómo se viene resolviendo el match, hoyo por hoyo
-function tiraLinea(pr) {
+function tiraLinea(pr, titulo) {
   if (!pr.jugados) return '';
-  var h = '<section class="card"><div class="sec-tit"><h2>Cómo va el match</h2>' +
+  var h = '<section class="card"><div class="sec-tit"><h2>' + esc(titulo || 'Cómo va el match') + '</h2>' +
     '<span class="eyebrow">' + pr.jugados + ' hoyos</span></div>' +
     '<div class="scroll" style="margin:0 14px 12px"><table class="tc"><thead><tr><th class="lbl">Hoyo</th>';
   var k;
@@ -2408,7 +2764,7 @@ function barraEstado() {
    salen todas juntas al pie de la pantalla. Los avisos de problema (.aviso) sí
    quedan donde está el problema. */
 var NOTAS = [];
-function nota(html) { NOTAS.push(html); return ''; }
+function nota(html) { if (NOTAS.indexOf(html) < 0) NOTAS.push(html); return ''; }
 function notasHTML() {
   if (!NOTAS.length) return '';
   var h = '<section class="notas"><h3>Cómo funciona</h3>' + NOTAS.join('') + '</section>';
@@ -2425,7 +2781,8 @@ function pintar() {
   var vista = UI.tab === 'cargar' ? vistaCargar() : UI.tab === 'tarjetas' ? vistaTarjetas() :
     UI.tab === 'jugadores' ? vistaJugadores() : UI.tab === 'canchas' ? vistaCanchas() :
     UI.tab === 'ryder' ? vistaRyder() : UI.tab === 'perfil' ? vistaPerfil() :
-    UI.tab === 'testeo' ? vistaTesteo() : UI.tab === 'rapida' ? vistaRapida() : vistaPosiciones();
+    UI.tab === 'testeo' ? vistaTesteo() : UI.tab === 'rapida' ? vistaRapida(false) :
+    UI.tab === 'rapidaRyder' ? vistaRapida(true) : vistaPosiciones();
   app.innerHTML = barraEstado() + '<div class="topbar"><div class="topbar-in">' +
     '<a class="link-gira" href="gira/">🧳 <b>Organización del viaje</b><span>agenda · reservas · pagos · autos</span><i>→</i></a>' +
     '<div class="cab-top">' +
@@ -2436,6 +2793,7 @@ function pintar() {
     '<button class="chip-test' + (TEST ? ' on' : '') + '" ' +
     (TEST ? 'data-acc="tab" data-v="testeo"' : 'data-acc="test-entrar"') + '>🧪 Testeo</button>' +
     '<button class="chip-test' + (UI.tab === 'rapida' ? ' on' : '') + '" data-acc="rapida">⚡ Partida</button>' +
+    '<button class="chip-test' + (UI.tab === 'rapidaRyder' ? ' on' : '') + '" data-acc="rapida-ryder">🏆 Ryder</button>' +
     '<button class="btn-perfil" data-acc="ir-perfil">' + avatar(y) +
     '<span class="nom">' + esc(nombreCorto(y ? y.nombre : '')) + '</span></button></div></div>' +
     '<nav class="tabs">' + TABS.map(function (t) {
@@ -2466,6 +2824,7 @@ document.addEventListener('click', function (ev) {
   if (a === 'test-regenerar') { if (confirm('Se sortean de nuevo handicaps, tarjetas y partidos. ¿Seguimos?')) entrarTest(true); return; }
   if (a === 'test-yo') { UI.yoTest = v; UI.hoyo = 0; UI.selector = false; guardarUI(); pintar(); return; }
   if (a === 'rapida') { UI.tab = 'rapida'; guardarUI(); pintar(); return; }
+  if (a === 'rapida-ryder') { UI.tab = 'rapidaRyder'; guardarUI(); pintar(); return; }
   if (a && a.indexOf('pr-') === 0) { accionRapida(a, v, b); return; }
   if (a === 'sync') { sincronizar(); return; }
   if (a === 'probar') { probarConexion(b); return; }
@@ -2702,6 +3061,7 @@ function accionRapida(a, v, b) {
   else if (a === 'pr-anoto') PR.anoto = (v === '' ? null : Number(v));
   else if (a === 'pr-cancha') PR.cancha = v;
   else if (a === 'pr-segunda') PR.segunda = v === '1';
+  else if (a === 'pr-pareja') PR.pareja = i;
   else if (a === 'pr-empezar') { prEmpezar(); return; }
   else if (a === 'pr-prev') PR.hoyo = Math.max(0, PR.hoyo - 1);
   else if (a === 'pr-next') PR.hoyo = Math.min(17, PR.hoyo + 1);
@@ -2717,7 +3077,7 @@ function accionRapida(a, v, b) {
   else if (a === 'pr-guardar') { prGuardarRemoto(true); return; }
   else if (a === 'pr-cerrar') {
     if (!confirm('¿Terminar la partida? Se guarda en la planilla y volvés al armado.')) return;
-    prGuardarRemoto(false).then(function () { PR = prNueva(); guardarPR(); pintar(); }, function () {});
+    prGuardarRemoto(false).then(function () { PR = PR.ryder ? prNuevaRyder() : prNueva(); guardarPR(); pintar(); }, function () {});
     return;
   }
   else if (a === 'pr-historial') { prCargarHistorial(b); return; }
@@ -2764,6 +3124,7 @@ function prSubirAhora(boton) {
 
 // Cómo se rotula la partida en la planilla: ya no hay una sola modalidad
 function prEtiquetaModalidad() {
+  if (PR.ryder) return 'Ryder rápida · four-ball, foursome, scramble e individual';
   var n = PR.jugadores.length, s = prTrios(n).length;
   return 'Todas · ' + prParejas(n).length + ' match' + (s ? ' + ' + s + ' sindicato' : '') +
     (PR.segunda === false ? '' : ' · 2ª bola desempata');
@@ -2776,7 +3137,7 @@ function prGuardarRemoto(avisar) {
       '"Subirla a la planilla", arriba.');
     return Promise.resolve();
   }
-  return pedir({ accion: 'prGuardar', token: SES.token, id: PR.id, resultado: prTextoGuardado(r),
+  return pedir({ accion: 'prGuardar', token: SES.token, id: PR.id, resultado: PR.ryder ? ryTextoGuardado(prRyder()) : prTextoGuardado(r),
     jugadores: PR.jugadores.map(function (j, k) {
       return { nombre: j.nombre, hcp: j.hcp, equipo: '',
         hoyos: j.hoyos, bruto: r.bruto[k], neto: r.neto[k],
