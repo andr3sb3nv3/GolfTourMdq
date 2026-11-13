@@ -2,7 +2,7 @@
 (function () {
 'use strict';
 
-var VERSION = 'v56';                     // tiene que coincidir con el CACHE del sw.js
+var VERSION = 'v57';                     // tiene que coincidir con el CACHE del sw.js
 var LS = { ses: 'gtm-sesion', est: 'gtm-estado', cola: 'gtm-cola', ui: 'gtm-ui' };
 var API = (window.GTM_CONFIG && window.GTM_CONFIG.api) || '';
 
@@ -92,6 +92,20 @@ function avatar(j, extra) {
 function inicial(j) {
   var n = String((j && j.nombre) || '?').trim();
   return n.charAt(0).toUpperCase();
+}
+
+/* Perfil precargado: el organizador cargó a los 12 de la gira con su handicap y
+   su equipo. Hasta que el jugador lo reclama (en "Primera vez", con su matrícula
+   y su PIN) tiene una matrícula provisoria "pre-…" y nadie puede entrar con él. */
+function esPrecargado(j) { return !!j && /^pre-/.test(String(j.matricula || '')); }
+var PERFILES_LIBRES = null;          // los precargados sin dueño, para la pantalla de alta
+function traerPerfilesLibres() {
+  if (PERFILES_LIBRES !== null || !API) return;
+  PERFILES_LIBRES = [];
+  pedir({ accion: 'estado' }).then(function (res) {
+    PERFILES_LIBRES = (res && res.ok && res.estado ? res.estado.jugadores : []).filter(esPrecargado);
+    if (!SES) pintar();
+  }, function () { PERFILES_LIBRES = null; });
 }
 
 /* ============ tarjetas y cálculo ============ */
@@ -492,7 +506,25 @@ function vistaIngreso() {
     '<div class="campo"><label for="i-mat">Matrícula</label>' +
     '<input id="i-mat" type="text" inputmode="numeric" autocomplete="username" placeholder="tu número de matrícula"></div>' +
     campoPin('i-pass', alta ? 'Elegí tu PIN' : 'PIN', alta);
-  if (alta) {
+  if (alta) traerPerfilesLibres();
+  var libres = alta ? (PERFILES_LIBRES || []) : [];
+  var elegido = libres.filter(function (j) { return j.matricula === UI.perfilAlta; })[0] || null;
+  if (alta && libres.length) {
+    h += '<div class="campo"><label>¿Quién sos?</label><div class="perfiles-alta">' +
+      libres.map(function (j) {
+        return '<button type="button" data-acc="perfil-alta" data-v="' + esc(j.matricula) + '" aria-pressed="' +
+          (elegido === j) + '"><b class="' + claseTxt(j).trim() + '">' + esc(j.apodo || nombreCorto(j.nombre)) + '</b>' +
+          '<i>' + esc(j.nombre) + ' · hcp ' + esc(j.handicap) + '</i></button>';
+      }).join('') +
+      '<button type="button" data-acc="perfil-alta" data-v="" aria-pressed="' + (!elegido) + '"><b>No estoy en la lista</b>' +
+      '<i>cargo mis datos a mano</i></button></div></div>';
+  }
+  if (alta && elegido) {
+    h += '<div class="campo"><label for="i-hcp">Handicap</label>' +
+      '<input id="i-hcp" type="text" inputmode="decimal" placeholder="' + esc(elegido.handicap) + ' (el que ya está cargado)"></div>' +
+      nota('<div class="candado"><span>👤</span><span>Elegiste el perfil de <b>' + esc(elegido.nombre) + '</b>: ya tiene el ' +
+      'handicap y el equipo. Poné tu matrícula y elegí tu PIN. El handicap sólo si cambió.</span></div>');
+  } else if (alta) {
     h += '<div class="campo"><label for="i-nom">Nombre y apellido</label>' +
       '<input id="i-nom" type="text" autocomplete="name"></div>' +
       '<div class="campo"><label for="i-hcp">Handicap</label>' +
@@ -564,6 +596,7 @@ function textoError(e) {
     no_registrado: 'Esa matrícula todavía no está registrada. Entrá por "Primera vez".',
     password_incorrecta: 'La contraseña no coincide.',
     ya_registrado: 'Esa matrícula ya tiene acceso. Entrá con tu contraseña.',
+    perfil_tomado: 'Ese perfil ya lo reclamó otro. Si sos vos, entrá con tu matrícula; si no, avisale al organizador.',
     no_es_tu_linea: 'Sólo podés cargar las tarjetas de tu propio partido.',
     pin_invalido: 'El PIN son 4 números.',
     password_corta: 'El PIN son 4 números.',
@@ -2576,22 +2609,28 @@ function vistaTarjetas() {
 }
 
 function vistaJugadores() {
+  var pre = E.jugadores.filter(esPrecargado).length;
   var h = '<div class="pila"><section class="card"><div class="sec-tit"><h2>Los jugadores</h2>' +
-    '<span class="eyebrow">' + E.jugadores.length + ' registrados</span></div>';
+    '<span class="eyebrow">' + (E.jugadores.length - pre) + ' con acceso' + (pre ? ' · ' + pre + ' por reclamar' : '') + '</span></div>';
   if (!E.jugadores.length) h += '<p class="vacio">Todavía no se registró nadie.</p>';
   E.jugadores.forEach(function (j) {
     var t = acumulado('general').filter(function (a) { return String(a.jug.matricula) === String(j.matricula); })[0];
     h += '<div class="jug">' + avatar(j) +
       '<span><span class="lb-nom' + claseTxt(j) + '">' + esc(j.nombre) +
       (SES && String(SES.matricula) === String(j.matricula) ? ' <span class="eyebrow">· vos</span>' : '') + '</span>' +
-      '<span class="lb-meta">Mat. ' + esc(j.matricula) + ' · HCP ' + esc(j.handicap) + ' · ' + esc(nombreEquipo(j.equipo)) +
+      '<span class="lb-meta">' + (esPrecargado(j) ? 'Sin reclamar' : 'Mat. ' + esc(j.matricula)) + ' · HCP ' + esc(j.handicap) + ' · ' + esc(nombreEquipo(j.equipo)) +
       (j.rol === 'admin' ? ' · organizador' : '') + (t && t.thru ? ' · ' + t.pts + ' pts' : '') + '</span></span>' +
       (puedeEditar(j.matricula)
         ? '<button class="btn fin" data-acc="ir-perfil">Editar</button>'
         : '<span class="eyebrow" title="Solo lo edita su dueño">🔒</span>') +
       '</div>';
   });
+  if (esAdmin()) h += '<div class="acc"><button class="btn" data-acc="precargar">Cargar los perfiles de la gira</button></div>';
   h += '</section>' + bloqueConduccion();
+  if (pre) h += nota('<div class="candado"><span>👤</span><span><b>Sin reclamar</b>: perfil precargado con el handicap y el equipo ' +
+    'de la planilla de la gira. Cada uno lo hace suyo en <b>Primera vez</b>, eligiéndose de la lista y poniendo su matrícula y su PIN.</span></div>');
+  if (esAdmin()) h += nota('<div class="candado"><span>🧾</span><span><b>Cargar los perfiles de la gira</b> crea a los 12 con su ' +
+    'handicap y su equipo. Si ya están, les actualiza handicap y equipo sin duplicar a nadie.</span></div>');
   return h + nota('<div class="candado"><span>🎯</span><span>Cada uno entra con su matrícula y su PIN y aparece acá automáticamente. ' +
     'Fuera de tu propio partido nadie edita los datos ni la tarjeta de otro, el organizador tampoco.</span></div>') + '</div>';
 }
@@ -2813,6 +2852,7 @@ document.addEventListener('click', function (ev) {
   if (!b || b.tagName === 'INPUT' || b.tagName === 'SELECT') return;
   var a = b.getAttribute('data-acc'), v = b.getAttribute('data-v');
 
+  if (a === 'perfil-alta') { UI.perfilAlta = v || null; guardarUI(); pintar(); return; }
   if (a === 'modo') { UI.ingreso = v; ultimoError = ''; UI.olvideMat = null; UI.olvideOk = null; guardarUI(); pintar(); return; }
   if (a === 'olvide-pedir') { olvidePedir(); return; }
   if (a === 'olvide-aplicar') { olvideAplicar(); return; }
@@ -2854,6 +2894,13 @@ document.addEventListener('click', function (ev) {
   else if (a === 'lb-cancha') { UI.canchaLb = v; }
   else if (a === 'ryder-cancha') { UI.canchaRyder = v; }
   else if (a === 'armar') { armarPartidos(v); return; }
+  else if (a === 'precargar') {
+    if (!confirm('Se cargan los 12 de la gira con el handicap y el equipo de la planilla. Los que ya están se actualizan. ¿Seguimos?')) return;
+    accionar({ accion: 'precargar' }).then(function (res) {
+      if (res && res.ok && res.resumen) alert('Listo: ' + res.resumen.nuevos + ' perfiles nuevos y ' + res.resumen.actualizados + ' actualizados.');
+    }, function () {});
+    return;
+  }
   else if (a === 'metrica') { UI.metrica = v; }
   else if (a === 'sel-cancha') { UI.cancha = v; UI.hoyo = primerLibre(); }
   else if (a === 'vista-tc') { UI.vistaTc = v; }
@@ -2940,7 +2987,10 @@ function ingresar(alta) {
   var pass = (document.getElementById('i-pass') || {}).value || '';
   if (!esPin(pass)) { ultimoError = 'pin_invalido'; pintar(); return; }
   var cuerpo = { accion: alta ? 'registrar' : 'login', matricula: mat.trim(), password: pass };
-  if (alta) {
+  if (alta && UI.perfilAlta) {
+    cuerpo.perfil = UI.perfilAlta;
+    cuerpo.handicap = numeroHcp((document.getElementById('i-hcp') || {}).value) || '';
+  } else if (alta) {
     cuerpo.nombre = (document.getElementById('i-nom') || {}).value || '';
     cuerpo.handicap = numeroHcp((document.getElementById('i-hcp') || {}).value) || 0;
   }
@@ -2948,6 +2998,7 @@ function ingresar(alta) {
   pedir(cuerpo).then(function (res) {
     if (res && res.ok) {
       SES = { token: res.token, matricula: res.jugador.matricula };
+      UI.perfilAlta = null; PERFILES_LIBRES = null;
       guardarLS(LS.ses, SES);
       adoptar(res.estado);
       UI.tab = 'posiciones';
@@ -3009,6 +3060,7 @@ function olvideAplicar() {
   pedir({ accion: 'resetAplicar', matricula: UI.olvideMat, codigo: cod, password: pass }).then(function (res) {
     if (res && res.ok) {
       SES = { token: res.token, matricula: res.jugador.matricula };
+      UI.perfilAlta = null; PERFILES_LIBRES = null;
       guardarLS(LS.ses, SES);
       adoptar(res.estado);
       UI.ingreso = 'entrar'; UI.olvideMat = null; UI.olvideOk = null; UI.tab = 'posiciones';

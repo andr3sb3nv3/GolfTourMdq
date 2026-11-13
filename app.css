@@ -555,3 +555,11 @@ table.tc tr.yo .lbl{color:var(--eur);font-weight:800;box-shadow:inset 3px 0 0 va
   .btn-perfil .nom{display:none}
 }
 @media(max-width:360px){.chip-estado{display:none}}
+/* alta: elegir el perfil precargado */
+.perfiles-alta{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.perfiles-alta button{border:2px solid var(--linea);background:var(--panel);border-radius:10px;padding:9px 10px;
+  text-align:left;font:inherit;cursor:pointer;min-width:0}
+.perfiles-alta button b{display:block;font-size:14.5px;font-weight:800}
+.perfiles-alta button i{display:block;font-style:normal;font-size:11px;color:var(--tenue);font-weight:600;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.perfiles-alta button[aria-pressed="true"]{border-color:var(--navy);box-shadow:inset 0 0 0 1px var(--navy);background:#F3F5F9}

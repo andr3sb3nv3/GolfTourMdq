@@ -229,6 +229,7 @@ function despachar(p) {
       case 'ping':      return { ok: true, version: 1 };
       case 'diag':      return diagnostico();
       case 'registrar': return registrar(p);
+      case 'precargar': exigir(p.token, true); return precargarPerfiles_();
       case 'login':     return login(p);
       case 'estado':    return { ok: true, estado: estado(p.token) };
       case 'golpes':    return guardarGolpes(p);
@@ -361,6 +362,84 @@ function exigir(token, admin) {
 /* ============================================================
    ALTA E INGRESO
    ============================================================ */
+/* ============================================================
+   PERFILES PRECARGADOS
+   Los 12 de la gira, con el handicap y el equipo de la planilla de la gira.
+   Quedan con matrícula "pre-…" y sin PIN: nadie puede entrar con ellos. Cada
+   jugador, en "Primera vez", elige el suyo, pone su matrícula y su PIN, y el
+   perfil pasa a ser suyo (con partidos y tarjetas que ya tuviera).
+   Se corre una vez: desde el editor (precargarPerfiles) o desde la app
+   (pestaña Jugadores, el organizador). Si se corre de nuevo, actualiza
+   handicap y equipo y no duplica a nadie.
+   ============================================================ */
+var PERFILES_GIRA = [
+  ['Andrés Benvenuto', 'Benve', 16, 'azul'], ['Tobías Benítez Cruz', 'Toba', 28, 'azul'],
+  ['Francisco Socas', 'Fran', 20, 'azul'], ['Sebastián Bergadá', 'Sebas', 12, 'azul'],
+  ['Matías Arizu', 'Mati', 4, 'azul'], ['Joaquín Viboud', 'Vibu', 35, 'azul'],
+  ['Facundo Urtubey', 'Chino', 35, 'rojo'], ['Santiago Beccar Varela', 'Nari', 30, 'rojo'],
+  ['Bautista Caputo', 'Bauti', 25, 'rojo'], ['Lucas Santamarina', 'Luqui', 13, 'rojo'],
+  ['Ignacio Paz', 'Ini', 18, 'rojo'], ['Mateo Gazzera', 'Mate', 1, 'rojo']
+];
+function esPerfilPrecargado(mat) { return /^pre-/.test(String(mat || '').trim()); }
+function sinAcentos_(t) {
+  return String(t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim();
+}
+function precargarPerfiles() { Logger.log(JSON.stringify(precargarPerfiles_().resumen)); }
+function precargarPerfiles_() {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var hoja = SpreadsheetApp.openById(SS_ID).getSheetByName('Jugadores');
+    var resumen = { nuevos: 0, actualizados: 0 };
+    PERFILES_GIRA.forEach(function (x) {
+      var slug = 'pre-' + sinAcentos_(x[1]).replace(/[^a-z0-9]/g, '');
+      var apellido = sinAcentos_(x[0]).split(' ').slice(1).join(' ');
+      // ¿Ya está? Por el perfil precargado, o porque ya se registró con ese apellido.
+      var fila = buscarFila(hoja, function (v) {
+        if (String(v[0]).trim() === slug) return true;
+        var n = sinAcentos_(v[1]);
+        return !esPerfilPrecargado(v[0]) && apellido && (n === sinAcentos_(x[0]) || n.indexOf(apellido) >= 0);
+      });
+      if (fila) {
+        hoja.getRange(fila, 4, 1, 2).setValues([[x[2], x[3]]]);
+        if (!String(hoja.getRange(fila, 3).getValue()).trim()) hoja.getRange(fila, 3).setValue(x[1]);
+        resumen.actualizados++;
+      } else {
+        hoja.appendRow([slug, x[0], x[1], x[2], x[3], 'jugador', '', '', '', new Date(), '']);
+        resumen.nuevos++;
+      }
+    });
+    anotar('sistema', 'precargar', resumen.nuevos + ' nuevos · ' + resumen.actualizados + ' actualizados');
+    limpiarCache();
+    return { ok: true, resumen: resumen, estado: estadoCrudo() };
+  } finally { lock.releaseLock(); }
+}
+// Cuando alguien reclama un perfil, todo lo que estaba a nombre de "pre-…" pasa a su matrícula.
+function cambiarMatricula_(viejo, nuevo) {
+  var ss = SpreadsheetApp.openById(SS_ID);
+  var cambiar = function (nombre, columnas, enLista) {
+    var hoja = ss.getSheetByName(nombre);
+    if (!hoja || hoja.getLastRow() < 2) return;
+    var cab = hoja.getRange(1, 1, 1, hoja.getLastColumn()).getValues()[0].map(String);
+    var rango = hoja.getRange(2, 1, hoja.getLastRow() - 1, cab.length), datos = rango.getValues(), tocado = false;
+    datos.forEach(function (f) {
+      columnas.forEach(function (c) {
+        var k = cab.indexOf(c);
+        if (k < 0) return;
+        if (enLista) {
+          var partes = String(f[k]).split(',');
+          var nuevas = partes.map(function (x) { return String(x).trim() === viejo ? nuevo : x; });
+          if (nuevas.join(',') !== partes.join(',')) { f[k] = nuevas.join(','); tocado = true; }
+        } else if (String(f[k]).trim() === viejo) { f[k] = nuevo; tocado = true; }
+      });
+    });
+    if (tocado) rango.setValues(datos);
+  };
+  cambiar('Partidos', ['usa1', 'usa2', 'usa3', 'eur1', 'eur2', 'eur3']);
+  cambiar('Tarjetas', ['matricula']);
+  cambiar('TarjetasEquipo', ['salidas'], true);
+}
+
 function registrar(p) {
   var mat = String(p.matricula || '').trim();
   var pass = String(p.password || '');
@@ -368,12 +447,28 @@ function registrar(p) {
   // Para entrar alcanza con la matrícula y un PIN de cuatro números: ya no hay
   // clave del viaje. La fila claveViaje de la hoja Config queda sin uso.
   if (!/^\d{4}$/.test(pass)) return { ok: false, error: 'password_corta' };
+  if (esPerfilPrecargado(mat)) return { ok: false, error: 'falta_matricula' };
 
   var lock = LockService.getScriptLock();
   lock.waitLock(20000);
   try {
     if (jugadorPorMatricula(mat)) return { ok: false, error: 'ya_registrado' };
     var hoja = SpreadsheetApp.openById(SS_ID).getSheetByName('Jugadores');
+    // Perfil precargado: el jugador lo reclama con su matrícula y su PIN. Se
+    // quedan el nombre, el handicap y el equipo que ya tenía el perfil.
+    if (p.perfil) {
+      var fp = buscarFila(hoja, function (v) { return String(v[0]).trim() === String(p.perfil).trim(); });
+      if (!fp || !esPerfilPrecargado(p.perfil)) return { ok: false, error: 'perfil_tomado' };
+      hoja.getRange(fp, 1).setValue(mat);
+      hoja.getRange(fp, 9, 1, 3).setValues([[hashear(mat, pass), new Date(), new Date()]]);
+      if (p.handicap !== undefined && p.handicap !== null && p.handicap !== '' && Number(p.handicap) > 0)
+        hoja.getRange(fp, 4).setValue(Number(p.handicap));
+      cambiarMatricula_(String(p.perfil), mat);
+      anotar(mat, 'alta', 'reclamó el perfil ' + p.perfil);
+      limpiarCache();
+      var jp = jugadorPorMatricula(mat);
+      return { ok: true, token: emitirToken(mat), jugador: sinHash(jp), estado: estadoCrudo() };
+    }
     var primero = hoja.getLastRow() < 2;
     var equipo = p.equipo === 'rojo' ? 'rojo' : (p.equipo === 'azul' ? 'azul' : (contarEquipo('azul') <= contarEquipo('rojo') ? 'azul' : 'rojo'));
     hoja.appendRow([mat, String(p.nombre || '').trim() || ('Matrícula ' + mat), String(p.apodo || ''),
@@ -389,7 +484,7 @@ function registrar(p) {
 function login(p) {
   var mat = String(p.matricula || '').trim();
   var j = jugadorPorMatricula(mat);
-  if (!j) return { ok: false, error: 'no_registrado' };
+  if (!j || !j.hash) return { ok: false, error: 'no_registrado' };
   if (j.hash !== hashear(mat, String(p.password || ''))) return { ok: false, error: 'password_incorrecta' };
   tocarAcceso(mat);
   return { ok: true, token: emitirToken(mat), jugador: sinHash(j), estado: estadoCrudo() };
