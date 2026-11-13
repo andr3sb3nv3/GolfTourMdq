@@ -2,7 +2,7 @@
 (function () {
 'use strict';
 
-var VERSION = 'v55';                     // tiene que coincidir con el CACHE del sw.js
+var VERSION = 'v56';                     // tiene que coincidir con el CACHE del sw.js
 var LS = { ses: 'gtm-sesion', est: 'gtm-estado', cola: 'gtm-cola', ui: 'gtm-ui' };
 var API = (window.GTM_CONFIG && window.GTM_CONFIG.api) || '';
 
@@ -52,7 +52,7 @@ function yo() {
 }
 function esAdmin() { var y = yo(); return !!y && y.rol === 'admin'; }
 /* La tarjeta propia siempre. La de otro, sólo si salen en la misma línea:
-   en la Ryder anota uno por toda la línea. */
+   en la Ryder cualquiera de la línea anota por todos. */
 function puedeEditar(mat, cid) {
   var y = yo();
   if (!y) return false;
@@ -63,7 +63,7 @@ function puedeEditar(mat, cid) {
 /* La línea es el grupo que sale junto, y depende de la modalidad del día:
    - four-ball y foursome: el partido, 2 contra 2;
    - singles: salen dos partidos juntos, el 1 con el 2, el 3 con el 4 y el 5 con el 6;
-   - scramble: cada trío sale en su línea (anota uno por el equipo).
+   - scramble: cada trío sale en su línea (cualquiera del trío anota la tarjeta del equipo).
    Codigo.gs (mismaLinea) usa la misma regla. */
 function numPartido(m, k) { var n = parseInt(String(m.id).split('-').pop(), 10); return isNaN(n) ? k + 1 : n; }
 function partidosDeLinea(cid, mat) {
@@ -2202,7 +2202,7 @@ function esFoursomes(c, j) {
   var m = partidoDe(c.id, j.matricula);
   return m ? { m: m, lado: ladoDe(m, j.matricula) } : null;
 }
-/* En la Ryder anota uno solo por toda la línea. Esta vista muestra a los
+/* En la Ryder cualquiera de la línea anota por todos (no hay uno designado). Esta vista muestra a los
    cuatro (o dos, en singles), dice quién tiene golpe en el hoyo que están por
    jugar y cómo va el match. Los demás la miran desde su celular: es la misma
    pantalla, con los mismos números. */
@@ -2328,7 +2328,8 @@ function vistaLinea() {
 
     (puedo ? nota('<div class="candado solo"><span>✍️</span><span>Estás anotando por <b>toda la línea</b>' +
       (varios ? ': en singles salen ' + ms.length + ' partidos juntos y cargás a los ' + filas.length : '') + '. ' +
-      'Los demás lo ven desde su celular sin tener que cargar nada.</span></div>')
+      'Cualquiera de la línea puede cargar o corregir, no hace falta que sea uno en especial: ' +
+      'lo último que se carga es lo que vale y todos lo ven en vivo.</span></div>')
            : nota('<div class="candado solo"><span>👀</span><span>Lo está anotando otro de tu línea. ' +
       'Acá lo ves en vivo, se actualiza solo.</span></div>')) +
     (fmtM === 'scramble' ? nota(notaScramble()) :
@@ -2448,7 +2449,7 @@ function vistaScramble(c, y, m) {
     '<div><b>' + fmtNum(sr.hcp.valor) + '</b><span>Hcp eq.</span></div>' +
     '<div><b>' + (sr.completo ? fmtNum(sr.neto) : '–') + '</b><span>Neto</span></div></div></section>';
 
-  h += nota('<div class="candado solo"><span>✍️</span><span>Anota uno solo por el equipo. Primero tocá de quién fue la salida ' +
+  h += nota('<div class="candado solo"><span>✍️</span><span>Cualquiera del equipo puede anotar, no hace falta que sea siempre el mismo. Primero tocá de quién fue la salida ' +
     'y al terminar el hoyo cargá los golpes: pasa solo al hoyo siguiente.' +
     (st.hcp.comite ? '' : ' *El handicap del equipo es el de la fórmula hasta que el comité cargue el suyo.') + '</span></div>') +
     nota(notaScramble()) + '</div>';
@@ -2484,12 +2485,12 @@ function vistaCargar() {
   if (fs) {
     var pareja = fs.m[fs.lado].map(jugador).filter(Boolean).map(function (x) { return nombreCorto(x.nombre); });
     aviso = nota('<div class="candado solo"><span>🤝</span><span><b>' + esc(FORMATOS[c.formato] || 'Una pelota') + ':</b> una sola pelota para ' +
-      esc(pareja.join(' y ')) + '. Lo que cargues acá cuenta para todo el equipo — que lo cargue uno solo.' +
+      esc(pareja.join(' y ')) + '. Lo que cargues acá cuenta para todo el equipo y lo puede cargar cualquiera de la línea.' +
       (c.formato === 'scramble' ? ' Para la Ryder cuentan los hoyos 1 al 9.' : '') + '</span></div>');
   } else {
     aviso = nota('<div class="candado solo"><span>🔒</span><span>Estás cargando <b class="' + claseTxt(j).trim() +
       '">tu</b> tarjeta. Fuera de tu partido nadie te la puede tocar, ni el organizador. ' +
-      'Dentro de tu línea sí: anota uno por todos.</span></div>');
+      'Dentro de tu línea sí: cualquiera de la línea anota por todos.</span></div>');
   }
 
   var h = '<div class="pila">' + aviso + chipsCancha(c.id, 'sel-cancha', false) +
