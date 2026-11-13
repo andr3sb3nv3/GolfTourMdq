@@ -2,7 +2,7 @@
 (function () {
 'use strict';
 
-var VERSION = 'v53';                     // tiene que coincidir con el CACHE del sw.js
+var VERSION = 'v54';                     // tiene que coincidir con el CACHE del sw.js
 var LS = { ses: 'gtm-sesion', est: 'gtm-estado', cola: 'gtm-cola', ui: 'gtm-ui' };
 var API = (window.GTM_CONFIG && window.GTM_CONFIG.api) || '';
 
@@ -492,7 +492,6 @@ function vistaIngreso() {
     '<button class="btn fin" data-acc="probar">Probar la conexión con la planilla</button>' +
     '<button class="btn fin" data-acc="test-entrar">🧪 Entrar en modo testeo (datos de prueba)</button>' +
     '</div></section>' +
-    '<a class="btn-gira" href="gira/"><span>🧳</span><span><b>Organización del viaje</b><small>Agenda, reservas, pagos y autos</small></span><i>→</i></a>' +
     '</div>';
   return h;
 }
@@ -2427,7 +2426,6 @@ function pintar() {
     UI.tab === 'ryder' ? vistaRyder() : UI.tab === 'perfil' ? vistaPerfil() :
     UI.tab === 'testeo' ? vistaTesteo() : UI.tab === 'rapida' ? vistaRapida() : vistaPosiciones();
   app.innerHTML = barraEstado() + '<div class="topbar"><div class="topbar-in">' +
-    '<a class="link-gira" href="gira/">🧳 <b>Organización del viaje</b><span>agenda · reservas · pagos · autos</span><i>→</i></a>' +
     '<div class="cab-top">' +
     '<h1 class="logo">' + MARCA + '</h1>' +
     '<div class="cab-der">' +
