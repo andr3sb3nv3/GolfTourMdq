@@ -525,15 +525,23 @@ function estadoCrudo() {
 /* ============================================================
    ESCRITURA
    ============================================================ */
-/* ¿Están los dos en el mismo partido de esa cancha? Es lo único que habilita
-   cargarle la tarjeta a otro. */
+/* ¿Salen los dos en la misma línea de esa cancha? Es lo único que habilita
+   cargarle la tarjeta a otro. La línea es el partido (four-ball, foursome,
+   scramble), salvo en singles: ahí salen dos partidos juntos, el 1 con el 2,
+   el 3 con el 4 y el 5 con el 6. La app (partidosDeLinea) usa la misma regla. */
 function mismaLinea(a, b, cid) {
   var ms = leer('Partidos').filter(function (m) { return m.cancha === cid; });
-  for (var i = 0; i < ms.length; i++) {
-    var en = [ms[i].usa1, ms[i].usa2, ms[i].usa3, ms[i].eur1, ms[i].eur2, ms[i].eur3]
-      .map(function (x) { return String(x || '').trim(); });
-    if (en.indexOf(String(a).trim()) >= 0 && en.indexOf(String(b).trim()) >= 0) return true;
-  }
+  var en = function (m) {
+    return [m.usa1, m.usa2, m.usa3, m.eur1, m.eur2, m.eur3].map(function (x) { return String(x || '').trim(); });
+  };
+  var grupo = function (m, k) {
+    if (String(m.formato || '') !== 'singles') return 'p' + k;
+    var n = parseInt(String(m.id).split('-').pop(), 10);
+    return 'g' + Math.ceil((isNaN(n) ? k + 1 : n) / 2);
+  };
+  var deA = {}, i;
+  for (i = 0; i < ms.length; i++) if (en(ms[i]).indexOf(String(a).trim()) >= 0) deA[grupo(ms[i], i)] = true;
+  for (i = 0; i < ms.length; i++) if (en(ms[i]).indexOf(String(b).trim()) >= 0 && deA[grupo(ms[i], i)]) return true;
   return false;
 }
 
