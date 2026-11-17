@@ -581,8 +581,12 @@ var V = {
 
   autos: function () {
     var J = D.Jugadores.map(function (j) { var v = D.Viajes.filter(function (x) { return x.jugador === j.nombre; })[0] || {}; return [j, v]; });
+    // De la llegada más temprana a la más tarde; sin día, al final.
+    var cuando = function (t) { t = String(t || '').toLowerCase(); var m = t.match(/\b(\d{1,2})\b/); if (!m) return 9999; var parte = /temprano|mañana|manana/.test(t) ? 1 : /tarde/.test(t) ? 5 : /noche/.test(t) ? 7 : 3; return Number(m[1]) * 10 + parte; };
+    J = J.map(function (x, i) { return [x, i]; }).sort(function (a, b) { return cuando(a[0][1].llega) - cuando(b[0][1].llega) || a[1] - b[1]; }).map(function (x) { return x[0]; });
     var autos = [];
     D.Viajes.forEach(function (v) { if (!v.auto) return; var x = autos.filter(function (a) { return a.n === v.auto; })[0]; if (!x) autos.push(x = { n: v.auto, gente: [] }); x.gente.push(v); });
+    autos.sort(function (a, b) { var k = function (x) { return Math.min.apply(null, x.gente.map(function (v) { return cuando(v.llega); })); }; return k(a) - k(b); });
     var sinAuto = D.Jugadores.filter(function (j) { return !D.Viajes.some(function (v) { return v.jugador === j.nombre && v.auto; }); }).length;
     return '<div><div class="eyebrow">Ruta 2 · unos 400 km</div><h2>Autos</h2>' +
       '<p class="bajada">Con palos entran 3 por auto (4 si el baúl es grande). ' + (sinAuto ? sinAuto + ' sin auto todavía.' : 'Están todos ubicados.') + '</p>' +
