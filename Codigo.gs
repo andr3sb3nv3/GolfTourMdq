@@ -11,7 +11,7 @@
  */
 
 var SS_ID = '1aroTWtBKWw8xb9d7Lliki0cCXZvbjdgrxHqB8fqlZtI';
-var CACHE_SEG = 15;          // segundos que se cachea el estado (cuida la cuota diaria)
+var CACHE_SEG = 10;          // segundos que se cachea el estado (cuida la cuota diaria)
 var TOKEN_DIAS = 60;         // duración de la sesión en el celular
 
 var HOJAS = {
@@ -118,6 +118,29 @@ function borrarTodoYEmpezarDeNuevo() {
  * Agrega la columna "formato" a la pestaña Canchas sin tocar nada de lo cargado.
  * NO correr configurar() de nuevo: eso borra jugadores y tarjetas.
  */
+/**
+ * PREPARAR LA GIRA — correr UNA vez después de pegar esta versión. No borra nada.
+ *  · Deja las 4 canchas en el orden de la gira: vie Miramar · sáb Acantilados
+ *    (mañana) y Marayui (tarde) · dom La Catedral. Si falta Marayui, la agrega.
+ *  · A las que no tienen modalidad les pone la de la gira: Miramar four-ball,
+ *    Acantilados foursome, Marayui scramble de a 3, La Catedral individuales.
+ *    (Si una ya tiene modalidad, no la toca: se cambia desde la app, pestaña Ryder.)
+ */
+function prepararGira() {
+  var hechas = [migrarScramble()];
+  var hoja = SpreadsheetApp.openById(SS_ID).getSheetByName('Canchas');
+  var v = hoja.getDataRange().getValues();
+  var fmt = { miramar: 'fourball', acantilados: 'foursomes', marayui: 'scramble', catedral: 'singles' };
+  for (var i = 1; i < v.length; i++) {
+    var id = String(v[i][0]);
+    if (fmt[id] && !String(v[i][4] || '').trim()) { hoja.getRange(i + 1, 5).setValue(fmt[id]); hechas.push(id + ' → ' + fmt[id]); }
+  }
+  limpiarCache();
+  var texto = hechas.join('\n');
+  Logger.log(texto);
+  return texto;
+}
+
 /**
  * MIGRACIÓN SCRAMBLE — correr UNA vez después de pegar esta versión. No borra nada.
  *  · Agrega Marayui Golf (sábado a la tarde, scramble de a 3, 9 hoyos) si no está.
@@ -620,36 +643,26 @@ function estadoCrudo() {
 /* ============================================================
    ESCRITURA
    ============================================================ */
-/* ¿Salen los dos en la misma línea de esa cancha? Es lo único que habilita
-   cargarle la tarjeta a otro. La línea es el partido (four-ball, foursome,
-   scramble), salvo en singles: ahí salen dos partidos juntos, el 1 con el 2,
-   el 3 con el 4 y el 5 con el 6. La app (partidosDeLinea) usa la misma regla. */
-function mismaLinea(a, b, cid) {
-  var ms = leer('Partidos').filter(function (m) { return m.cancha === cid; });
-  var en = function (m) {
-    return [m.usa1, m.usa2, m.usa3, m.eur1, m.eur2, m.eur3].map(function (x) { return String(x || '').trim(); });
-  };
-  var grupo = function (m, k) {
-    if (String(m.formato || '') !== 'singles') return 'p' + k;
-    var n = parseInt(String(m.id).split('-').pop(), 10);
-    return 'g' + Math.ceil((isNaN(n) ? k + 1 : n) / 2);
-  };
-  var deA = {}, i;
-  for (i = 0; i < ms.length; i++) if (en(ms[i]).indexOf(String(a).trim()) >= 0) deA[grupo(ms[i], i)] = true;
-  for (i = 0; i < ms.length; i++) if (en(ms[i]).indexOf(String(b).trim()) >= 0 && deA[grupo(ms[i], i)]) return true;
-  return false;
+/* ¿Juega un partido en esa cancha? Cuando ya están armadas las líneas,
+   CUALQUIERA puede anotar CUALQUIER línea (una sola persona puede llevar las
+   cuatro), así que alcanza con que la tarjeta sea de alguien que juega ese día.
+   La app (puedeEditar) usa la misma regla. */
+function juegaEnCancha(mat, cid) {
+  mat = String(mat || '').trim();
+  return leer('Partidos').some(function (m) {
+    return m.cancha === cid && [m.usa1, m.usa2, m.usa3, m.eur1, m.eur2, m.eur3]
+      .some(function (x) { return String(x || '').trim() === mat; });
+  });
 }
 
 function guardarGolpes(p) {
-  /* Cada uno carga su tarjeta. La única excepción: en la Ryder anota uno solo
-     por toda la línea, así que se admite cargarle la tarjeta a alguien del
-     mismo partido. Fuera de tu partido, nadie te toca la tarjeta: tampoco el
-     organizador. */
+  /* Cada uno carga su tarjeta. Y en la Ryder, una vez armadas las líneas,
+     cualquiera puede anotar la de cualquiera que juegue un partido ese día. */
   var j = exigir(p.token);
   var mat = String(p.matricula || j.matricula).trim();
   var cambios = p.hoyos || [];        // [{hoyo:1..18, golpes:4|null}]
   if (!p.cancha || !cambios.length) return { ok: false, error: 'faltan_datos' };
-  if (mat !== String(j.matricula).trim() && !mismaLinea(j.matricula, mat, p.cancha))
+  if (mat !== String(j.matricula).trim() && !juegaEnCancha(mat, p.cancha))
     return { ok: false, error: 'no_es_tu_linea' };
 
   var lock = LockService.getScriptLock();
@@ -852,9 +865,9 @@ function guardarHcpEquipo(p) {
 
 /**
  * Foursomes y scramble: el lado juega una sola pelota, así que la tarjeta es del LADO.
- * En la Ryder anota uno por toda la línea: cualquiera que juegue el partido puede
- * cargar la tarjeta de cualquiera de los dos lados (p.lado). Si no viene p.lado
- * (versiones viejas de la app), se carga la de su propio lado, como antes.
+ * Cualquiera con sesión puede cargar la tarjeta de cualquier lado de cualquier
+ * partido (p.lado): una sola persona puede llevar todas las líneas. Si no viene
+ * p.lado (versiones viejas de la app), se carga la de su propio lado, como antes.
  */
 function guardarGolpesEquipo(p) {
   var j = exigir(p.token);
@@ -866,8 +879,8 @@ function guardarGolpesEquipo(p) {
   var mat = String(j.matricula);
   var miLado = (String(m.usa1) === mat || String(m.usa2) === mat || String(m.usa3 || '') === mat) ? 'usa'
              : (String(m.eur1) === mat || String(m.eur2) === mat || String(m.eur3 || '') === mat) ? 'eur' : null;
-  if (!miLado) return { ok: false, error: 'no_jugas_ese_partido' };
   var lado = (p.lado === 'usa' || p.lado === 'eur') ? p.lado : miLado;
+  if (!lado) return { ok: false, error: 'faltan_datos' };
 
   var lock = LockService.getScriptLock();
   lock.waitLock(20000);

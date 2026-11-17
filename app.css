@@ -285,6 +285,25 @@ input[type="number"]{font-family:"IBM Plex Mono",monospace}
 .pick-eq button.r[aria-pressed="true"]{border-color:var(--usa);color:var(--usa);background:#FDF0F2}
 .pick-eq button[aria-pressed="true"]:not(.a):not(.r){border-color:var(--navy);color:#fff;background:var(--navy)}
 
+/* ---------- qué línea se anota (cualquiera anota cualquiera) ---------- */
+.lineas{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.lineas button{border:2px solid var(--linea);background:var(--panel);border-radius:10px;padding:8px 8px 9px;
+  text-align:left;display:flex;flex-direction:column;gap:2px;min-width:0;color:var(--tinta)}
+.lineas button b{font-size:14px;font-weight:800;color:var(--navy)}
+.lineas button b em{font-style:normal;font-size:11px;font-weight:700;background:var(--panel-3);border-radius:999px;padding:1px 7px;margin-left:4px;color:var(--tinta-2)}
+.lineas button span{font-size:12px;color:var(--tinta-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lineas button.r{border-left:6px solid var(--usa)}
+.lineas button.a{border-left:6px solid var(--eur)}
+.lineas button.r b{color:var(--usa)}
+.lineas button.a b{color:var(--eur)}
+.lineas button[aria-pressed="true"]{border-color:var(--navy);background:var(--navy)}
+.lineas button[aria-pressed="true"] b,.lineas button[aria-pressed="true"] span{color:#fff}
+.lineas button[aria-pressed="true"] b em{background:rgba(255,255,255,.2);color:#fff}
+.lineas button.r[aria-pressed="true"]{border-color:var(--usa);background:var(--usa)}
+.lineas button.a[aria-pressed="true"]{border-color:var(--eur);background:var(--eur)}
+.ir-lineas{border-top:1px solid var(--linea)}
+.ir-lineas .btn{flex:1 1 auto;font-weight:700}
+
 /* ---------- ingreso ---------- */
 .pantalla{min-height:100svh;display:flex;flex-direction:column;justify-content:center;
   max-width:420px;margin:0 auto;padding:24px 16px;gap:14px}
