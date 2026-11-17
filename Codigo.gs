@@ -127,6 +127,16 @@ function borrarTodoYEmpezarDeNuevo() {
  *    Acantilados foursome, Marayui scramble de a 3, La Catedral individuales.
  *    (Si una ya tiene modalidad, no la toca: se cambia desde la app, pestaña Ryder.)
  */
+/* Se llama sola al armar el estado: si falta Marayui o alguna cancha de la gira
+   no tiene modalidad, corre prepararGira(). Así no hace falta ejecutarla a mano. */
+function giraAlDia_() {
+  try {
+    var cs = leer('Canchas'), fmt = { miramar: 1, acantilados: 1, marayui: 1, catedral: 1 };
+    var falta = !cs.some(function (c) { return c.id === 'marayui'; }) ||
+      cs.some(function (c) { return fmt[c.id] && !String(c.formato || '').trim(); });
+    if (falta) prepararGira();
+  } catch (e) { Logger.log('giraAlDia_: ' + e); }
+}
 function prepararGira() {
   var hechas = [migrarScramble()];
   var hoja = SpreadsheetApp.openById(SS_ID).getSheetByName('Canchas');
@@ -258,7 +268,7 @@ function responder(obj) {
 function despachar(p) {
   try {
     switch (p.accion) {
-      case 'ping':      return { ok: true, version: 1 };
+      case 'ping':      return { ok: true, version: 60 };
       case 'diag':      return diagnostico();
       case 'registrar': return registrar(p);
       case 'precargar': exigir(p.token, true); return precargarPerfiles_();
@@ -613,6 +623,7 @@ function estadoCrudo() {
   var guardado = cache.get('estado');
   if (guardado) return JSON.parse(guardado);
 
+  giraAlDia_();
   var cfg = config();
   var salida = {
     torneo: { nombre: cfg.torneo, sede: cfg.sede, edicion: cfg.edicion },
