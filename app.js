@@ -2,7 +2,7 @@
 (function () {
 'use strict';
 
-var VERSION = 'v61';                     // tiene que coincidir con el CACHE del sw.js
+var VERSION = 'v62';                     // tiene que coincidir con el CACHE del sw.js
 var LS = { ses: 'gtm-sesion', est: 'gtm-estado', cola: 'gtm-cola', ui: 'gtm-ui' };
 var API = (window.GTM_CONFIG && window.GTM_CONFIG.api) || '';
 
@@ -1425,7 +1425,7 @@ function generarTest() {
             hoyos: c.par.map(function (par) { return golpeFicticio(par, hcp * 0.7); }) };
           if (c.formato === 'scramble') {
             te.hoyos = te.hoyos.map(function (g, k) { return k < 9 ? Math.max(2, g - 1) : null; });
-            te.salidas = te.hoyos.map(function (g, k) { return k < 9 ? m[lado][(k * 2 + k % 2) % m[lado].length] : null; });
+            te.salidas = te.hoyos.map(function (g, k) { return k < 9 ? m[lado][k % m[lado].length] : null; });
           }
           tarjetasEquipo.push(te);
         });
@@ -1889,9 +1889,10 @@ function hcpScramble(js) {
    Cada partido de 3 contra 3 reparte PTS_SCRAMBLE puntos: se los lleva el equipo de menor neto; empate, mitad cada uno.
    El handicap del equipo lo fija el comité (el organizador lo carga en Ryder); mientras
    no lo cargue, la app usa la fórmula de hcpScramble. En cada hoyo se anota de quién
-   fue la salida elegida, y cada jugador tiene que aportar un mínimo de salidas. */
+   fue la salida elegida: las salidas se reparten parejas, 3 de cada uno en los 9 hoyos. */
 var PTS_SCRAMBLE = 2;         // puntos que reparte cada partido de scramble (Andres, 17/11)
-var MIN_SALIDAS = 2;          // salidas mínimas de cada jugador en los 9 hoyos
+// Salidas de cada jugador: los 9 hoyos repartidos parejos entre los 3 (3 y 3 y 3).
+function salidasPorJugador(N, n) { return Math.floor(N / Math.max(1, n)); }
 function r1(n) { return Math.round(n * 10) / 10; }
 function fmtNum(n) { return String(r1(n)).replace('.', ','); }
 function tarjetaEquipoObj(pid, lado, crear) {
@@ -1934,8 +1935,9 @@ function estadoLadoScramble(m, lado) {
   r.neto = r.completo ? r1(r.bruto - r.hcp.valor) : null;
   // neto contra el par, prorrateando el handicap en los hoyos jugados: sirve para ver quién va arriba
   r.proy = r.thru ? (r.bruto - r.parJug) - r.hcp.valor * r.thru / N : null;
-  var min = Math.min(MIN_SALIDAS, Math.floor(N / Math.max(1, js.length)));
+  var min = salidasPorJugador(N, js.length);
   r.min = min;
+  r.tope = Math.ceil(N / Math.max(1, js.length));      // nadie puede pasarse de su cupo
   r.faltan = js.map(function (j) { return { j: j, n: Math.max(0, min - r.cuenta[j.matricula]) }; })
     .filter(function (x) { return x.n > 0; });
   r.totalFaltan = r.faltan.reduce(function (s, x) { return s + x.n; }, 0);
@@ -2409,7 +2411,7 @@ function notaScramble() {
     'pelota y desde ahí vuelven a tirar los tres. Cada trío sale en su propia línea, con los de su equipo, y lleva una sola tarjeta. <b>Neto = golpes de los 9 hoyos − handicap del equipo.</b> ' +
     'Cada partido de 3 contra 3 reparte <b>' + PTS_SCRAMBLE + ' puntos</b>: se los lleva el equipo que hace <b>menos golpes netos</b>; empate, ' + (PTS_SCRAMBLE / 2) + ' para cada uno. El handicap del equipo lo fija el comité ' +
     '(si no lo carga, la app usa 20% del más bajo + 15% del medio + 10% del más alto, a la mitad por ser 9 hoyos). ' +
-    'En cada hoyo se anota <b>de quién fue la salida</b>: mínimo ' + MIN_SALIDAS + ' de cada jugador; el equipo que no llega <b>pierde el match</b>. ' +
+    'En cada hoyo se anota <b>de quién fue la salida</b>: se reparten parejas, <b>3 de cada jugador</b> en los 9 hoyos (la app no deja pasarse). El equipo que no las reparte así <b>pierde el match</b>. ' +
     'Cuenta solo para la Ryder: si siguen jugando los otros 9, no suman.</span></div>';
 }
 function detalleScramble(p, admin) {
@@ -2503,7 +2505,7 @@ function estadoMatchHTML(pr) {
   var N = pr.n || 18, restan = N - pr.jugados;
   if (pr.medal && pr.penalizado) {
     val = pr.cerrado ? 'Gana' : 'Gana si sigue así';
-    pie = nombreEquipo(pr.penalizado === 'usa' ? 'rojo' : 'azul') + ' no llega al mínimo de salidas: pierde el match';
+    pie = nombreEquipo(pr.penalizado === 'usa' ? 'rojo' : 'azul') + ' no reparte las salidas 3 y 3 y 3: pierde el match';
   } else if (pr.medal) {
     var ab = Math.abs(pr.arriba);
     if (!pr.jugados) { quien = 'Sin empezar'; val = '–'; pie = 'todavía no hay golpes cargados'; cls = ' es-iguales'; }
@@ -2696,8 +2698,9 @@ function vistaScramble(c, sel) {
 
     '<div class="sal-tit">¿De quién fue la salida?</div><div class="salidas">' +
     st.js.map(function (j) {
-      var n = st.cuenta[j.matricula], ok = n >= st.min;
-      return '<button data-acc="sc-salida" data-v="' + esc(j.matricula) + '" aria-pressed="' + (s === String(j.matricula)) + '">' +
+      var n = st.cuenta[j.matricula], ok = n >= st.min, esta = s === String(j.matricula);
+      var lleno = !esta && n >= st.tope;
+      return '<button data-acc="sc-salida" data-v="' + esc(j.matricula) + '" aria-pressed="' + esta + '"' + (lleno ? ' disabled' : '') + '>' +
         '<b>' + esc(st.ini[j.matricula]) + '</b><span>' + esc(nombreCorto(j.nombre)) + '</span>' +
         '<i class="' + (ok ? 'ok' : '') + '">' + n + ' de ' + st.min + '</i></button>';
     }).join('') + '</div>' + avisoSalidas(st) +
@@ -2756,10 +2759,10 @@ function vistaScramble(c, sel) {
   return h;
 }
 function avisoSalidas(st) {
-  if (st.cumple) return '<p class="sal-aviso ok">Mínimo de salidas cumplido.</p>';
+  if (st.cumple) return '<p class="sal-aviso ok">Salidas repartidas: ' + st.min + ' de cada uno.</p>';
   var txt = st.faltan.map(function (x) { return nombreCorto(x.j.nombre) + ' ' + x.n; }).join(' · ');
   return '<p class="sal-aviso' + (st.imposible ? ' mal' : (st.totalFaltan >= st.libres ? ' justo' : '')) + '">' +
-    (st.imposible ? 'Ya no se llega al mínimo: el equipo pierde el match. ' : '') + 'Faltan salidas: ' + esc(txt) +
+    (st.imposible ? 'Ya no se llega a ' + st.min + ' de cada uno: el equipo pierde el match. ' : '') + 'Faltan salidas: ' + esc(txt) +
     ' · quedan ' + st.libres + ' hoyo' + (st.libres === 1 ? '' : 's') + '</p>';
 }
 
@@ -3630,7 +3633,15 @@ function anotarScramble(op, v) {
   var t = tarjetaEquipoObj(m.id, lado, true);
   if (!t.salidas) t.salidas = new Array(18).fill(null);
   var i = UI.hoyo, par = Number(c.par[i]) || 4, act = t.hoyos[i], avanzar = false;
-  if (op === 'salida') t.salidas[i] = (t.salidas[i] === String(v)) ? null : String(v);
+  if (op === 'salida') {
+    if (t.salidas[i] !== String(v)) {
+      // cupo: 3 salidas por jugador en los 9 hoyos
+      var N9 = hoyosCancha(c), usadas = 0;
+      for (var q = 0; q < N9; q++) if (q !== i && t.salidas[q] === String(v)) usadas++;
+      if (usadas >= Math.ceil(N9 / Math.max(1, l.ms[0][lado].length))) return;
+    }
+    t.salidas[i] = (t.salidas[i] === String(v)) ? null : String(v);
+  }
   else if (op === 'borrar') t.hoyos[i] = null;
   else if (op === 'set') { t.hoyos[i] = Math.max(1, Number(v)); avanzar = !!t.salidas[i]; }
   else if (op === 'mas') t.hoyos[i] = (act == null ? par : act + 1);

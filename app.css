@@ -522,6 +522,7 @@ table.tc tr.yo .lbl{color:var(--eur);font-weight:800;box-shadow:inset 3px 0 0 va
 .salidas button{border:2px solid var(--linea);background:var(--panel);border-radius:12px;padding:8px 4px;color:var(--tinta);min-width:0}
 .salidas button b{display:block;font-family:"IBM Plex Mono",monospace;font-size:22px;line-height:1.1}
 .salidas button span{display:block;font-size:12px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.salidas button:disabled{opacity:.4;border-style:dashed}
 .salidas button i{display:block;font-style:normal;font-size:11px;color:var(--tenue);font-weight:700}
 .salidas button i.ok{color:#1E7B3A}
 .salidas button[aria-pressed="true"]{border-color:var(--navy);background:var(--navy);color:#fff}
