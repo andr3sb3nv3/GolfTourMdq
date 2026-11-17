@@ -2,7 +2,7 @@
 (function () {
 'use strict';
 
-var VERSION = 'v58';                     // tiene que coincidir con el CACHE del sw.js
+var VERSION = 'v59';                     // tiene que coincidir con el CACHE del sw.js
 var LS = { ses: 'gtm-sesion', est: 'gtm-estado', cola: 'gtm-cola', ui: 'gtm-ui' };
 var API = (window.GTM_CONFIG && window.GTM_CONFIG.api) || '';
 
@@ -1275,7 +1275,7 @@ function ryTextoGuardado(rr) {
 
 /* ============ modo testeo ============ */
 var APELLIDOS = ['Urtubey', 'Benvenuto', 'Benítez Cruz', 'Socas', 'Bergadá', 'Beccar Varela',
-                 'Caputo', 'Santamarina', 'Arizu', 'Viboud', 'Paz', 'Gazzera'];
+                 'Caputo', 'Santamarina', 'Arizu', 'Viboud', 'Paz', 'Boero'];
 
 function golpeFicticio(par, hcp) {
   var extra = hcp / 18;                       // golpes de más esperados por hoyo

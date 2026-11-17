@@ -364,7 +364,7 @@ function exigir(token, admin) {
    ============================================================ */
 /* ============================================================
    PERFILES PRECARGADOS
-   Los 12 de la gira, con el handicap y el equipo de la planilla de la gira.
+   Los de la gira (Mateo Gazzera se bajó; Boa entra cuando se confirme con su handicap), con el handicap y el equipo de la planilla de la gira.
    Quedan con matrícula "pre-…" y sin PIN: nadie puede entrar con ellos. Cada
    jugador, en "Primera vez", elige el suyo, pone su matrícula y su PIN, y el
    perfil pasa a ser suyo (con partidos y tarjetas que ya tuviera).
@@ -378,7 +378,7 @@ var PERFILES_GIRA = [
   ['Matías Arizu', 'Mati', 4, 'azul'], ['Joaquín Viboud', 'Vibu', 35, 'azul'],
   ['Facundo Urtubey', 'Chino', 35, 'rojo'], ['Santiago Beccar Varela', 'Nari', 30, 'rojo'],
   ['Bautista Caputo', 'Bauti', 25, 'rojo'], ['Lucas Santamarina', 'Luqui', 13, 'rojo'],
-  ['Ignacio Paz', 'Ini', 18, 'rojo'], ['Mateo Gazzera', 'Mate', 1, 'rojo']
+  ['Ignacio Paz', 'Ini', 18, 'rojo']
 ];
 function esPerfilPrecargado(mat) { return /^pre-/.test(String(mat || '').trim()); }
 function sinAcentos_(t) {
