@@ -1355,6 +1355,14 @@ function ryTextoGuardado(rr) {
 }
 
 /* ============ modo testeo ============ */
+var GIRA_TEST = [
+  ['Matías Arizu', 'Mati', 4, 'azul'], ['Sebastián Bergadá', 'Sebas', 12, 'rojo'],
+  ['Lucas Santamarina', 'Luqui', 13, 'rojo'], ['Andrés Benvenuto', 'Benve', 16, 'azul'],
+  ['Ignacio Paz', 'Ini', 18, 'azul'], ['Bautista Boero', 'Boa', 18, 'rojo'],
+  ['Francisco Socas', 'Fran', 20, 'rojo'], ['Bautista Caputo', 'Bauti', 25, 'azul'],
+  ['Tobías Benítez Cruz', 'Toba', 28, 'azul'], ['Santiago Beccar Varela', 'Nari', 30, 'rojo'],
+  ['Joaquín Viboud', 'Vibu', 35, 'rojo'], ['Facundo Urtubey', 'Chino', 35, 'azul']
+];
 var APELLIDOS = ['Urtubey', 'Benvenuto', 'Benítez Cruz', 'Socas', 'Bergadá', 'Beccar Varela',
                  'Caputo', 'Santamarina', 'Arizu', 'Viboud', 'Paz', 'Boero'];
 
@@ -1386,11 +1394,11 @@ function generarTest() {
   var rota = ['fourball', 'foursomes', 'singles'], kf = 0;
   canchas.forEach(function (c) { c.formato = FORMATO_GIRA[c.id] || rota[kf++ % 3]; });
 
-  var jugadores = APELLIDOS.map(function (ap, i) {
-    return { matricula: String(9001 + i), nombre: ap, apodo: '',
-             handicap: Math.round((2 + Math.random() * 26) * 10) / 10,
-             equipo: i % 2 ? 'rojo' : 'azul', rol: i === 0 ? 'admin' : 'jugador',
-             club: '', fotoId: '' };
+  // Los 12 de la gira con su handicap real y equipos FICTICIOS (parejos por handicap),
+  // capitanes Sebas (Team USA) y Mati (Team Europe). Vos entrás como organizador.
+  var jugadores = GIRA_TEST.map(function (x, i) {
+    return { matricula: String(9001 + i), nombre: x[0], apodo: x[1], handicap: x[2],
+             equipo: x[3], rol: x[1] === 'Benve' ? 'admin' : 'jugador', club: '', fotoId: '' };
   });
 
   var tarjetas = [];
@@ -1435,7 +1443,7 @@ function generarTest() {
 
   return {
     torneo: { nombre: 'Ryder MDQ', sede: 'Mar del Plata', edicion: '2026' },
-    equipos: { azul: { nombre: 'Team Europe' }, rojo: { nombre: 'Team USA' } },
+    equipos: { azul: { nombre: 'Team Europe', capitan: '9001' }, rojo: { nombre: 'Team USA', capitan: '9002' } },
     jugadores: jugadores, canchas: canchas, tarjetas: tarjetas,
     partidos: partidos, tarjetasEquipo: tarjetasEquipo,
     sello: new Date().toISOString(), esTest: true
@@ -1445,16 +1453,16 @@ function jugador2(lista, mat) {
   for (var i = 0; i < lista.length; i++) if (String(lista[i].matricula) === String(mat)) return lista[i];
   return { handicap: 18 };
 }
-function guardarTest() { if (TEST) guardarLS('gtm-test-estado', E); }
+function guardarTest() { if (TEST) guardarLS('gtm-test-v62', E); }
 
 function entrarTest(regenerar) {
   if (!TEST) PROD = E;
-  var guardado = regenerar ? null : leerLS('gtm-test-estado', null);
+  var guardado = regenerar ? null : leerLS('gtm-test-v62', null);
   E = guardado || generarTest();
-  guardarLS('gtm-test-estado', E);
+  guardarLS('gtm-test-v62', E);
   TEST = true; guardarLS('gtm-test-on', true);
-  UI.yoTest = E.jugadores[0].matricula;
-  UI.cancha = E.canchas[0].id; UI.canchaLb = 'general'; UI.canchaRyder = E.canchas[0].id;
+  UI.yoTest = (E.jugadores.filter(function (j) { return j.rol === 'admin'; })[0] || E.jugadores[0]).matricula;
+  UI.cancha = E.canchas[0].id; UI.canchaLb = 'general'; UI.canchaRyder = 'general'; UI.lineas = {};
   UI.tab = 'posiciones'; UI.hoyo = 0;
   guardarUI(); pintar();
 }
@@ -1850,8 +1858,8 @@ function prHistorialHTML() {
 function vistaTesteo() {
   var y = yo();
   var h = '<div class="pila">' +
-    nota('<div class="candado"><span>🧪</span><span><b>Base de prueba.</b> Doce jugadores inventados con las tres vueltas jugadas ' +
-    'y handicaps al azar. Todo lo que toques acá queda en este celular: no viaja a la planilla ni lo ve nadie.</span></div>') +
+    nota('<div class="candado"><span>🧪</span><span><b>Base de prueba.</b> Los 12 de la gira con su handicap, equipos y líneas <b>ficticios</b> ' +
+    '(capitanes Sebas y Mati) y las 4 canchas jugadas con golpes inventados. Todo lo que toques acá queda en este celular: no viaja a la planilla ni lo ve nadie.</span></div>') +
     '<section class="card"><div class="sec-tit"><h2>Jugar como</h2>' +
     '<span class="eyebrow">' + E.jugadores.length + ' jugadores</span></div><div class="login-grid">' +
     E.jugadores.map(function (j) {
@@ -3733,8 +3741,8 @@ document.addEventListener('visibilitychange', function () {
 
 if (TEST) {
   PROD = E;
-  E = leerLS('gtm-test-estado', null) || generarTest();
-  if (!UI.yoTest) UI.yoTest = E.jugadores[0].matricula;
+  E = leerLS('gtm-test-v62', null) || generarTest();
+  if (!UI.yoTest) UI.yoTest = (E.jugadores.filter(function (j) { return j.rol === 'admin'; })[0] || E.jugadores[0]).matricula;
 }
 if (E && E.canchas) E.canchas = ordenarCanchas(E.canchas);
 pintar();
