@@ -2,7 +2,7 @@
 (function () {
 'use strict';
 
-var VERSION = 'v62';                     // tiene que coincidir con el CACHE del sw.js
+var VERSION = 'v63';                     // tiene que coincidir con el CACHE del sw.js
 var LS = { ses: 'gtm-sesion', est: 'gtm-estado', cola: 'gtm-cola', ui: 'gtm-ui' };
 var API = (window.GTM_CONFIG && window.GTM_CONFIG.api) || '';
 
@@ -1363,6 +1363,15 @@ var GIRA_TEST = [
   ['Tobías Benítez Cruz', 'Toba', 28, 'azul'], ['Santiago Beccar Varela', 'Nari', 30, 'rojo'],
   ['Joaquín Viboud', 'Vibu', 35, 'rojo'], ['Facundo Urtubey', 'Chino', 35, 'azul']
 ];
+/* Líneas ficticias de cada cancha (distintas en cada una), para probar.
+   Miramar y Marayui jugadas enteras, Acantilados por el hoyo 9 y La Catedral sin empezar. */
+var LINEAS_TEST = {
+  miramar: [[['Sebas', 'Vibu'], ['Mati', 'Chino']], [['Luqui', 'Nari'], ['Benve', 'Toba']], [['Boa', 'Fran'], ['Ini', 'Bauti']]],
+  acantilados: [[['Sebas', 'Fran'], ['Mati', 'Toba']], [['Luqui', 'Vibu'], ['Benve', 'Bauti']], [['Boa', 'Nari'], ['Ini', 'Chino']]],
+  marayui: [[['Sebas', 'Fran', 'Nari'], ['Mati', 'Bauti', 'Toba']], [['Luqui', 'Boa', 'Vibu'], ['Benve', 'Ini', 'Chino']]],
+  catedral: [[['Sebas'], ['Benve']], [['Luqui'], ['Mati']], [['Boa'], ['Bauti']], [['Fran'], ['Ini']], [['Nari'], ['Chino']], [['Vibu'], ['Toba']]]
+};
+function HOYOS_TEST(c) { return c.id === 'catedral' ? 0 : (c.id === 'acantilados' ? 9 : 18); }
 var APELLIDOS = ['Urtubey', 'Benvenuto', 'Benítez Cruz', 'Socas', 'Bergadá', 'Beccar Varela',
                  'Caputo', 'Santamarina', 'Arizu', 'Viboud', 'Paz', 'Boero'];
 
@@ -1406,7 +1415,7 @@ function generarTest() {
     if (c.formato === 'scramble') return;          // en el scramble no hay tarjetas individuales
     jugadores.forEach(function (j) {
       tarjetas.push({ cancha: c.id, matricula: j.matricula,
-        hoyos: c.par.map(function (par) { return golpeFicticio(par, j.handicap); }) });
+        hoyos: c.par.map(function (par, k) { return k < HOYOS_TEST(c) ? golpeFicticio(par, j.handicap) : null; }) });
     });
   });
 
@@ -1414,9 +1423,12 @@ function generarTest() {
   var usa = jugadores.filter(function (j) { return j.equipo === 'rojo'; }).sort(porHcp);
   var eur = jugadores.filter(function (j) { return j.equipo === 'azul'; }).sort(porHcp);
   var partidos = [], tarjetasEquipo = [];
+  var porApodo = function (a) { return String((jugadores.filter(function (j) { return j.apodo === a; })[0] || {}).matricula || ''); };
   canchas.forEach(function (c) {
     var lista = [], i;
-    if (c.formato === 'singles') {
+    if (LINEAS_TEST[c.id]) {
+      lista = LINEAS_TEST[c.id].map(function (l) { return { usa: l[0].map(porApodo), eur: l[1].map(porApodo) }; });
+    } else if (c.formato === 'singles') {
       for (i = 0; i < Math.min(usa.length, eur.length); i++)
         lista.push({ usa: [usa[i].matricula], eur: [eur[i].matricula] });
     } else {
@@ -1430,7 +1442,7 @@ function generarTest() {
         ['usa', 'eur'].forEach(function (lado) {
           var hcp = m[lado].reduce(function (s, mat) { return s + jugador2(jugadores, mat).handicap; }, 0) / m[lado].length;
           var te = { partido: id, lado: lado,
-            hoyos: c.par.map(function (par) { return golpeFicticio(par, hcp * 0.7); }) };
+            hoyos: c.par.map(function (par, k) { return k < HOYOS_TEST(c) ? golpeFicticio(par, hcp * 0.7) : null; }) };
           if (c.formato === 'scramble') {
             te.hoyos = te.hoyos.map(function (g, k) { return k < 9 ? Math.max(2, g - 1) : null; });
             te.salidas = te.hoyos.map(function (g, k) { return k < 9 ? m[lado][k % m[lado].length] : null; });
@@ -1453,13 +1465,13 @@ function jugador2(lista, mat) {
   for (var i = 0; i < lista.length; i++) if (String(lista[i].matricula) === String(mat)) return lista[i];
   return { handicap: 18 };
 }
-function guardarTest() { if (TEST) guardarLS('gtm-test-v62', E); }
+function guardarTest() { if (TEST) guardarLS('gtm-test-v63', E); }
 
 function entrarTest(regenerar) {
   if (!TEST) PROD = E;
-  var guardado = regenerar ? null : leerLS('gtm-test-v62', null);
+  var guardado = regenerar ? null : leerLS('gtm-test-v63', null);
   E = guardado || generarTest();
-  guardarLS('gtm-test-v62', E);
+  guardarLS('gtm-test-v63', E);
   TEST = true; guardarLS('gtm-test-on', true);
   UI.yoTest = (E.jugadores.filter(function (j) { return j.rol === 'admin'; })[0] || E.jugadores[0]).matricula;
   UI.cancha = E.canchas[0].id; UI.canchaLb = 'general'; UI.canchaRyder = 'general'; UI.lineas = {};
@@ -1859,7 +1871,7 @@ function vistaTesteo() {
   var y = yo();
   var h = '<div class="pila">' +
     nota('<div class="candado"><span>🧪</span><span><b>Base de prueba.</b> Los 12 de la gira con su handicap, equipos y líneas <b>ficticios</b> ' +
-    '(capitanes Sebas y Mati) y las 4 canchas jugadas con golpes inventados. Todo lo que toques acá queda en este celular: no viaja a la planilla ni lo ve nadie.</span></div>') +
+    '(capitanes Sebas y Mati), con líneas distintas en cada cancha. Miramar y Marayui ya jugadas, Acantilados por el hoyo 9 y La Catedral sin empezar, para que pruebes cargar. Todo lo que toques acá queda en este celular: no viaja a la planilla ni lo ve nadie.</span></div>') +
     '<section class="card"><div class="sec-tit"><h2>Jugar como</h2>' +
     '<span class="eyebrow">' + E.jugadores.length + ' jugadores</span></div><div class="login-grid">' +
     E.jugadores.map(function (j) {
@@ -2133,12 +2145,12 @@ function calcularPartido(m) {
 }
 function marcadorRyder(cid) {
   var ms = (cid === 'general') ? (E.partidos || []) : partidosDe(cid);
-  var r = { usa: 0, eur: 0, provUsa: 0, provEur: 0, enJuego: 0, total: ms.length };
+  var r = { usa: 0, eur: 0, provUsa: 0, provEur: 0, enJuego: 0, cerrados: 0, total: ms.length };
   ms.forEach(function (m) {
     var p = calcularPartido(m);
     if (!p) return;
     r.usa += p.puntoUsa; r.eur += p.puntoEur;
-    if (p.cerrado) { r.provUsa += p.puntoUsa; r.provEur += p.puntoEur; }
+    if (p.cerrado) { r.cerrados++; r.provUsa += p.puntoUsa; r.provEur += p.puntoEur; }
     else if (p.jugados) {
       r.enJuego++;
       var vale = p.valor || 1;
@@ -2472,15 +2484,15 @@ function marcadorHTML(r) {
   return '<div class="marcador-eq">' +
     '<div class="lado"><span class="escudo usa">USA</span>' +
     '<span class="nombre">' + esc(nombreEquipo('rojo')) + '<i>' +
-    (r.enJuego ? 'proyectado ' + fmtPunto(r.provUsa) : 'puntos') + '</i></span></div>' +
+    (r.enJuego ? 'proy. ' + fmtPunto(r.provUsa) : 'puntos') + '</i></span></div>' +
     '<div class="capsula"><span class="c-usa">' + fmtPunto(r.usa) + '</span>' +
     '<span class="c-eur">' + fmtPunto(r.eur) + '</span></div>' +
     '<div class="lado"><span class="escudo eur">EUR</span>' +
     '<span class="nombre">' + esc(nombreEquipo('azul')) + '<i>' +
-    (r.enJuego ? 'proyectado ' + fmtPunto(r.provEur) : 'puntos') + '</i></span></div></div>' +
+    (r.enJuego ? 'proy. ' + fmtPunto(r.provEur) : 'puntos') + '</i></span></div></div>' +
     '<div class="barra-eq"><i class="r" style="width:' + pa + '%"></i><i class="a" style="width:' + (100 - pa) + '%"></i></div>' +
     (r.enJuego ? '<div class="meta-eq"><span>' + r.enJuego + ' en juego</span><span>' +
-      (r.total - r.enJuego) + ' de ' + r.total + ' definidos</span></div>' : '');
+      r.cerrados + ' de ' + r.total + ' definidos</span></div>' : '');
 }
 function fmtPunto(n) { return (Math.round(n * 2) / 2).toString().replace('.5', '½').replace(/^0½$/, '½'); }
 function tiraHoyos(p) {
@@ -3741,7 +3753,7 @@ document.addEventListener('visibilitychange', function () {
 
 if (TEST) {
   PROD = E;
-  E = leerLS('gtm-test-v62', null) || generarTest();
+  E = leerLS('gtm-test-v63', null) || generarTest();
   if (!UI.yoTest) UI.yoTest = (E.jugadores.filter(function (j) { return j.rol === 'admin'; })[0] || E.jugadores[0]).matricula;
 }
 if (E && E.canchas) E.canchas = ordenarCanchas(E.canchas);
