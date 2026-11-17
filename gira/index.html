@@ -285,12 +285,12 @@ var RESPALDO = {
   ],
   Agenda: [
     { fecha: '25', dia: 'Mié', hora: 'Todo el día', titulo: 'Abre la casa', detalle: 'Cada uno llega cuando puede.', estado: '' },
-    { fecha: '26', dia: 'Jue', hora: 'Opcional', titulo: 'Ronda de práctica', detalle: 'Cancha a definir.', estado: '' },
+    { fecha: '26', dia: 'Jue', hora: 'Opcional', titulo: 'Ronda de práctica · Mar del Plata Golf', detalle: 'Opcional. Puede haber también una tarde de golf.', estado: '' },
     { fecha: '27', dia: 'Vie', hora: 'Media mañana', titulo: 'Todos en Mar del Plata', detalle: 'Último momento para llegar.', estado: '' },
     { fecha: '27', dia: 'Vie', hora: '13:40', titulo: 'Ronda 1 · Miramar Links', detalle: 'Stableford + fourball.', estado: 'Confirmada' },
     { fecha: '28', dia: 'Sáb', hora: 'Mañana', titulo: 'Ronda 2 · Acantilados', detalle: 'Stableford + fourball.', estado: 'Falta reservar' },
     { fecha: '28', dia: 'Sáb', hora: '16:30', titulo: 'Ronda 3 · Marayui Golf', detalle: 'Scramble de a 3, 9 hoyos: cuenta para la Ryder. Después, el que quiera sigue los otros 9.', estado: 'Confirmada' },
-    { fecha: '28', dia: 'Sáb', hora: 'Noche', titulo: 'Previa en la casa', detalle: 'Bruto, opcional.', estado: '' },
+    { fecha: '28', dia: 'Sáb', hora: 'Noche', titulo: 'Asado en la casa', detalle: 'Un buen asado.', estado: '' },
     { fecha: '29', dia: 'Dom', hora: '13:00', titulo: 'Ronda 4 · La Catedral', detalle: 'Almuerzo y entrega de premios.', estado: 'En trámite' }
   ],
   Jugadores: [
@@ -331,16 +331,16 @@ var RESPALDO = {
     { rubro: 'Comidas afuera', concepto: 'Almuerzo del sábado en Marayui', detalle: 'Clubhouse, antes de salir. Con bebida.', por_persona: '35000', estado: 'Estimado', opcional: '' },
     { rubro: 'Comidas afuera', concepto: 'Almuerzo del domingo en La Catedral', detalle: 'Después de la ronda, con la entrega de premios.', por_persona: '40000', estado: 'Estimado', opcional: '' },
     { rubro: 'Casa y súper', concepto: 'Asado del viernes', detalle: 'Carne, achuras, pan y ensalada para 12.', por_persona: '16000', estado: 'Estimado', opcional: '' },
-    { rubro: 'Casa y súper', concepto: 'Previa del sábado', detalle: 'Picada y algo para comer en la casa.', por_persona: '12000', estado: 'Estimado', opcional: '' },
+    { rubro: 'Casa y súper', concepto: 'Asado del sábado', detalle: 'Un buen asado en la casa.', por_persona: '16000', estado: 'Estimado', opcional: '' },
     { rubro: 'Casa y súper', concepto: 'Desayunos y almuerzo del viernes', detalle: 'Desayunos de vie, sáb y dom, y algo liviano antes de Miramar.', por_persona: '12000', estado: 'Estimado', opcional: '' },
     { rubro: 'Casa y súper', concepto: 'Bebidas', detalle: 'Cerveza, vino, fernet, gaseosas y agua para todo el fin de semana.', por_persona: '30000', estado: 'Estimado', opcional: '' },
     { rubro: 'Casa y súper', concepto: 'Carbón, hielo y descartables', detalle: 'Más bolsas, servilletas y lo que falte en la casa.', por_persona: '5000', estado: 'Estimado', opcional: '' },
     { rubro: 'Merch y premios', concepto: 'Chomba del equipo', detalle: 'Del color del equipo, con apellido. Green Golf.', por_persona: '45000', estado: 'Estimado', opcional: '' },
     { rubro: 'Merch y premios', concepto: 'Premios', detalle: 'Campeón Stableford y equipo ganador de la Ryder.', por_persona: '10000', estado: 'Estimado', opcional: '' },
     { rubro: 'Imprevistos', concepto: 'Varios', detalle: 'Pelotas perdidas, café en las canchas y propinas.', por_persona: '15000', estado: 'Estimado', opcional: '' },
-    { rubro: 'Aparte', concepto: 'Salida a Bruto', detalle: 'Sábado a la noche: entrada y tragos. Opcional.', por_persona: '40000', estado: 'Estimado', opcional: 'Sí' },
+    { rubro: 'Aparte', concepto: 'Surf en Chapadmalal', detalle: 'Sábado entre las dos rondas: tabla y traje si hace falta.', por_persona: '', estado: 'A definir', opcional: 'Sí' },
     { rubro: 'Aparte', concepto: 'Llegar antes (mié o jue)', detalle: 'Comida extra en la casa, por día.', por_persona: '15000', estado: 'Estimado', opcional: 'Sí' },
-    { rubro: 'Aparte', concepto: 'Ronda de práctica del jueves', detalle: 'Green fee aparte, según la cancha.', por_persona: '', estado: 'A definir', opcional: 'Sí' }
+    { rubro: 'Aparte', concepto: 'Ronda de práctica del jueves', detalle: 'Mar del Plata Golf: green fee aparte.', por_persona: '', estado: 'A definir', opcional: 'Sí' }
   ]
 };
 
@@ -607,7 +607,7 @@ var V = {
       '<div class="g2">' +
         '<div class="card"><h3>La casa</h3><ul class="lista"><li>Abre el <b>miércoles 25</b>.</li><li>Llegada: <b>sin límite</b>, cada uno cuando pueda.</li></ul></div>' +
         '<div class="card"><h3>Comidas</h3><ul class="lista"><li><b>Sáb:</b> almuerzo en Marayui.</li><li><b>Dom:</b> almuerzo y premios en La Catedral.</li></ul></div>' +
-        '<div class="card"><h3>Sábado a la noche</h3><ul class="lista"><li>Previa en la casa.</li><li>Bruto, opcional.</li></ul></div>' +
+        '<div class="card"><h3>Sábado</h3><ul class="lista"><li>Entre las dos rondas: surf en Chapadmalal.</li><li>A la noche: un buen asado en la casa.</li></ul></div>' +
       '</div>';
   },
 
