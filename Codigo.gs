@@ -268,7 +268,7 @@ function responder(obj) {
 function despachar(p) {
   try {
     switch (p.accion) {
-      case 'ping':      return { ok: true, version: 60 };
+      case 'ping':      return { ok: true, version: 62 };
       case 'diag':      return diagnostico();
       case 'registrar': return registrar(p);
       case 'precargar': exigir(p.token, true); return precargarPerfiles_();
@@ -889,8 +889,7 @@ function guardarLinea(p) {
   var lado = p.lado === 'usa' ? 'usa' : (p.lado === 'eur' ? 'eur' : null);
   var n = parseInt(p.n, 10);
   if (!p.cancha || !lado || !(n >= 1 && n <= 12)) return { ok: false, error: 'faltan_datos' };
-  var cap = capitanDe_(j.matricula);
-  if (j.rol !== 'admin' && cap !== (lado === 'usa' ? 'rojo' : 'azul')) return { ok: false, error: 'solo_capitanes' };
+  // cualquiera con sesión arma una línea (elige a los cuatro y arranca a anotar)
   var mats = (p.mats || []).map(function (x) { return String(x || '').trim(); }).slice(0, 3);
   var lock = LockService.getScriptLock();
   lock.waitLock(20000);

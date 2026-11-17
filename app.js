@@ -2,7 +2,7 @@
 (function () {
 'use strict';
 
-var VERSION = 'v62';                     // tiene que coincidir con el CACHE del sw.js
+var VERSION = 'v63';                     // tiene que coincidir con el CACHE del sw.js
 var LS = { ses: 'gtm-sesion', est: 'gtm-estado', cola: 'gtm-cola', ui: 'gtm-ui' };
 var API = (window.GTM_CONFIG && window.GTM_CONFIG.api) || '';
 
@@ -59,12 +59,8 @@ function capitanDe(mat) {
   if (mat && eq.azul && String(eq.azul.capitan || '') === String(mat)) return 'azul';
   return null;
 }
-function puedeArmar(lado) {
-  var y = yo();
-  if (!y) return false;
-  if (y.rol === 'admin') return true;
-  return capitanDe(y.matricula) === (lado === 'usa' ? 'rojo' : 'azul');
-}
+// Cualquiera con sesión arma una línea: elige a los cuatro y arranca a anotar.
+function puedeArmar(lado) { return !!yo(); }
 /* La tarjeta propia siempre. La de otro, si juega un partido de esa cancha:
    cuando ya están armadas las líneas, cualquiera puede anotar cualquier línea
    (una sola persona puede llevar las cuatro). Codigo.gs aplica la misma regla. */
@@ -93,8 +89,8 @@ function partidosDeLinea(cid, mat) {
 function lineasDe(cid) {
   var c = cancha(cid), out = [], grupos = {};
   partidosDe(cid).forEach(function (m, k) {
-    if (!m.usa.length || !m.eur.length) return;     // línea a medio armar: todavía no se anota
-    var fmt = m.formato || (c && c.formato);
+    var fmt = m.formato || (c && c.formato), cupo = cuposFmt(fmt)[1];
+    if (m.usa.length < cupo || m.eur.length < cupo) return;     // línea a medio armar: todavía no se anota
     if (fmt === 'scramble') { out.push({ ms: [m], lado: 'usa' }); out.push({ ms: [m], lado: 'eur' }); return; }
     if (fmt === 'singles') {
       var g = Math.ceil(numPartido(m, k) / 2);
@@ -2355,15 +2351,25 @@ function editorLineas(c) {
       }
       h += '</div>';
     });
-    h += '</div></div>';
+    h += '</div>';
+    if (m && m.usa.length && m.eur.length) {
+      var lsE = lineasDe(c.id), bE = [];
+      lsE.forEach(function (l, k) {
+        if (l.ms.indexOf(m) < 0) return;
+        bE.push('<button class="btn pri" data-acc="ir-linea" data-v="' + c.id + '" data-i="' + k + '">' +
+          esc(l.lado ? 'Anotar ' + nombreEquipo(l.lado === 'usa' ? 'rojo' : 'azul') : 'Arrancar a anotar') + ' →</button>');
+      });
+      h += '<div class="acc" style="padding:8px 0 0">' + bE.join('') + '</div>';
+    }
+    h += '</div>';
   }
   var caps = ['rojo', 'azul'].map(function (eq) {
     var cp = jugador(E.equipos && E.equipos[eq] && E.equipos[eq].capitan);
     return nombreEquipo(eq) + ': ' + (cp ? nomJ(cp) : 'sin capitán');
   }).join(' · ');
-  h += nota('<div class="candado solo"><span>🧢</span><span>Las líneas no se sortean: <b>cada capitán elige</b> quiénes de su equipo van en cada una ' +
-    'y lo puede cambiar cuando quiera (se guarda al elegir). Los dos pueden cargar a la vez. Si elegís a alguien que estaba en otra línea, ' +
-    'pasa a esta. Capitanes: ' + esc(caps) + '. Los nombra el organizador en Ryder → General.</span></div>');
+  h += nota('<div class="candado solo"><span>✍️</span><span>Las líneas no se sortean: cualquiera elige a los jugadores de una línea ' +
+    '(se guarda al elegir) y toca <b>Arrancar a anotar</b>. Se puede cambiar cuando quieran. Si elegís a alguien que estaba en otra línea, ' +
+    'pasa a esta. Capitanes: ' + esc(caps) + '.</span></div>');
   return h + '</section>';
 }
 
@@ -2664,11 +2670,13 @@ function tiraLinea(pr, titulo) {
     '.</span></div>') + '</section>';
 }
 
-function selectorCarga(c) {
-  if (!c || !lineasDe(c.id).length || c.formato === 'scramble') return '';
+function selectorCarga(c, armando) {
+  if (!c || !c.formato) return '';
+  var hay = lineasDe(c.id).length, md = armando ? 'armar' : (UI.modoCarga === 'mia' ? 'mia' : 'linea');
   return '<div class="seg" role="group">' +
-    '<button data-acc="modo-carga" data-v="linea" aria-pressed="' + (UI.modoCarga !== 'mia') + '">Las líneas</button>' +
-    '<button data-acc="modo-carga" data-v="mia" aria-pressed="' + (UI.modoCarga === 'mia') + '">Mi tarjeta</button></div>';
+    (hay ? '<button data-acc="modo-carga" data-v="linea" aria-pressed="' + (md === 'linea') + '">Las líneas</button>' : '') +
+    '<button data-acc="modo-carga" data-v="armar" aria-pressed="' + (md === 'armar') + '">Armar líneas</button>' +
+    (c.formato !== 'scramble' ? '<button data-acc="modo-carga" data-v="mia" aria-pressed="' + (md === 'mia') + '">Mi tarjeta</button>' : '') + '</div>';
 }
 /* Qué línea se anota. Cualquiera puede anotar cualquiera: la propia sale marcada
    con "vos" y, en el scramble, cada trío va con el color de su equipo. */
@@ -2697,7 +2705,7 @@ function vistaScramble(c, sel) {
   var eq = lado === 'usa' ? 'rojo' : 'azul', cls = eq === 'rojo' ? 'txt-rojo' : 'txt-azul';
   var nombres = st.js.map(function (x) { return nombreCorto(x.nombre); });
 
-  var h = '<div class="pila">' + chipsCancha(c.id, 'sel-cancha', false) + selectorLinea(c, sel) +
+  var h = '<div class="pila">' + chipsCancha(c.id, 'sel-cancha', false) + selectorCarga(c) + selectorLinea(c, sel) +
     '<section class="card"><div class="p-cab"><span class="eyebrow">Línea ' + (sel.k + 1) + ' · ' + esc(etiquetaCancha(c)) + '</span>' +
     '<span class="p-estado">Scramble de a 3 · ' + N + ' hoyos</span></div>' + estadoMatchHTML(pr) +
     '<div class="hoyo"><div class="eyebrow ' + cls + '">' + esc(nombreEquipo(eq)) + ' · ' + esc(nombres.join(', ')) + '</div>' +
@@ -2777,6 +2785,8 @@ function avisoSalidas(st) {
 function vistaCargar() {
   var c = canchaActual(), j = yo();
   if (!c || !j) return '<p class="vacio">Cargando…</p>';
+  if (c.formato && (UI.modoCarga === 'armar' || (!lineasDe(c.id).length && UI.modoCarga !== 'mia')))
+    return '<div class="pila">' + chipsCancha(c.id, 'sel-cancha', false) + selectorCarga(c, true) + editorLineas(c) + '</div>';
   if (c.formato === 'scramble') {
     var ssc = lineaSel(c.id);
     if (ssc.l) return vistaScramble(c, ssc);
