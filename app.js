@@ -732,6 +732,12 @@ var TARJETAS_OFICIALES = {
       par: [5,3,4,4,4,5,3,4,4, 4,5,4,4,5,3,4,3,4],
       si:  [11,15,9,13,3,1,17,7,5, 4,6,2,14,8,16,12,18,10] }
   ],
+  // Marayui: tees azules, par 72. En la gira se juegan los hoyos 1 al 9 (scramble).
+  marayui: [
+    { etiqueta: 'Tarjeta oficial', detalle: 'azules · par 72', nombre: 'Marayui Golf',
+      par: [4,4,4,3,4,4,5,3,5, 4,4,4,3,4,4,5,3,5],
+      si:  [7,9,11,15,5,13,3,17,1, 6,12,10,18,2,14,8,16,4] }
+  ],
   miramar: [
     { etiqueta: 'Tarjeta oficial', detalle: 'par 72', nombre: 'Miramar Links',
       par: [4,3,4,4,5,5,3,4,4, 5,4,3,4,4,5,3,4,4],
@@ -1345,8 +1351,8 @@ function generarTest() {
        { id: 'catedral', dia: 3, nombre: 'La Catedral', confirmada: true,
          par: [4,3,5,4,3,4,5,3,4,4,4,3,5,3,4,4,4,4], si: [3,13,1,11,15,7,5,17,9,14,8,16,4,18,6,10,2,12] }];
   if (!canchas.some(function (c) { return c.id === 'marayui'; }))
-    canchas.splice(2, 0, { id: 'marayui', dia: 2, nombre: 'Marayui Golf', confirmada: false,
-      par: [4,4,3,5,4,4,3,5,4, 4,4,3,5,4,4,3,5,4], si: [1,3,5,7,9,11,13,15,17, 2,4,6,8,10,12,14,16,18] });
+    canchas.splice(2, 0, { id: 'marayui', dia: 2, nombre: 'Marayui Golf', confirmada: true,
+      par: [4,4,4,3,4,4,5,3,5, 4,4,4,3,4,4,5,3,5], si: [7,9,11,15,5,13,3,17,1, 6,12,10,18,2,14,8,16,4] });
   canchas = ordenarCanchas(canchas);
   var rota = ['fourball', 'foursomes', 'singles'], kf = 0;
   canchas.forEach(function (c) { c.formato = FORMATO_GIRA[c.id] || rota[kf++ % 3]; });
@@ -1851,10 +1857,11 @@ function hcpScramble(js) {
 }
 /* ============ scramble (Marayui) ============
    Medal play por equipo: neto = golpes de los 9 hoyos − handicap de juego del equipo.
-   En cada partido de 3 contra 3 gana el punto el equipo de menor neto; empate, ½ cada uno.
+   Cada partido de 3 contra 3 reparte PTS_SCRAMBLE puntos: se los lleva el equipo de menor neto; empate, mitad cada uno.
    El handicap del equipo lo fija el comité (el organizador lo carga en Ryder); mientras
    no lo cargue, la app usa la fórmula de hcpScramble. En cada hoyo se anota de quién
    fue la salida elegida, y cada jugador tiene que aportar un mínimo de salidas. */
+var PTS_SCRAMBLE = 2;         // puntos que reparte cada partido de scramble (Andres, 17/11)
 var MIN_SALIDAS = 2;          // salidas mínimas de cada jugador en los 9 hoyos
 function r1(n) { return Math.round(n * 10) / 10; }
 function fmtNum(n) { return String(r1(n)).replace('.', ','); }
@@ -1912,7 +1919,7 @@ function calcScramble(m, usa, eur) {
   var N = hoyosFmt('scramble'), su = estadoLadoScramble(m, 'usa'), se = estadoLadoScramble(m, 'eur');
   var hu = tarjetaEquipo(m.id, 'usa'), he = tarjetaEquipo(m.id, 'eur'), hoyos = [], i;
   for (i = 0; i < N; i++) hoyos.push({ i: i, usa: hu[i] == null ? null : hu[i], eur: he[i] == null ? null : he[i], gana: null });
-  var r = { m: m, fmt: 'scramble', medal: true, n: N, hoyos: hoyos, su: su, se: se, usa: usa, eur: eur,
+  var r = { m: m, fmt: 'scramble', medal: true, n: N, valor: PTS_SCRAMBLE, hoyos: hoyos, su: su, se: se, usa: usa, eur: eur,
             jugados: Math.max(su.thru, se.thru), cerradoEn: 0, cerrado: false, ganador: null,
             puntoUsa: 0, puntoEur: 0, arriba: 0, lider: null };
   r.restan = N - r.jugados;
@@ -1925,7 +1932,7 @@ function calcScramble(m, usa, eur) {
   if (r.penalizado && (su.completo && se.completo)) {
     r.cerrado = true;
     r.ganador = r.penalizado === 'usa' ? 'eur' : 'usa';
-    r[r.ganador === 'usa' ? 'puntoUsa' : 'puntoEur'] = 1;
+    r[r.ganador === 'usa' ? 'puntoUsa' : 'puntoEur'] = PTS_SCRAMBLE;
     r.arriba = r.ganador === 'usa' ? 1 : -1; r.lider = r.ganador;
     r.badge = 'Salidas'; r.sub = 'final'; r.texto = 'por falta de salidas';
     return r;
@@ -1938,9 +1945,9 @@ function calcScramble(m, usa, eur) {
   if (su.completo && se.completo) {
     r.cerrado = true;
     dif = r1(se.neto - su.neto);
-    if (dif > 0) { r.ganador = 'usa'; r.puntoUsa = 1; }
-    else if (dif < 0) { r.ganador = 'eur'; r.puntoEur = 1; }
-    else { r.puntoUsa = 0.5; r.puntoEur = 0.5; }
+    if (dif > 0) { r.ganador = 'usa'; r.puntoUsa = PTS_SCRAMBLE; }
+    else if (dif < 0) { r.ganador = 'eur'; r.puntoEur = PTS_SCRAMBLE; }
+    else { r.puntoUsa = PTS_SCRAMBLE / 2; r.puntoEur = PTS_SCRAMBLE / 2; }
     r.sub = 'final';
   } else {
     if (su.proy != null && se.proy != null) dif = r1(se.proy - su.proy);
@@ -2091,8 +2098,9 @@ function marcadorRyder(cid) {
     if (p.cerrado) { r.provUsa += p.puntoUsa; r.provEur += p.puntoEur; }
     else if (p.jugados) {
       r.enJuego++;
-      if (p.arriba > 0) r.provUsa += 1; else if (p.arriba < 0) r.provEur += 1;
-      else { r.provUsa += 0.5; r.provEur += 0.5; }
+      var vale = p.valor || 1;
+      if (p.arriba > 0) r.provUsa += vale; else if (p.arriba < 0) r.provEur += vale;
+      else { r.provUsa += vale / 2; r.provEur += vale / 2; }
     }
   });
   return r;
@@ -2262,7 +2270,7 @@ function vistaRyder() {
 function notaScramble() {
   return '<div class="candado solo"><span>⛳</span><span><b>Scramble de a 3, 9 hoyos, medal neto.</b> Tiran los tres, eligen la mejor ' +
     'pelota y desde ahí vuelven a tirar los tres. Cada trío sale en su propia línea, con los de su equipo, y lleva una sola tarjeta. <b>Neto = golpes de los 9 hoyos − handicap del equipo.</b> ' +
-    'En cada partido de 3 contra 3, el equipo de menor neto gana el punto; empate, ½ cada uno. El handicap del equipo lo fija el comité ' +
+    'Cada partido de 3 contra 3 reparte <b>' + PTS_SCRAMBLE + ' puntos</b>: se los lleva el equipo que hace <b>menos golpes netos</b>; empate, ' + (PTS_SCRAMBLE / 2) + ' para cada uno. El handicap del equipo lo fija el comité ' +
     '(si no lo carga, la app usa 20% del más bajo + 15% del medio + 10% del más alto, a la mitad por ser 9 hoyos). ' +
     'En cada hoyo se anota <b>de quién fue la salida</b>: mínimo ' + MIN_SALIDAS + ' de cada jugador; el equipo que no llega <b>pierde el match</b>. ' +
     'Cuenta solo para la Ryder: si siguen jugando los otros 9, no suman.</span></div>';

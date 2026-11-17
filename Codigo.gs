@@ -122,6 +122,7 @@ function borrarTodoYEmpezarDeNuevo() {
  * PREPARAR LA GIRA — correr UNA vez después de pegar esta versión. No borra nada.
  *  · Deja las 4 canchas en el orden de la gira: vie Miramar · sáb Acantilados
  *    (mañana) y Marayui (tarde) · dom La Catedral. Si falta Marayui, la agrega.
+ *  · Marayui queda con su tarjeta oficial (azules, par 72; se juegan los hoyos 1 al 9).
  *  · A las que no tienen modalidad les pone la de la gira: Miramar four-ball,
  *    Acantilados foursome, Marayui scramble de a 3, La Catedral individuales.
  *    (Si una ya tiene modalidad, no la toca: se cambia desde la app, pestaña Ryder.)
@@ -134,6 +135,14 @@ function prepararGira() {
   for (var i = 1; i < v.length; i++) {
     var id = String(v[i][0]);
     if (fmt[id] && !String(v[i][4] || '').trim()) { hoja.getRange(i + 1, 5).setValue(fmt[id]); hechas.push(id + ' → ' + fmt[id]); }
+  }
+  // Marayui con tarjeta provisoria → la oficial (tees azules; se juegan los hoyos 1 al 9)
+  for (var r = 1; r < v.length; r++) {
+    if (String(v[r][0]) !== 'marayui' || v[r][3] === true || v[r][3] === 'TRUE') continue;
+    hoja.getRange(r + 1, 6, 1, 18).setValues([[4,4,4,3,4,4,5,3,5, 4,4,4,3,4,4,5,3,5]]);
+    hoja.getRange(r + 1, 24, 1, 18).setValues([[7,9,11,15,5,13,3,17,1, 6,12,10,18,2,14,8,16,4]]);
+    hoja.getRange(r + 1, 4).setValue(true);
+    hechas.push('Marayui → tarjeta oficial (azules)');
   }
   limpiarCache();
   var texto = hechas.join('\n');
@@ -155,9 +164,9 @@ function migrarScramble() {
   var fila = {};
   for (var i = 1; i < v.length; i++) fila[String(v[i][0])] = i + 1;
   if (!fila.marayui) {
-    var par = [4,4,3,5,4,4,3,5,4, 4,4,3,5,4,4,3,5,4], si = [1,3,5,7,9,11,13,15,17, 2,4,6,8,10,12,14,16,18];
-    hoja.appendRow(['marayui', 2, 'Marayui Golf', false, 'scramble'].concat(par, si));
-    hechas.push('Marayui agregada (tarjeta provisoria)');
+    var par = [4,4,4,3,4,4,5,3,5, 4,4,4,3,4,4,5,3,5], si = [7,9,11,15,5,13,3,17,1, 6,12,10,18,2,14,8,16,4];
+    hoja.appendRow(['marayui', 2, 'Marayui Golf', true, 'scramble'].concat(par, si));
+    hechas.push('Marayui agregada con la tarjeta oficial (azules)');
   }
   var dias = { miramar: 1, acantilados: 2, marayui: 2, catedral: 3 };
   Object.keys(dias).forEach(function (id) {
