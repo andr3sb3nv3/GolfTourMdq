@@ -2,7 +2,7 @@
 (function () {
 'use strict';
 
-var VERSION = 'v60';                     // tiene que coincidir con el CACHE del sw.js
+var VERSION = 'v61';                     // tiene que coincidir con el CACHE del sw.js
 var LS = { ses: 'gtm-sesion', est: 'gtm-estado', cola: 'gtm-cola', ui: 'gtm-ui' };
 var API = (window.GTM_CONFIG && window.GTM_CONFIG.api) || '';
 
@@ -51,6 +51,20 @@ function yo() {
   return SES ? jugador(SES.matricula) : null;
 }
 function esAdmin() { var y = yo(); return !!y && y.rol === 'admin'; }
+/* Capitanes: los nombra el organizador. Cada uno arma las líneas de su equipo
+   (rojo = Team USA = lado usa; azul = Team Europe = lado eur). */
+function capitanDe(mat) {
+  var eq = (E && E.equipos) || {};
+  if (mat && eq.rojo && String(eq.rojo.capitan || '') === String(mat)) return 'rojo';
+  if (mat && eq.azul && String(eq.azul.capitan || '') === String(mat)) return 'azul';
+  return null;
+}
+function puedeArmar(lado) {
+  var y = yo();
+  if (!y) return false;
+  if (y.rol === 'admin') return true;
+  return capitanDe(y.matricula) === (lado === 'usa' ? 'rojo' : 'azul');
+}
 /* La tarjeta propia siempre. La de otro, si juega un partido de esa cancha:
    cuando ya están armadas las líneas, cualquiera puede anotar cualquier línea
    (una sola persona puede llevar las cuatro). Codigo.gs aplica la misma regla. */
@@ -79,6 +93,7 @@ function partidosDeLinea(cid, mat) {
 function lineasDe(cid) {
   var c = cancha(cid), out = [], grupos = {};
   partidosDe(cid).forEach(function (m, k) {
+    if (!m.usa.length || !m.eur.length) return;     // línea a medio armar: todavía no se anota
     var fmt = m.formato || (c && c.formato);
     if (fmt === 'scramble') { out.push({ ms: [m], lado: 'usa' }); out.push({ ms: [m], lado: 'eur' }); return; }
     if (fmt === 'singles') {
@@ -369,6 +384,19 @@ function accionarTest(c) {
       .concat((c.lista || []).map(function (m, k) {
         return { id: c.cancha + '-' + (k + 1), cancha: c.cancha, formato: c.formato, usa: m.usa, eur: m.eur };
       }));
+  } else if (c.accion === 'linea') {
+    var idL = c.cancha + '-' + c.n, mL = null, cL = cancha(c.cancha);
+    (E.partidos || []).forEach(function (m) {
+      if (m.cancha !== c.cancha) return;
+      if (m.id === idL) mL = m;
+      else m[c.lado] = m[c.lado].filter(function (x) { return c.mats.indexOf(x) < 0; });
+    });
+    if (!mL) { mL = { id: idL, cancha: c.cancha, formato: cL && cL.formato, usa: [], eur: [] }; E.partidos.push(mL); }
+    mL[c.lado] = c.mats.slice();
+  } else if (c.accion === 'capitanes') {
+    ['rojo', 'azul'].forEach(function (eq) { if (c[eq] !== undefined) { E.equipos[eq] = E.equipos[eq] || {}; E.equipos[eq].capitan = c[eq]; } });
+  } else if (c.accion === 'equipoJugador') {
+    var jE = jugador(c.matricula); if (jE) jE.equipo = c.equipo;
   } else if (c.accion === 'hcpEquipo') {
     (E.partidos || []).forEach(function (m) {
       if (m.id === c.partido) m[c.lado === 'usa' ? 'hcpUsa' : 'hcpEur'] = numeroHcp(c.hcp);
@@ -688,6 +716,7 @@ function textoError(e) {
     falta_matricula: 'Falta la matrícula.',
     sesion_vencida: 'Se venció la sesión. Volvé a entrar.',
     solo_admin: 'Eso lo cambia solo el organizador.',
+    solo_capitanes: 'Eso lo arma el capitán de cada equipo (o el organizador).',
     sin_conexion: 'No se pudo hablar con la planilla. Puede ser que no tengas señal, o que la implementación del Apps Script no esté publicada para "Cualquier usuario".',
     necesita_login: 'El Apps Script está pidiendo iniciar sesión con Google. Hay que volver a implementarlo con «Ejecutar como: Yo» y «Quién tiene acceso: Cualquier usuario».',
     respuesta_invalida: 'El backend contestó algo que no es un dato válido. Suele ser un error dentro del script: revisá Ejecuciones en el editor de Apps Script.',
@@ -1995,7 +2024,11 @@ function golpesDif(diff, si) {
   if (diff <= 0) return 0;
   return Math.floor(diff / 18) + (si <= (diff % 18) ? 1 : 0);
 }
-function partidosDe(cid) { return (E.partidos || []).filter(function (m) { return m.cancha === cid; }); }
+function partidosDe(cid) {
+  return (E.partidos || []).filter(function (m) { return m.cancha === cid; })
+    .map(function (m, k) { return { m: m, n: numPartido(m, k) }; })
+    .sort(function (a, b) { return a.n - b.n; }).map(function (x) { return x.m; });
+}
 function tarjetaEquipo(pid, lado) {
   var t = (E.tarjetasEquipo || []).filter(function (x) { return x.partido === pid && x.lado === lado; })[0];
   return t ? t.hoyos : [];
@@ -2202,13 +2235,16 @@ function panelEquipos(cid) {
 }
 
 function vistaRyder() {
-  var cid = UI.canchaRyder || (E.canchas[0] && E.canchas[0].id);
+  var cid = UI.canchaRyder || 'general';
+  if (cid === 'general') return vistaRyderGeneral();
   var c = cancha(cid);
   if (!c) return '<p class="vacio">Cargando…</p>';
   var admin = esAdmin(), fmt = c.formato || '';
   var ms = partidosDe(cid), marca = marcadorRyder(cid), gral = marcadorRyder('general');
+  var arma = puedeArmar('usa') || puedeArmar('eur');
+  var armando = arma && (!ms.length || (UI.armando === cid));
 
-  var h = '<div class="pila">' + chipsCancha(cid, 'ryder-cancha', false);
+  var h = '<div class="pila">' + chipsCancha(cid, 'ryder-cancha', true);
 
   h += '<section class="card"><div class="lb-cab"><h2>Ryder Cup</h2>' +
     '<span class="eyebrow">' + gral.total + ' partidos</span></div>' +
@@ -2225,11 +2261,13 @@ function vistaRyder() {
     return h;
   }
 
+  if (armando) {
+    h += '</section>' + editorLineas(c);
+    if (ms.length) h += '<div class="acc"><button class="btn pri" data-acc="armar-lineas" data-v="">Listo, ver los partidos</button></div>';
+    return h + '</div>';
+  }
   if (!ms.length) {
-    h += '<p class="vacio">Todavía no están armados los partidos de esta jornada.</p>';
-    if (admin) h += '<div class="acc"><button class="btn pri" data-acc="armar" data-v="' + cid + '">Armar los partidos</button>' +
-      '<span class="hint">' + (fmt === 'singles' ? '6 duelos individuales' : (fmt === 'scramble' ? '2 partidos de 3 contra 3, cada trío en su propia línea (4 líneas)' : '3 partidos de a dos')) +
-      ', repartidos por handicap. Después los podés cambiar uno por uno.</span></div>';
+    h += '<p class="vacio">Los capitanes todavía no armaron las líneas de esta cancha.</p>';
     return h + '</section></div>';
   }
 
@@ -2260,13 +2298,112 @@ function vistaRyder() {
       '</div>' + tiraHoyos(p) + (p.medal ? detalleScramble(p, admin) : '') + botonesLinea(m) + '</section>';
   });
 
-  if (admin) h += '<div class="acc"><button class="btn fin" data-acc="armar" data-v="' + cid + '">Rearmar los partidos de esta jornada</button></div>';
+  if (arma) h += '<div class="acc"><button class="btn" data-acc="armar-lineas" data-v="' + cid + '">✏️ Editar las líneas</button></div>';
   if (admin && fmt === 'scramble') h += nota('<div class="candado solo"><span>🧮</span><span>El <b>handicap de cada equipo</b> lo carga el ' +
     'comité en cada partido. Vacío = la fórmula de la app (el número gris).</span></div>');
   h += nota(fmt === 'scramble' ? notaScramble()
     : '<div class="candado solo"><span>⛳</span><span>Handicap por <b>diferencia al 100%</b>: el bando de menor handicap juega scratch y el otro recibe la diferencia en los hoyos de menor índice.</span></div>');
   return h + '</div>';
 }
+/* ============ armado de líneas (lo hacen los capitanes) ============ */
+// Cuántos partidos tiene cada modalidad y cuántos jugadores van por lado.
+var CUPOS = { fourball: [3, 2], foursomes: [3, 2], scramble: [2, 3], singles: [6, 1] };
+function cuposFmt(fmt) { return CUPOS[fmt] || [3, 2]; }
+function tituloPartido(fmt, n) {
+  if (fmt === 'singles') return 'Partido ' + n + ' · línea ' + Math.ceil(n / 2);
+  if (fmt === 'scramble') return 'Partido ' + n + ' · líneas ' + (2 * n - 1) + ' y ' + (2 * n);
+  return 'Línea ' + n;
+}
+function nomJ(j) { return j ? (String(j.apodo || '').replace(/\s*\(.*\)\s*$/, '').trim() || nombreCorto(j.nombre)) : '—'; }
+function delEquipo(eq) {
+  return E.jugadores.filter(function (j) { return j.equipo === eq; })
+    .sort(function (a, b) { return (Number(a.handicap) || 99) - (Number(b.handicap) || 99); });
+}
+function editorLineas(c) {
+  var fmt = c.formato, cu = cuposFmt(fmt), ms = partidosDe(c.id), porN = {}, usado = { usa: {}, eur: {} };
+  ms.forEach(function (m, k) {
+    var n = numPartido(m, k); porN[n] = m;
+    ['usa', 'eur'].forEach(function (l) { m[l].forEach(function (x) { usado[l][x] = n; }); });
+  });
+  var h = '<section class="card"><div class="sec-tit"><h2>Armar las líneas</h2><span class="eyebrow">' + esc(FORMATOS[fmt] || '') + '</span></div>';
+  for (var n = 1; n <= cu[0]; n++) {
+    var m = porN[n];
+    h += '<div class="ed-linea"><div class="eyebrow">' + esc(tituloPartido(fmt, n)) + '</div><div class="ed-lados">';
+    ['usa', 'eur'].forEach(function (lado) {
+      var eq = lado === 'usa' ? 'rojo' : 'azul', js = delEquipo(eq), puede = puedeArmar(lado), act = m ? m[lado] : [];
+      h += '<div class="ed-lado ' + (lado === 'usa' ? 'r' : 'a') + '"><b>' + esc(nombreEquipo(eq)) + '</b>';
+      for (var q = 0; q < cu[1]; q++) {
+        var val = String(act[q] || '');
+        if (puede) {
+          h += '<select data-acc="ed-linea" data-v="' + c.id + '" data-i="' + n + '" data-lado="' + lado + '" data-q="' + q + '">' +
+            '<option value="">—</option>' + js.map(function (j) {
+              var mat = String(j.matricula), en = usado[lado][mat];
+              return '<option value="' + esc(mat) + '"' + (mat === val ? ' selected' : '') + '>' + esc(nomJ(j)) + ' · ' + esc(j.handicap) +
+                (en && en !== n ? ' (en ' + (fmt === 'singles' || fmt === 'scramble' ? 'P' : 'L') + en + ')' : '') + '</option>';
+            }).join('') + '</select>';
+        } else h += '<span class="ed-nom">' + esc(val ? nomJ(jugador(val)) : '—') + '</span>';
+      }
+      h += '</div>';
+    });
+    h += '</div></div>';
+  }
+  var caps = ['rojo', 'azul'].map(function (eq) {
+    var cp = jugador(E.equipos && E.equipos[eq] && E.equipos[eq].capitan);
+    return nombreEquipo(eq) + ': ' + (cp ? nomJ(cp) : 'sin capitán');
+  }).join(' · ');
+  h += nota('<div class="candado solo"><span>🧢</span><span>Las líneas no se sortean: <b>cada capitán elige</b> quiénes de su equipo van en cada una ' +
+    'y lo puede cambiar cuando quiera (se guarda al elegir). Los dos pueden cargar a la vez. Si elegís a alguien que estaba en otra línea, ' +
+    'pasa a esta. Capitanes: ' + esc(caps) + '. Los nombra el organizador en Ryder → General.</span></div>');
+  return h + '</section>';
+}
+
+/* Vista general: los puntos de toda la Ryder, cancha por cancha y partido por
+   partido, más los equipos y los capitanes. */
+function vistaRyderGeneral() {
+  var gral = marcadorRyder('general'), admin = esAdmin(), y = yo();
+  var h = '<div class="pila">' + chipsCancha('general', 'ryder-cancha', true) +
+    '<section class="card"><div class="lb-cab"><h2>Ryder Cup</h2><span class="eyebrow">' + gral.total + ' partidos</span></div>' +
+    marcadorHTML(gral) + '</section>';
+
+  h += '<section class="card"><div class="sec-tit"><h2>Cancha por cancha</h2><span class="eyebrow">puntos</span></div>';
+  E.canchas.forEach(function (c) {
+    var r = marcadorRyder(c.id), ms = partidosDe(c.id);
+    var enJuegoPts = ms.reduce(function (s, m) { return s + ((m.formato || c.formato) === 'scramble' ? PTS_SCRAMBLE : 1); }, 0);
+    h += '<button class="gen-cancha" data-acc="ryder-cancha" data-v="' + c.id + '">' +
+      '<span class="gc-nom"><b>' + esc(etiquetaCancha(c)) + '</b><i>' + esc((FORMATOS[c.formato] || 'sin modalidad') + ' · ' + fechaCancha(c)) + '</i></span>' +
+      '<span class="gc-pts"><b class="txt-rojo">' + fmtPunto(r.usa) + '</b><span>–</span><b class="txt-azul">' + fmtPunto(r.eur) + '</b></span>' +
+      '<span class="gc-est">' + (!ms.length ? 'sin líneas' : (r.enJuego ? r.enJuego + ' en juego' : (r.total && (r.usa + r.eur) >= enJuegoPts ? 'terminada' : enJuegoPts + ' pts en juego'))) + '</span></button>';
+    ms.forEach(function (m, k) {
+      var p = calcularPartido(m);
+      if (!p) return;
+      h += '<div class="gen-partido"><span class="txt-rojo">' + esc(p.usa.map(nomJ).join(' · ')) + '</span>' +
+        badgeMatch(p) + '<span class="txt-azul">' + esc(p.eur.map(nomJ).join(' · ')) + '</span></div>';
+    });
+  });
+  h += '</section>';
+
+  // equipos y capitanes
+  var editaEq = !!y && (admin || !!capitanDe(y.matricula));
+  h += '<section class="card"><div class="sec-tit"><h2>Equipos y capitanes</h2></div><div class="gen-equipos">';
+  ['rojo', 'azul'].forEach(function (eq) {
+    var cap = E.equipos && E.equipos[eq] ? String(E.equipos[eq].capitan || '') : '';
+    h += '<div class="gen-eq ' + (eq === 'rojo' ? 'r' : 'a') + '"><b>' + esc(nombreEquipo(eq)) + ' · ' + delEquipo(eq).length + '</b>';
+    if (admin) h += '<label class="gen-cap">Capitán <select data-acc="ed-capitan" data-v="' + eq + '"><option value="">—</option>' +
+      E.jugadores.map(function (j) { return '<option value="' + esc(j.matricula) + '"' + (String(j.matricula) === cap ? ' selected' : '') + '>' + esc(nomJ(j)) + '</option>'; }).join('') +
+      '</select></label>';
+    h += delEquipo(eq).map(function (j) {
+      var esCap = String(j.matricula) === cap;
+      return '<div class="gen-jug"><span>' + (esCap ? '🧢 ' : '') + esc(nomJ(j)) + ' <i>' + esc(j.handicap) + '</i></span>' +
+        (editaEq ? '<button class="btn fin" data-acc="pasar-equipo" data-v="' + esc(j.matricula) + '" data-i="' + (eq === 'rojo' ? 'azul' : 'rojo') + '">' +
+          (eq === 'rojo' ? '→' : '←') + '</button>' : '') + '</div>';
+    }).join('');
+    h += '</div>';
+  });
+  h += '</div>' + nota('<div class="candado solo"><span>🧢</span><span>El organizador nombra a los dos capitanes. ' +
+    'Los capitanes (o el organizador) pasan jugadores de un equipo al otro con la flecha, y en cada cancha arman sus líneas.</span></div>') + '</section>';
+  return h + '</div>';
+}
+
 function notaScramble() {
   return '<div class="candado solo"><span>⛳</span><span><b>Scramble de a 3, 9 hoyos, medal neto.</b> Tiran los tres, eligen la mejor ' +
     'pelota y desde ahí vuelven a tirar los tres. Cada trío sale en su propia línea, con los de su equipo, y lleva una sola tarjeta. <b>Neto = golpes de los 9 hoyos − handicap del equipo.</b> ' +
@@ -3034,6 +3171,8 @@ document.addEventListener('click', function (ev) {
   else if (a === 'lb-cancha') { UI.canchaLb = v; }
   else if (a === 'ryder-cancha') { UI.canchaRyder = v; }
   else if (a === 'armar') { armarPartidos(v); return; }
+  else if (a === 'armar-lineas') { UI.armando = v || null; }
+  else if (a === 'pasar-equipo') { accionar({ accion: 'equipoJugador', matricula: v, equipo: b.getAttribute('data-i') }); return; }
   else if (a === 'precargar') {
     if (!confirm('Se cargan los 12 de la gira con el handicap y el equipo de la planilla. Los que ya están se actualizan. ¿Seguimos?')) return;
     accionar({ accion: 'precargar' }).then(function (res) {
@@ -3124,6 +3263,14 @@ document.addEventListener('change', function (ev) {
     if (a === 'ed-par') par[i] = Math.min(6, Math.max(3, Number(el.value) || 4));
     else si[i] = Math.min(18, Math.max(1, Number(el.value) || 1));
     accionar({ accion: 'cancha', id: v, par: par, si: si });
+  }
+  else if (a === 'ed-capitan') { var cq = { accion: 'capitanes' }; cq[v] = el.value; accionar(cq); }
+  else if (a === 'ed-linea') {
+    var nL = el.getAttribute('data-i'), ladoL = el.getAttribute('data-lado');
+    var sels = Array.prototype.slice.call(document.querySelectorAll('select[data-acc="ed-linea"][data-v="' + v + '"][data-i="' + nL + '"][data-lado="' + ladoL + '"]'));
+    var mats = [];
+    sels.forEach(function (x) { if (x.value && mats.indexOf(x.value) < 0) mats.push(x.value); });
+    accionar({ accion: 'linea', cancha: v, lado: ladoL, n: Number(nL), mats: mats });
   }
   else if (a === 'ed-hcp-eq') { accionar({ accion: 'hcpEquipo', partido: v, lado: el.getAttribute('data-i'), hcp: el.value.trim() }); }
   else if (a === 'ed-eq') { var q = { accion: 'equipos' }; q[v] = el.value.trim(); accionar(q); }

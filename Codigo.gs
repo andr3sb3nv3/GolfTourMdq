@@ -283,6 +283,9 @@ function despachar(p) {
       case 'partidos':  return guardarPartidos(p);
       case 'golpesEquipo': return guardarGolpesEquipo(p);
       case 'hcpEquipo': return guardarHcpEquipo(p);
+      case 'capitanes': return guardarCapitanes(p);
+      case 'equipoJugador': return guardarEquipoJugador(p);
+      case 'linea':     return guardarLinea(p);
       case 'resetPedir':   return resetPedir(p);
       case 'resetAplicar': return resetAplicar(p);
       case 'resetPendientes': return resetPendientes(p);
@@ -480,6 +483,7 @@ function cambiarMatricula_(viejo, nuevo) {
   cambiar('Partidos', ['usa1', 'usa2', 'usa3', 'eur1', 'eur2', 'eur3']);
   cambiar('Tarjetas', ['matricula']);
   cambiar('TarjetasEquipo', ['salidas'], true);
+  cambiar('Config', ['valor']);          // los capitanes se guardan por matrícula
 }
 
 function registrar(p) {
@@ -627,7 +631,8 @@ function estadoCrudo() {
   var cfg = config();
   var salida = {
     torneo: { nombre: cfg.torneo, sede: cfg.sede, edicion: cfg.edicion },
-    equipos: { azul: { nombre: cfg.equipoAzul }, rojo: { nombre: cfg.equipoRojo } },
+    equipos: { azul: { nombre: cfg.equipoAzul, capitan: String(cfg.capitanAzul || '') },
+               rojo: { nombre: cfg.equipoRojo, capitan: String(cfg.capitanRojo || '') } },
     jugadores: leer('Jugadores').map(sinHash),
     canchas: leer('Canchas').map(function (c) {
       var par = [], si = [];
@@ -836,6 +841,86 @@ function guardarPartidos(p) {
         String(usa[2] || ''), String(eur[2] || '')]);
     });
     anotar(j.matricula, 'partidos', p.cancha + ' · ' + (p.lista || []).length + ' partido(s) de ' + (fmt || 'sin formato'));
+    limpiarCache();
+    return { ok: true, estado: estadoCrudo() };
+  } finally { lock.releaseLock(); }
+}
+
+/* ============================================================
+   CAPITANES Y LÍNEAS
+   Los partidos no se sortean: cada capitán elige quiénes de su equipo van en la
+   línea 1, 2, 3… de cada cancha, y lo puede cambiar cuando quiera. El organizador
+   nombra a los capitanes y puede tocar todo. En la app, usa = rojo y eur = azul.
+   ============================================================ */
+function capitanDe_(mat) {
+  var cfg = config(), m = String(mat || '').trim();
+  if (m && String(cfg.capitanRojo || '').trim() === m) return 'rojo';
+  if (m && String(cfg.capitanAzul || '').trim() === m) return 'azul';
+  return null;
+}
+function guardarCapitanes(p) {
+  var j = exigir(p.token, true);
+  if (p.rojo !== undefined) escribirConfig('capitanRojo', String(p.rojo || ''));
+  if (p.azul !== undefined) escribirConfig('capitanAzul', String(p.azul || ''));
+  anotar(j.matricula, 'capitanes', 'rojo ' + (p.rojo || '-') + ' · azul ' + (p.azul || '-'));
+  limpiarCache();
+  return { ok: true, estado: estadoCrudo() };
+}
+// El organizador o un capitán pasan a un jugador de equipo.
+function guardarEquipoJugador(p) {
+  var j = exigir(p.token);
+  if (j.rol !== 'admin' && !capitanDe_(j.matricula)) return { ok: false, error: 'solo_capitanes' };
+  if (p.equipo !== 'rojo' && p.equipo !== 'azul') return { ok: false, error: 'faltan_datos' };
+  var hoja = SpreadsheetApp.openById(SS_ID).getSheetByName('Jugadores');
+  var fila = buscarFila(hoja, function (v) { return String(v[0]).trim() === String(p.matricula).trim(); });
+  if (!fila) return { ok: false, error: 'no_encontrado' };
+  hoja.getRange(fila, 5).setValue(p.equipo);
+  anotar(j.matricula, 'equipoJugador', p.matricula + ' → ' + p.equipo);
+  limpiarCache();
+  return { ok: true, estado: estadoCrudo() };
+}
+/**
+ * Un lado de una línea: { cancha, lado:'usa'|'eur', n (1, 2, 3…), mats:[…] }.
+ * Solo toca las columnas de ese lado, así los dos capitanes pueden cargar a la vez.
+ * Los elegidos se sacan de las otras líneas de esa cancha (nadie juega dos veces).
+ */
+function guardarLinea(p) {
+  var j = exigir(p.token);
+  var lado = p.lado === 'usa' ? 'usa' : (p.lado === 'eur' ? 'eur' : null);
+  var n = parseInt(p.n, 10);
+  if (!p.cancha || !lado || !(n >= 1 && n <= 12)) return { ok: false, error: 'faltan_datos' };
+  var cap = capitanDe_(j.matricula);
+  if (j.rol !== 'admin' && cap !== (lado === 'usa' ? 'rojo' : 'azul')) return { ok: false, error: 'solo_capitanes' };
+  var mats = (p.mats || []).map(function (x) { return String(x || '').trim(); }).slice(0, 3);
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var ss = SpreadsheetApp.openById(SS_ID), hoja = ss.getSheetByName('Partidos');
+    if (!hoja) return { ok: false, error: 'falta_migrar' };
+    var cab = columnasTrio(hoja), cols = [lado + '1', lado + '2', lado + '3'].map(function (c) { return cab.indexOf(c); });
+    var canchaFila = buscarFila(ss.getSheetByName('Canchas'), function (v) { return v[0] === p.cancha; });
+    var fmt = canchaFila ? String(ss.getSheetByName('Canchas').getRange(canchaFila, 5).getValue() || '') : '';
+    var id = p.cancha + '-' + n, fila = null;
+    if (hoja.getLastRow() > 1) {
+      var datos = hoja.getRange(2, 1, hoja.getLastRow() - 1, cab.length).getValues();
+      var elegidos = mats.filter(Boolean);
+      datos.forEach(function (f, i) {
+        if (f[1] !== p.cancha) return;
+        if (String(f[0]) === id) { fila = i + 2; return; }
+        var toca = false;
+        cols.forEach(function (k) { if (k >= 0 && elegidos.indexOf(String(f[k]).trim()) >= 0) { f[k] = ''; toca = true; } });
+        if (toca) hoja.getRange(i + 2, 1, 1, cab.length).setValues([f]);
+      });
+    }
+    if (!fila) {
+      var nueva = cab.map(function () { return ''; });
+      nueva[0] = id; nueva[1] = p.cancha; nueva[2] = fmt;
+      hoja.appendRow(nueva);
+      fila = hoja.getLastRow();
+    }
+    hoja.getRange(fila, 3).setValue(fmt);
+    cols.forEach(function (k, q) { if (k >= 0) hoja.getRange(fila, k + 1).setNumberFormat('@').setValue(mats[q] || ''); });
+    anotar(j.matricula, 'linea', id + ' · ' + lado + ' · ' + mats.join(','));
     limpiarCache();
     return { ok: true, estado: estadoCrudo() };
   } finally { lock.releaseLock(); }

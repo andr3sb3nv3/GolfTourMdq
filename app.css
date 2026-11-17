@@ -583,3 +583,37 @@ table.tc tr.yo .lbl{color:var(--eur);font-weight:800;box-shadow:inset 3px 0 0 va
 .perfiles-alta button i{display:block;font-style:normal;font-size:11px;color:var(--tenue);font-weight:600;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .perfiles-alta button[aria-pressed="true"]{border-color:var(--navy);box-shadow:inset 0 0 0 1px var(--navy);background:#F3F5F9}
+
+/* ---------- armado de líneas por los capitanes ---------- */
+.ed-linea{padding:10px 14px;border-top:1px solid var(--linea)}
+.ed-lados{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px}
+.ed-lado{display:flex;flex-direction:column;gap:6px;min-width:0;border-left:4px solid var(--linea);padding-left:8px}
+.ed-lado.r{border-left-color:var(--usa)}
+.ed-lado.a{border-left-color:var(--eur)}
+.ed-lado>b{font-size:12px;text-transform:uppercase;letter-spacing:.04em}
+.ed-lado.r>b{color:var(--usa)}
+.ed-lado.a>b{color:var(--eur)}
+.ed-lado select{width:100%;min-width:0;font-size:14px;padding:8px 6px}
+.ed-nom{font-weight:700;font-size:14px;padding:6px 0}
+
+/* ---------- Ryder general ---------- */
+.gen-cancha{display:grid;grid-template-columns:1fr auto;gap:2px 10px;width:100%;text-align:left;border:0;
+  border-top:1px solid var(--linea);background:var(--panel-2);padding:10px 14px;color:var(--tinta)}
+.gen-cancha .gc-nom{display:flex;flex-direction:column;min-width:0}
+.gen-cancha .gc-nom b{font-size:16px;color:var(--navy)}
+.gen-cancha .gc-nom i{font-style:normal;font-size:12px;color:var(--tinta-2)}
+.gen-cancha .gc-pts{display:flex;gap:6px;align-items:center;font-size:22px;font-weight:800}
+.gen-cancha .gc-est{grid-column:1/-1;font-size:12px;color:var(--tinta-2)}
+.gen-partido{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center;padding:6px 14px;font-size:13px;font-weight:700}
+.gen-partido>span:last-child{text-align:right}
+.gen-partido .m-badge{transform:scale(.8)}
+.gen-equipos{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:10px 14px}
+.gen-eq{display:flex;flex-direction:column;gap:4px;min-width:0}
+.gen-eq>b{font-size:13px;text-transform:uppercase;letter-spacing:.04em}
+.gen-eq.r>b{color:var(--usa)}
+.gen-eq.a>b{color:var(--eur)}
+.gen-cap{display:flex;flex-direction:column;font-size:12px;color:var(--tinta-2);gap:2px;margin-bottom:4px}
+.gen-cap select{font-size:14px;padding:6px}
+.gen-jug{display:flex;justify-content:space-between;align-items:center;font-size:14px;gap:4px}
+.gen-jug i{font-style:normal;color:var(--tinta-2);font-size:12px}
+.gen-jug .btn.fin{padding:2px 10px;font-size:16px}
