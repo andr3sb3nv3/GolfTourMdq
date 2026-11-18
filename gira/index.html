@@ -542,11 +542,11 @@ function traslados() {
     '<div class="tras-lista">' + tarjetas + '</div></div>';
 }
 function cargarLeaflet(cb) {
-  if (window.L) return cb();
   if (!document.getElementById('leaflet-css')) {
     var l = document.createElement('link'); l.id = 'leaflet-css'; l.rel = 'stylesheet';
     l.href = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css'; document.head.appendChild(l);
   }
+  if (window.L) return cb();
   var sc = document.getElementById('leaflet-js');
   if (!sc) { sc = document.createElement('script'); sc.id = 'leaflet-js'; sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js'; document.head.appendChild(sc); }
   sc.addEventListener('load', cb);
