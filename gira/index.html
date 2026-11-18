@@ -337,7 +337,7 @@ var RESPALDO = {
     { nombre: 'Matías Arizu', apodo: 'Mati', handicap: 'Activo', nota: '', ago: '🆗', sep: '🆗', oct: '', excluido: '', equipo: '', capitan: 'Sí' },
     { nombre: 'Joaquín Viboud', apodo: 'Vibu', handicap: 'Activo', nota: '', ago: '✅', sep: '✅', oct: '✅', excluido: '', equipo: '', capitan: '' },
     { nombre: 'Ignacio Paz', apodo: 'Ini', handicap: 'Activo', nota: '', ago: '✅', sep: '✅', oct: '', excluido: '', equipo: '', capitan: '' },
-    { nombre: 'Bautista Boero', apodo: 'Boa (a confirmar)', handicap: 'A resolver', nota: 'Suplente: ocupa el lugar de Mateo Gazzera.', ago: '✅', sep: '✅', oct: '✅', excluido: '', equipo: '', capitan: '' }
+    { nombre: 'Bautista Boero', apodo: 'Boa', handicap: 'Activo · 28', nota: 'Suplente: ocupa el lugar de Mateo Gazzera.', ago: '✅', sep: '✅', oct: '✅', excluido: '', equipo: '', capitan: '' }
   ],
   Viajes: [
     { jugador: 'Andrés Benvenuto', llega: 'Mié 25', como: 'Maneja y sale primero. Abre la casa.', auto: 'Auto de Benve' },
@@ -780,7 +780,7 @@ var V = {
         return '<div class="card jug"><div><b>' + esc(j.nombre) + '</b><small>' + esc(j.apodo) + (si(j.capitan) ? ' · Capitán' : '') + '</small>' +
           (j.nota ? '<small>' + esc(j.nota) + '</small>' : '') + '</div><div style="display:grid;gap:6px;justify-items:end"><span class="chip ' + h + '">' + esc(j.handicap) + '</span>' + lapiz('Jugadores', j) + '</div></div>';
       }).join('') + '</div>' +
-      '<p class="chico t2">Mateo Gazzera se bajó por trabajo: su lugar lo ocupa Boa (a confirmar). Si no puede: Juan B y después Zenon.</p>';
+      '<p class="chico t2">Mateo Gazzera se bajó por trabajo: su lugar lo ocupa Bautista Boero (Boa).</p>';
   },
 
   formato: function () {
