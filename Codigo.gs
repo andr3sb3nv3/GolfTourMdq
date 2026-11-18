@@ -429,7 +429,7 @@ function exigir(token, admin) {
    ============================================================ */
 /* ============================================================
    PERFILES PRECARGADOS
-   Los de la gira (Mateo Gazzera se bajó; Boa entra cuando se confirme con su handicap), con el handicap y el equipo de la planilla de la gira.
+   Los de la gira (Mateo Gazzera se bajó; entra Bautista Boero, hcp 28; capitanes Mati USA y Sebas Europe), con el handicap y el equipo de la planilla de la gira.
    Quedan con matrícula "pre-…" y sin PIN: nadie puede entrar con ellos. Cada
    jugador, en "Primera vez", elige el suyo, pone su matrícula y su PIN, y el
    perfil pasa a ser suyo (con partidos y tarjetas que ya tuviera).
@@ -440,10 +440,10 @@ function exigir(token, admin) {
 var PERFILES_GIRA = [
   ['Andrés Benvenuto', 'Benve', 16, 'azul'], ['Tobías Benítez Cruz', 'Toba', 28, 'azul'],
   ['Francisco Socas', 'Fran', 20, 'azul'], ['Sebastián Bergadá', 'Sebas', 12, 'azul'],
-  ['Matías Arizu', 'Mati', 4, 'azul'], ['Joaquín Viboud', 'Vibu', 35, 'azul'],
+  ['Matías Arizu', 'Mati', 4, 'rojo'], ['Joaquín Viboud', 'Vibu', 35, 'azul'],
   ['Facundo Urtubey', 'Chino', 35, 'rojo'], ['Santiago Beccar Varela', 'Nari', 30, 'rojo'],
   ['Bautista Caputo', 'Bauti', 25, 'rojo'], ['Lucas Santamarina', 'Luqui', 13, 'rojo'],
-  ['Ignacio Paz', 'Ini', 18, 'rojo']
+  ['Ignacio Paz', 'Ini', 18, 'rojo'], ['Bautista Boero', 'Boa', 28, 'rojo']
 ];
 function esPerfilPrecargado(mat) { return /^pre-/.test(String(mat || '').trim()); }
 function sinAcentos_(t) {

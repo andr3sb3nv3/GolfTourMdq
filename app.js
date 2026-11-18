@@ -2,7 +2,7 @@
 (function () {
 'use strict';
 
-var VERSION = 'v64';                     // tiene que coincidir con el CACHE del sw.js
+var VERSION = 'v65';                     // tiene que coincidir con el CACHE del sw.js
 var LS = { ses: 'gtm-sesion', est: 'gtm-estado', cola: 'gtm-cola', ui: 'gtm-ui' };
 var API = (window.GTM_CONFIG && window.GTM_CONFIG.api) || '';
 
@@ -1353,9 +1353,9 @@ function ryTextoGuardado(rr) {
 
 /* ============ modo testeo ============ */
 var GIRA_TEST = [
-  ['Matías Arizu', 'Mati', 4, 'azul'], ['Sebastián Bergadá', 'Sebas', 12, 'rojo'],
+  ['Matías Arizu', 'Mati', 4, 'rojo'], ['Sebastián Bergadá', 'Sebas', 12, 'azul'],
   ['Lucas Santamarina', 'Luqui', 13, 'rojo'], ['Andrés Benvenuto', 'Benve', 16, 'azul'],
-  ['Ignacio Paz', 'Ini', 18, 'azul'], ['Bautista Boero', 'Boa', 18, 'rojo'],
+  ['Ignacio Paz', 'Ini', 18, 'azul'], ['Bautista Boero', 'Boa', 28, 'rojo'],
   ['Francisco Socas', 'Fran', 20, 'rojo'], ['Bautista Caputo', 'Bauti', 25, 'azul'],
   ['Tobías Benítez Cruz', 'Toba', 28, 'azul'], ['Santiago Beccar Varela', 'Nari', 30, 'rojo'],
   ['Joaquín Viboud', 'Vibu', 35, 'rojo'], ['Facundo Urtubey', 'Chino', 35, 'azul']
@@ -1392,7 +1392,7 @@ function generarTest() {
   canchas.forEach(function (c) { c.formato = FORMATO_GIRA[c.id] || rota[kf++ % 3]; });
 
   // Los 12 de la gira con su handicap real y equipos FICTICIOS (parejos por handicap),
-  // capitanes Sebas (Team USA) y Mati (Team Europe). Vos entrás como organizador.
+  // capitanes Mati (Team USA) y Sebas (Team Europe). Vos entrás como organizador.
   var jugadores = GIRA_TEST.map(function (x, i) {
     return { matricula: String(9001 + i), nombre: x[0], apodo: x[1], handicap: x[2],
              equipo: x[3], rol: x[1] === 'Benve' ? 'admin' : 'jugador', club: '', fotoId: '' };
@@ -1440,7 +1440,7 @@ function generarTest() {
 
   return {
     torneo: { nombre: 'Ryder MDQ', sede: 'Mar del Plata', edicion: '2026' },
-    equipos: { azul: { nombre: 'Team Europe', capitan: '9001' }, rojo: { nombre: 'Team USA', capitan: '9002' } },
+    equipos: { azul: { nombre: 'Team Europe', capitan: '9002' }, rojo: { nombre: 'Team USA', capitan: '9001' } },
     jugadores: jugadores, canchas: canchas, tarjetas: tarjetas,
     partidos: partidos, tarjetasEquipo: tarjetasEquipo,
     sello: new Date().toISOString(), esTest: true
@@ -1450,13 +1450,13 @@ function jugador2(lista, mat) {
   for (var i = 0; i < lista.length; i++) if (String(lista[i].matricula) === String(mat)) return lista[i];
   return { handicap: 18 };
 }
-function guardarTest() { if (TEST) guardarLS('gtm-test-v64', E); }
+function guardarTest() { if (TEST) guardarLS('gtm-test-v65', E); }
 
 function entrarTest(regenerar) {
   if (!TEST) PROD = E;
-  var guardado = regenerar ? null : leerLS('gtm-test-v64', null);
+  var guardado = regenerar ? null : leerLS('gtm-test-v65', null);
   E = guardado || generarTest();
-  guardarLS('gtm-test-v64', E);
+  guardarLS('gtm-test-v65', E);
   TEST = true; guardarLS('gtm-test-on', true);
   UI.yoTest = (E.jugadores.filter(function (j) { return j.rol === 'admin'; })[0] || E.jugadores[0]).matricula;
   UI.cancha = E.canchas[0].id; UI.canchaLb = 'general'; UI.canchaRyder = 'general'; UI.lineas = {};
@@ -1856,7 +1856,7 @@ function vistaTesteo() {
   var y = yo();
   var h = '<div class="pila">' +
     nota('<div class="candado"><span>🧪</span><span><b>Base de prueba.</b> Los 12 de la gira con su handicap, equipos y líneas <b>ficticios</b> ' +
-    '(capitanes Sebas y Mati) y las 4 canchas jugadas con golpes inventados. Todo lo que toques acá queda en este celular: no viaja a la planilla ni lo ve nadie.</span></div>') +
+    '(capitanes Mati en Team USA y Sebas en Team Europe) y las 4 canchas jugadas con golpes inventados. Todo lo que toques acá queda en este celular: no viaja a la planilla ni lo ve nadie.</span></div>') +
     '<section class="card"><div class="sec-tit"><h2>Jugar como</h2>' +
     '<span class="eyebrow">' + E.jugadores.length + ' jugadores</span></div><div class="login-grid">' +
     E.jugadores.map(function (j) {
@@ -3752,7 +3752,7 @@ document.addEventListener('visibilitychange', function () {
 
 if (TEST) {
   PROD = E;
-  E = leerLS('gtm-test-v64', null) || generarTest();
+  E = leerLS('gtm-test-v65', null) || generarTest();
   if (!UI.yoTest) UI.yoTest = (E.jugadores.filter(function (j) { return j.rol === 'admin'; })[0] || E.jugadores[0]).matricula;
 }
 if (E && E.canchas) E.canchas = ordenarCanchas(E.canchas);
