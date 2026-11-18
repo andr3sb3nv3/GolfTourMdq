@@ -1351,7 +1351,7 @@ function ryTextoGuardado(rr) {
 }
 
 /* ============ modo testeo ============ */
-var GIRA_TEST = [   // equipos del draft del 18/11 (Vibu/Chino a confirmar)
+var GIRA_TEST = [   // equipos del draft del 18/11
   ['Matías Arizu', 'Mati', 4, 'rojo'], ['Sebastián Bergadá', 'Sebas', 12, 'azul'],
   ['Lucas Santamarina', 'Luqui', 13, 'rojo'], ['Andrés Benvenuto', 'Benve', 16, 'azul'],
   ['Ignacio Paz', 'Ini', 18, 'rojo'], ['Bautista Boero', 'Boa', 28, 'rojo'],
