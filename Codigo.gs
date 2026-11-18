@@ -124,16 +124,16 @@ function borrarTodoYEmpezarDeNuevo() {
  *    (mañana) y Marayui (tarde) · dom La Catedral. Si falta Marayui, la agrega.
  *  · Marayui queda con su tarjeta oficial (azules, par 72; se juegan los hoyos 1 al 9).
  *  · A las que no tienen modalidad les pone la de la gira: Acantilados four-ball,
- *    Miramar foursome, Marayui scramble de a 3, La Catedral individuales.
+ *    Miramar four-ball, Marayui scramble de a 3, La Catedral individuales.
  *    (Si una ya tiene modalidad, no la toca: se cambia desde la app, pestaña Ryder.)
  */
 /* Se llama sola al armar el estado: si falta Marayui o alguna cancha de la gira
    no tiene modalidad, corre prepararGira(). Así no hace falta ejecutarla a mano. */
 /* La gira (cambio del 18/11): vie 27 Acantilados (four-ball) · sáb 28 Miramar a la
-   mañana (foursome) y Marayui a la tarde (scramble) · dom 29 La Catedral (individuales). */
+   mañana (four-ball, igual que Acantilados) y Marayui a la tarde (scramble) · dom 29 La Catedral (individuales). */
 var DIAS_GIRA_ = { acantilados: 1, miramar: 2, marayui: 2, catedral: 3 };
-var FORMATO_GIRA_ = { acantilados: 'fourball', miramar: 'foursomes', marayui: 'scramble', catedral: 'singles' };
-var VERSION_GIRA_ = '2';
+var FORMATO_GIRA_ = { acantilados: 'fourball', miramar: 'fourball', marayui: 'scramble', catedral: 'singles' };
+var VERSION_GIRA_ = '3';   // 3: Miramar pasa a four-ball, igual que Acantilados (18/11 noche)
 /* Equipos del draft del 18/11: se aplican una sola vez (Config gira_equipos=1).
    Pone a cada uno en su equipo (por apodo) y nombra capitanes a Mati (USA) y Sebas (Europe). */
 var EQUIPOS_DRAFT_ = { Sebas: 'azul', Benve: 'azul', Toba: 'azul', Bauti: 'azul', Fran: 'azul', Vibu: 'azul',
@@ -311,7 +311,7 @@ function responder(obj) {
 function despachar(p) {
   try {
     switch (p.accion) {
-      case 'ping':      return { ok: true, version: 67 };
+      case 'ping':      return { ok: true, version: 68 };
       case 'diag':      return diagnostico();
       case 'registrar': return registrar(p);
       case 'precargar': exigir(p.token, true); return precargarPerfiles_();

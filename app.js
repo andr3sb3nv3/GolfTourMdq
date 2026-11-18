@@ -2,7 +2,7 @@
 (function () {
 'use strict';
 
-var VERSION = 'v67';                     // tiene que coincidir con el CACHE del sw.js
+var VERSION = 'v68';                     // tiene que coincidir con el CACHE del sw.js
 var LS = { ses: 'gtm-sesion', est: 'gtm-estado', cola: 'gtm-cola', ui: 'gtm-ui' };
 var API = (window.GTM_CONFIG && window.GTM_CONFIG.api) || '';
 
@@ -729,9 +729,9 @@ var SI_STD = [5,3,17,11,1,9,15,7,13,6,12,4,10,2,18,8,14,16];
 /* La gira: viernes 27 Acantilados, sábado 28 Miramar (mañana) y Marayui (tarde),
    domingo 29 La Catedral. En la app no se habla de "Día 1/2/3": cada jornada
    se nombra por su cancha, y la fecha va de dato. */
-// Cambio del 18/11: Acantilados pasa al viernes (four-ball) y Miramar al sábado a la mañana (foursome).
+// Cambio del 18/11: Acantilados al viernes y Miramar al sábado a la mañana, los dos four-ball (Andres, 18/11 noche).
 var ORDEN_GIRA = ['acantilados', 'miramar', 'marayui', 'catedral'];
-var FORMATO_GIRA = { acantilados: 'fourball', miramar: 'foursomes', marayui: 'scramble', catedral: 'singles' };
+var FORMATO_GIRA = { acantilados: 'fourball', miramar: 'fourball', marayui: 'scramble', catedral: 'singles' };
 var FECHA_CANCHA = { acantilados: 'vie 27 nov · 13:20', miramar: 'sáb 28 nov · 9:00', marayui: 'sáb 28 nov · tarde', catedral: 'dom 29 nov' };
 var FECHAS = { 1: 'vie 27 nov', 2: 'sáb 28 nov', 3: 'dom 29 nov' };
 function fechaCancha(c) { return (c && (FECHA_CANCHA[c.id] || FECHAS[c.dia])) || ''; }
@@ -1449,13 +1449,13 @@ function jugador2(lista, mat) {
   for (var i = 0; i < lista.length; i++) if (String(lista[i].matricula) === String(mat)) return lista[i];
   return { handicap: 18 };
 }
-function guardarTest() { if (TEST) guardarLS('gtm-test-v67', E); }
+function guardarTest() { if (TEST) guardarLS('gtm-test-v68', E); }
 
 function entrarTest(regenerar) {
   if (!TEST) PROD = E;
-  var guardado = regenerar ? null : leerLS('gtm-test-v67', null);
+  var guardado = regenerar ? null : leerLS('gtm-test-v68', null);
   E = guardado || generarTest();
-  guardarLS('gtm-test-v67', E);
+  guardarLS('gtm-test-v68', E);
   TEST = true; guardarLS('gtm-test-on', true);
   UI.yoTest = (E.jugadores.filter(function (j) { return j.rol === 'admin'; })[0] || E.jugadores[0]).matricula;
   UI.cancha = E.canchas[0].id; UI.canchaLb = 'general'; UI.canchaRyder = 'general'; UI.lineas = {};
@@ -1867,7 +1867,7 @@ function vistaTesteo() {
     nota('<div class="candado"><span>✏️</span><span>Elegís uno y con <b>Cargar</b> le cambiás los golpes hoyo por hoyo, ' +
     'para ver cómo se mueven las posiciones y los partidos.</span></div>') + '</section>' +
     '<section class="card"><div class="sec-tit"><h2>La base</h2></div>' +
-    nota('<div class="candado" style="border-top:0"><span>📋</span><span>Acantilados four-ball · Miramar foursome · Marayui scramble de a 3 · La Catedral individuales. ' +
+    nota('<div class="candado" style="border-top:0"><span>📋</span><span>Acantilados y Miramar four-ball · Marayui scramble de a 3 · La Catedral individuales. ' +
     'Los partidos ya están armados por handicap y las tarjetas completas.</span></div>') +
     '<div class="acc"><button class="btn" data-acc="test-regenerar">Sortear todo de nuevo</button>' +
     '<button class="btn pri" data-acc="test-salir">Salir del testeo</button></div></section></div>';
@@ -3750,7 +3750,7 @@ document.addEventListener('visibilitychange', function () {
 
 if (TEST) {
   PROD = E;
-  E = leerLS('gtm-test-v67', null) || generarTest();
+  E = leerLS('gtm-test-v68', null) || generarTest();
   if (!UI.yoTest) UI.yoTest = (E.jugadores.filter(function (j) { return j.rol === 'admin'; })[0] || E.jugadores[0]).matricula;
 }
 if (E && E.canchas) E.canchas = ordenarCanchas(E.canchas);
