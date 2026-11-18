@@ -2,7 +2,7 @@
 (function () {
 'use strict';
 
-var VERSION = 'v66';                     // tiene que coincidir con el CACHE del sw.js
+var VERSION = 'v67';                     // tiene que coincidir con el CACHE del sw.js
 var LS = { ses: 'gtm-sesion', est: 'gtm-estado', cola: 'gtm-cola', ui: 'gtm-ui' };
 var API = (window.GTM_CONFIG && window.GTM_CONFIG.api) || '';
 
@@ -1351,13 +1351,13 @@ function ryTextoGuardado(rr) {
 }
 
 /* ============ modo testeo ============ */
-var GIRA_TEST = [
+var GIRA_TEST = [   // equipos del draft del 18/11 (Vibu/Chino a confirmar)
   ['Matías Arizu', 'Mati', 4, 'rojo'], ['Sebastián Bergadá', 'Sebas', 12, 'azul'],
   ['Lucas Santamarina', 'Luqui', 13, 'rojo'], ['Andrés Benvenuto', 'Benve', 16, 'azul'],
-  ['Ignacio Paz', 'Ini', 18, 'azul'], ['Bautista Boero', 'Boa', 28, 'rojo'],
-  ['Francisco Socas', 'Fran', 20, 'rojo'], ['Bautista Caputo', 'Bauti', 25, 'azul'],
+  ['Ignacio Paz', 'Ini', 18, 'rojo'], ['Bautista Boero', 'Boa', 28, 'rojo'],
+  ['Francisco Socas', 'Fran', 20, 'azul'], ['Bautista Caputo', 'Bauti', 25, 'azul'],
   ['Tobías Benítez Cruz', 'Toba', 28, 'azul'], ['Santiago Beccar Varela', 'Nari', 30, 'rojo'],
-  ['Joaquín Viboud', 'Vibu', 35, 'rojo'], ['Facundo Urtubey', 'Chino', 35, 'azul']
+  ['Joaquín Viboud', 'Vibu', 35, 'azul'], ['Facundo Urtubey', 'Chino', 35, 'rojo']
 ];
 var APELLIDOS = ['Urtubey', 'Benvenuto', 'Benítez Cruz', 'Socas', 'Bergadá', 'Beccar Varela',
                  'Caputo', 'Santamarina', 'Arizu', 'Viboud', 'Paz', 'Boero'];
@@ -1449,13 +1449,13 @@ function jugador2(lista, mat) {
   for (var i = 0; i < lista.length; i++) if (String(lista[i].matricula) === String(mat)) return lista[i];
   return { handicap: 18 };
 }
-function guardarTest() { if (TEST) guardarLS('gtm-test-v65', E); }
+function guardarTest() { if (TEST) guardarLS('gtm-test-v67', E); }
 
 function entrarTest(regenerar) {
   if (!TEST) PROD = E;
-  var guardado = regenerar ? null : leerLS('gtm-test-v65', null);
+  var guardado = regenerar ? null : leerLS('gtm-test-v67', null);
   E = guardado || generarTest();
-  guardarLS('gtm-test-v65', E);
+  guardarLS('gtm-test-v67', E);
   TEST = true; guardarLS('gtm-test-on', true);
   UI.yoTest = (E.jugadores.filter(function (j) { return j.rol === 'admin'; })[0] || E.jugadores[0]).matricula;
   UI.cancha = E.canchas[0].id; UI.canchaLb = 'general'; UI.canchaRyder = 'general'; UI.lineas = {};
@@ -1854,7 +1854,7 @@ function prHistorialHTML() {
 function vistaTesteo() {
   var y = yo();
   var h = '<div class="pila">' +
-    nota('<div class="candado"><span>🧪</span><span><b>Base de prueba.</b> Los 12 de la gira con su handicap, equipos y líneas <b>ficticios</b> ' +
+    nota('<div class="candado"><span>🧪</span><span><b>Base de prueba.</b> Los 12 de la gira con su handicap, equipos del draft y líneas <b>ficticias</b> ' +
     '(capitanes Mati en Team USA y Sebas en Team Europe) y las 4 canchas jugadas con golpes inventados. Todo lo que toques acá queda en este celular: no viaja a la planilla ni lo ve nadie.</span></div>') +
     '<section class="card"><div class="sec-tit"><h2>Jugar como</h2>' +
     '<span class="eyebrow">' + E.jugadores.length + ' jugadores</span></div><div class="login-grid">' +
@@ -3750,7 +3750,7 @@ document.addEventListener('visibilitychange', function () {
 
 if (TEST) {
   PROD = E;
-  E = leerLS('gtm-test-v65', null) || generarTest();
+  E = leerLS('gtm-test-v67', null) || generarTest();
   if (!UI.yoTest) UI.yoTest = (E.jugadores.filter(function (j) { return j.rol === 'admin'; })[0] || E.jugadores[0]).matricula;
 }
 if (E && E.canchas) E.canchas = ordenarCanchas(E.canchas);

@@ -442,7 +442,7 @@ var PERFILES_GIRA = [
   ['Francisco Socas', 'Fran', 20, 'azul'], ['Sebastián Bergadá', 'Sebas', 12, 'azul'],
   ['Matías Arizu', 'Mati', 4, 'rojo'], ['Joaquín Viboud', 'Vibu', 35, 'azul'],
   ['Facundo Urtubey', 'Chino', 35, 'rojo'], ['Santiago Beccar Varela', 'Nari', 30, 'rojo'],
-  ['Bautista Caputo', 'Bauti', 25, 'rojo'], ['Lucas Santamarina', 'Luqui', 13, 'rojo'],
+  ['Bautista Caputo', 'Bauti', 25, 'azul'], ['Lucas Santamarina', 'Luqui', 13, 'rojo'],
   ['Ignacio Paz', 'Ini', 18, 'rojo'], ['Bautista Boero', 'Boa', 28, 'rojo']
 ];
 function esPerfilPrecargado(mat) { return /^pre-/.test(String(mat || '').trim()); }
