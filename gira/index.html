@@ -243,7 +243,7 @@ details.rubro .pm{display:grid;justify-items:end;gap:4px;text-align:right;flex:0
 .pin-casa{border-color:var(--oro);background:var(--oro-suave)}.pin-surf{border-color:#0E9F8C}
 .leaflet-tooltip.cartel{background:var(--tinta);color:#fff;border:0;border-radius:8px;padding:5px 8px;font:500 12px/1.25 var(--texto);box-shadow:0 2px 8px rgba(11,27,46,.3)}
 .leaflet-tooltip.cartel b{font-family:var(--titulo);font-size:12.5px}
-.leaflet-tooltip-top.cartel::before{border-top-color:var(--tinta)}.leaflet-tooltip-left.cartel::before{border-left-color:var(--tinta)}.leaflet-tooltip-right.cartel::before{border-right-color:var(--tinta)}
+.leaflet-tooltip-top.cartel::before{border-top-color:var(--tinta)}.leaflet-tooltip-bottom.cartel::before{border-bottom-color:var(--tinta)}.leaflet-tooltip-left.cartel::before{border-left-color:var(--tinta)}.leaflet-tooltip-right.cartel::before{border-right-color:var(--tinta)}
 .aviso{border-left:4px solid var(--oro);background:var(--oro-suave);border-radius:0 10px 10px 0;padding:10px 12px;font-size:14px}
 
 footer{border-top:1px solid var(--linea);padding-block:18px 30px;font-size:13.5px;color:var(--tinta-2);display:grid;gap:8px}
@@ -561,11 +561,13 @@ function iniciarMapa() {
       maxZoom: 18, attribution: '© OpenStreetMap'
     }).addTo(m);
     m.setView([-38.12, -57.66], 10);
+    var DIR = { casa: 'right', catedral: 'left', acantilados: 'right', marayui: 'left', chapa: 'bottom', miramar: 'top' };
+    var OFF = { right: [16, 0], left: [-16, 0], top: [0, -16], bottom: [0, 16] };
     Object.keys(LUGARES).forEach(function (k) {
       var g = LUGARES[k], ic = g.tipo === 'casa' ? '🏠' : g.tipo === 'surf' ? '🏄' : '⛳';
       L.marker(g.c, { icon: L.divIcon({ className: 'pin pin-' + g.tipo, html: '<span>' + ic + '</span>', iconSize: [34, 34], iconAnchor: [17, 17] }) })
         .addTo(m)
-        .bindTooltip('<b>' + esc(g.n) + '</b><br>' + esc(g.cartel), { permanent: true, direction: k === 'catedral' ? 'left' : k === 'casa' ? 'right' : 'top', offset: k === 'catedral' ? [-14, 0] : k === 'casa' ? [14, 0] : [0, -16], className: 'cartel' });
+        .bindTooltip('<b>' + esc(g.n) + '</b><br>' + esc(g.cartel), { permanent: true, direction: DIR[k] || 'top', offset: OFF[DIR[k] || 'top'], className: 'cartel' });
     });
     MAPA.m = m; MAPA.capa = L.layerGroup().addTo(m);
     mostrarRuta(MAPA.sel);
