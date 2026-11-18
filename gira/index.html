@@ -557,7 +557,7 @@ function iniciarMapa() {
   el._listo = true;
   cargarLeaflet(function () {
     if (!document.body.contains(el)) return;
-    var m = L.map(el, { scrollWheelZoom: false, zoomControl: true, attributionControl: true });
+    var m = L.map(el, { scrollWheelZoom: false, zoomControl: true, attributionControl: true, zoomAnimation: false, markerZoomAnimation: false });
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 18, attribution: '© OpenStreetMap'
     }).addTo(m);
@@ -604,7 +604,8 @@ function mostrarRuta(i) {
       todo = todo.concat(g);
     });
     MAPA.m.invalidateSize();
-    if (todo.length) MAPA.m.fitBounds(L.latLngBounds(todo), { padding: [46, 46], maxZoom: 14 });
+    MAPA.m.stop();
+    if (todo.length) MAPA.m.fitBounds(L.latLngBounds(todo), { padding: [46, 46], maxZoom: 14, animate: false });
   });
 }
 /* Voz: la más linda que tenga el navegador, en español y femenina. */
