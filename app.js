@@ -2,7 +2,7 @@
 (function () {
 'use strict';
 
-var VERSION = 'v68';                     // tiene que coincidir con el CACHE del sw.js
+var VERSION = 'v69';                     // tiene que coincidir con el CACHE del sw.js
 var LS = { ses: 'gtm-sesion', est: 'gtm-estado', cola: 'gtm-cola', ui: 'gtm-ui' };
 var API = (window.GTM_CONFIG && window.GTM_CONFIG.api) || '';
 
@@ -1449,13 +1449,13 @@ function jugador2(lista, mat) {
   for (var i = 0; i < lista.length; i++) if (String(lista[i].matricula) === String(mat)) return lista[i];
   return { handicap: 18 };
 }
-function guardarTest() { if (TEST) guardarLS('gtm-test-v68', E); }
+function guardarTest() { if (TEST) guardarLS('gtm-test-v69', E); }
 
 function entrarTest(regenerar) {
   if (!TEST) PROD = E;
-  var guardado = regenerar ? null : leerLS('gtm-test-v68', null);
+  var guardado = regenerar ? null : leerLS('gtm-test-v69', null);
   E = guardado || generarTest();
-  guardarLS('gtm-test-v68', E);
+  guardarLS('gtm-test-v69', E);
   TEST = true; guardarLS('gtm-test-on', true);
   UI.yoTest = (E.jugadores.filter(function (j) { return j.rol === 'admin'; })[0] || E.jugadores[0]).matricula;
   UI.cancha = E.canchas[0].id; UI.canchaLb = 'general'; UI.canchaRyder = 'general'; UI.lineas = {};
@@ -2127,9 +2127,36 @@ function calcularPartido(m) {
   }
   return r;
 }
+/* Stableford por equipo (llamada del 18/11): se suman los puntos Stableford de los 6
+   de cada equipo en las canchas del individual (Acantilados, Miramar y La Catedral).
+   El que más suma se lleva PTS_STABLEFORD puntos de la Ryder; empate, mitad cada uno.
+   Queda definido cuando los 12 terminaron las tres canchas; antes, va como proyectado. */
+var PTS_STABLEFORD = 3;
+function stablefordEquipos() {
+  var cs = canchasIndividual(), r = { usa: 0, eur: 0, empezado: false, cerrado: cs.length > 0, n: 0 };
+  acumulado('general').forEach(function (a) {
+    var eq = a.jug.equipo;
+    if (eq !== 'rojo' && eq !== 'azul') return;
+    r.n++;
+    if (a.thru > 0) r.empezado = true;
+    if (a.thru < 18 * cs.length) r.cerrado = false;
+    r[eq === 'rojo' ? 'usa' : 'eur'] += a.pts;
+  });
+  if (!r.n) r.cerrado = false;
+  return r;
+}
 function marcadorRyder(cid) {
   var ms = (cid === 'general') ? (E.partidos || []) : partidosDe(cid);
   var r = { usa: 0, eur: 0, provUsa: 0, provEur: 0, enJuego: 0, total: ms.length };
+  if (cid === 'general') {
+    var st = stablefordEquipos(), pu = 0, pe = 0;
+    r.stb = st; r.total++;
+    if (st.usa > st.eur) pu = PTS_STABLEFORD;
+    else if (st.eur > st.usa) pe = PTS_STABLEFORD;
+    else { pu = PTS_STABLEFORD / 2; pe = PTS_STABLEFORD / 2; }
+    if (st.cerrado) { r.usa += pu; r.eur += pe; r.provUsa += pu; r.provEur += pe; }
+    else if (st.empezado) { r.enJuego++; r.provUsa += pu; r.provEur += pe; }
+  }
   ms.forEach(function (m) {
     var p = calcularPartido(m);
     if (!p) return;
@@ -2380,6 +2407,14 @@ function vistaRyderGeneral() {
   var h = '<div class="pila">' + chipsCancha('general', 'ryder-cancha', true) +
     '<section class="card"><div class="lb-cab"><h2>Ryder Cup</h2><span class="eyebrow">' + gral.total + ' partidos</span></div>' +
     marcadorHTML(gral) + '</section>';
+
+  var st = gral.stb || stablefordEquipos();
+  h += '<section class="card"><div class="sec-tit"><h2>Stableford por equipo</h2><span class="eyebrow">' + PTS_STABLEFORD + ' pts en juego</span></div>' +
+    '<div class="gen-partido"><span class="txt-rojo">' + esc(nombreEquipo('rojo')) + ' <b>' + st.usa + '</b></span>' +
+    '<span>' + (st.cerrado ? 'terminado' : (st.empezado ? 'en juego' : 'sin empezar')) + '</span>' +
+    '<span class="txt-azul"><b>' + st.eur + '</b> ' + esc(nombreEquipo('azul')) + '</span></div>' +
+    nota('<div class="candado solo"><span>➕</span><span>Se suman los puntos Stableford de los seis de cada equipo en Acantilados, Miramar y La Catedral. ' +
+    'El equipo que más suma se lleva <b>' + PTS_STABLEFORD + ' puntos</b> de la Ryder (empate, mitad cada uno). Se define cuando terminan todos.</span></div>') + '</section>';
 
   h += '<section class="card"><div class="sec-tit"><h2>Cancha por cancha</h2><span class="eyebrow">puntos</span></div>';
   E.canchas.forEach(function (c) {
@@ -3750,7 +3785,7 @@ document.addEventListener('visibilitychange', function () {
 
 if (TEST) {
   PROD = E;
-  E = leerLS('gtm-test-v68', null) || generarTest();
+  E = leerLS('gtm-test-v69', null) || generarTest();
   if (!UI.yoTest) UI.yoTest = (E.jugadores.filter(function (j) { return j.rol === 'admin'; })[0] || E.jugadores[0]).matricula;
 }
 if (E && E.canchas) E.canchas = ordenarCanchas(E.canchas);
