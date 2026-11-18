@@ -2,7 +2,7 @@
 (function () {
 'use strict';
 
-var VERSION = 'v70';                     // tiene que coincidir con el CACHE del sw.js
+var VERSION = 'v71';                     // tiene que coincidir con el CACHE del sw.js
 var LS = { ses: 'gtm-sesion', est: 'gtm-estado', cola: 'gtm-cola', ui: 'gtm-ui' };
 var API = (window.GTM_CONFIG && window.GTM_CONFIG.api) || '';
 
@@ -3040,14 +3040,9 @@ function bloquePedidos() {
     'Se lo pasás y con eso él pone uno nuevo.</span></div>');
 }
 
-/* Escudo del equipo, debajo de la foto. Las imágenes las pasó el organizador.
-   Si algún día conviene tenerlas en el repo para que anden sin señal, se cambian
-   estas dos líneas por rutas locales y listo. */
-var ESCUDOS = {
-  azul: 'https://res.cloudinary.com/dzrqhomvz/image/upload/v1788882853/c3mngqkqjolpmiiczlus.png',
-  rojo: 'https://res.cloudinary.com/dzrqhomvz/image/upload/v1788882997/n9mnggyfp5uyl2iepmtw.png'
-};
-
+/* Escudo debajo de la foto: el escudo de la Ryder MDQ 2026 (Andres, 18/11), el mismo
+   para los dos equipos; el marco y el nombre van del color del equipo. */
+var ESCUDOS = { azul: 'escudo.png', rojo: 'escudo.png' };
 function vistaPerfil() {
   var y = yo();
   if (!y) return '<p class="vacio">Cargando…</p>';
