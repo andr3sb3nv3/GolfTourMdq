@@ -120,28 +120,48 @@ function borrarTodoYEmpezarDeNuevo() {
  */
 /**
  * PREPARAR LA GIRA — correr UNA vez después de pegar esta versión. No borra nada.
- *  · Deja las 4 canchas en el orden de la gira: vie Miramar · sáb Acantilados
+ *  · Deja las 4 canchas en el orden de la gira: vie Acantilados · sáb Miramar
  *    (mañana) y Marayui (tarde) · dom La Catedral. Si falta Marayui, la agrega.
  *  · Marayui queda con su tarjeta oficial (azules, par 72; se juegan los hoyos 1 al 9).
- *  · A las que no tienen modalidad les pone la de la gira: Miramar four-ball,
- *    Acantilados foursome, Marayui scramble de a 3, La Catedral individuales.
+ *  · A las que no tienen modalidad les pone la de la gira: Acantilados four-ball,
+ *    Miramar foursome, Marayui scramble de a 3, La Catedral individuales.
  *    (Si una ya tiene modalidad, no la toca: se cambia desde la app, pestaña Ryder.)
  */
 /* Se llama sola al armar el estado: si falta Marayui o alguna cancha de la gira
    no tiene modalidad, corre prepararGira(). Así no hace falta ejecutarla a mano. */
+/* La gira (cambio del 18/11): vie 27 Acantilados (four-ball) · sáb 28 Miramar a la
+   mañana (foursome) y Marayui a la tarde (scramble) · dom 29 La Catedral (individuales). */
+var DIAS_GIRA_ = { acantilados: 1, miramar: 2, marayui: 2, catedral: 3 };
+var FORMATO_GIRA_ = { acantilados: 'fourball', miramar: 'foursomes', marayui: 'scramble', catedral: 'singles' };
+var VERSION_GIRA_ = '2';
+// Se aplica una sola vez (queda anotado en Config): días y modalidades de la gira.
+function giraV2_() {
+  var cfg = config();
+  if (String(cfg.gira || '') === VERSION_GIRA_) return;
+  var hoja = SpreadsheetApp.openById(SS_ID).getSheetByName('Canchas');
+  var v = hoja.getDataRange().getValues();
+  for (var i = 1; i < v.length; i++) {
+    var id = String(v[i][0]);
+    if (DIAS_GIRA_[id] && Number(v[i][1]) !== DIAS_GIRA_[id]) hoja.getRange(i + 1, 2).setValue(DIAS_GIRA_[id]);
+    if (FORMATO_GIRA_[id] && String(v[i][4] || '') !== FORMATO_GIRA_[id]) hoja.getRange(i + 1, 5).setValue(FORMATO_GIRA_[id]);
+  }
+  escribirConfig('gira', VERSION_GIRA_);
+  limpiarCache();
+}
 function giraAlDia_() {
   try {
     var cs = leer('Canchas'), fmt = { miramar: 1, acantilados: 1, marayui: 1, catedral: 1 };
     var falta = !cs.some(function (c) { return c.id === 'marayui'; }) ||
       cs.some(function (c) { return fmt[c.id] && !String(c.formato || '').trim(); });
     if (falta) prepararGira();
+    giraV2_();
   } catch (e) { Logger.log('giraAlDia_: ' + e); }
 }
 function prepararGira() {
   var hechas = [migrarScramble()];
   var hoja = SpreadsheetApp.openById(SS_ID).getSheetByName('Canchas');
   var v = hoja.getDataRange().getValues();
-  var fmt = { miramar: 'fourball', acantilados: 'foursomes', marayui: 'scramble', catedral: 'singles' };
+  var fmt = FORMATO_GIRA_;
   for (var i = 1; i < v.length; i++) {
     var id = String(v[i][0]);
     if (fmt[id] && !String(v[i][4] || '').trim()) { hoja.getRange(i + 1, 5).setValue(fmt[id]); hechas.push(id + ' → ' + fmt[id]); }
@@ -163,7 +183,7 @@ function prepararGira() {
 /**
  * MIGRACIÓN SCRAMBLE — correr UNA vez después de pegar esta versión. No borra nada.
  *  · Agrega Marayui Golf (sábado a la tarde, scramble de a 3, 9 hoyos) si no está.
- *  · Ordena los días como quedó la gira: vie Miramar · sáb Acantilados y Marayui · dom La Catedral.
+ *  · Ordena los días como quedó la gira: vie Acantilados · sáb Miramar y Marayui · dom La Catedral.
  *  · Agrega las columnas usa3 y eur3 a Partidos.
  * La tarjeta de Marayui queda provisoria: cargá la oficial desde la app (Canchas).
  */
@@ -178,7 +198,7 @@ function migrarScramble() {
     hoja.appendRow(['marayui', 2, 'Marayui Golf', true, 'scramble'].concat(par, si));
     hechas.push('Marayui agregada con la tarjeta oficial (azules)');
   }
-  var dias = { miramar: 1, acantilados: 2, marayui: 2, catedral: 3 };
+  var dias = DIAS_GIRA_;
   Object.keys(dias).forEach(function (id) {
     if (!fila[id]) return;
     if (Number(hoja.getRange(fila[id], 2).getValue()) !== dias[id]) { hoja.getRange(fila[id], 2).setValue(dias[id]); hechas.push(id + ' → día ' + dias[id]); }
@@ -268,7 +288,7 @@ function responder(obj) {
 function despachar(p) {
   try {
     switch (p.accion) {
-      case 'ping':      return { ok: true, version: 62 };
+      case 'ping':      return { ok: true, version: 64 };
       case 'diag':      return diagnostico();
       case 'registrar': return registrar(p);
       case 'precargar': exigir(p.token, true); return precargarPerfiles_();
