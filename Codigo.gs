@@ -134,6 +134,28 @@ function borrarTodoYEmpezarDeNuevo() {
 var DIAS_GIRA_ = { acantilados: 1, miramar: 2, marayui: 2, catedral: 3 };
 var FORMATO_GIRA_ = { acantilados: 'fourball', miramar: 'foursomes', marayui: 'scramble', catedral: 'singles' };
 var VERSION_GIRA_ = '2';
+/* Equipos del draft del 18/11: se aplican una sola vez (Config gira_equipos=1).
+   Pone a cada uno en su equipo (por apodo) y nombra capitanes a Mati (USA) y Sebas (Europe). */
+var EQUIPOS_DRAFT_ = { Sebas: 'azul', Benve: 'azul', Toba: 'azul', Bauti: 'azul', Fran: 'azul', Vibu: 'azul',
+                       Mati: 'rojo', Nari: 'rojo', Ini: 'rojo', Boa: 'rojo', Luqui: 'rojo', Chino: 'rojo' };
+function equiposDraft_() {
+  var cfg = config();
+  if (String(cfg.gira_equipos || '') === '1') return;
+  var hoja = SpreadsheetApp.openById(SS_ID).getSheetByName('Jugadores');
+  var v = hoja.getDataRange().getValues(), cab = v[0].map(String);
+  var cM = cab.indexOf('matricula'), cA = cab.indexOf('apodo'), cE = cab.indexOf('equipo');
+  var mat = {};
+  for (var i = 1; i < v.length; i++) {
+    var ap = String(v[i][cA] || '').replace(/\s*\(.*\)\s*$/, '').trim();
+    if (!EQUIPOS_DRAFT_[ap]) continue;
+    mat[ap] = String(v[i][cM]).trim();
+    if (String(v[i][cE]) !== EQUIPOS_DRAFT_[ap]) hoja.getRange(i + 1, cE + 1).setValue(EQUIPOS_DRAFT_[ap]);
+  }
+  if (mat.Mati) escribirConfig('capitanRojo', mat.Mati);
+  if (mat.Sebas) escribirConfig('capitanAzul', mat.Sebas);
+  escribirConfig('gira_equipos', '1');
+  limpiarCache();
+}
 // Se aplica una sola vez (queda anotado en Config): días y modalidades de la gira.
 function giraV2_() {
   var cfg = config();
@@ -155,6 +177,7 @@ function giraAlDia_() {
       cs.some(function (c) { return fmt[c.id] && !String(c.formato || '').trim(); });
     if (falta) prepararGira();
     giraV2_();
+    equiposDraft_();
   } catch (e) { Logger.log('giraAlDia_: ' + e); }
 }
 function prepararGira() {
@@ -288,7 +311,7 @@ function responder(obj) {
 function despachar(p) {
   try {
     switch (p.accion) {
-      case 'ping':      return { ok: true, version: 64 };
+      case 'ping':      return { ok: true, version: 67 };
       case 'diag':      return diagnostico();
       case 'registrar': return registrar(p);
       case 'precargar': exigir(p.token, true); return precargarPerfiles_();
