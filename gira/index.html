@@ -557,9 +557,10 @@ function iniciarMapa() {
   cargarLeaflet(function () {
     if (!document.body.contains(el)) return;
     var m = L.map(el, { scrollWheelZoom: false, zoomControl: true, attributionControl: true });
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-      maxZoom: 18, subdomains: 'abcd', attribution: '© OpenStreetMap · © CARTO'
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 18, attribution: '© OpenStreetMap'
     }).addTo(m);
+    m.setView([-38.12, -57.66], 10);
     Object.keys(LUGARES).forEach(function (k) {
       var g = LUGARES[k], ic = g.tipo === 'casa' ? '🏠' : g.tipo === 'surf' ? '🏄' : '⛳';
       L.marker(g.c, { icon: L.divIcon({ className: 'pin pin-' + g.tipo, html: '<span>' + ic + '</span>', iconSize: [34, 34], iconAnchor: [17, 17] }) })
@@ -595,6 +596,7 @@ function mostrarRuta(i) {
       L.polyline(g, { color: lista[n].color, weight: 4.5, opacity: .95 }).addTo(MAPA.capa);
       todo = todo.concat(g);
     });
+    MAPA.m.invalidateSize();
     if (todo.length) MAPA.m.fitBounds(L.latLngBounds(todo), { padding: [46, 46], maxZoom: 14 });
   });
 }
