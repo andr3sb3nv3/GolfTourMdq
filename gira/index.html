@@ -242,7 +242,7 @@ details.rubro .pm{display:grid;justify-items:end;gap:4px;text-align:right;flex:0
 .pin{display:grid;place-items:center;border-radius:50%;background:#fff;border:2px solid var(--tinta);box-shadow:0 2px 6px rgba(11,27,46,.35);font-size:17px}
 .pin-casa{border-color:var(--oro);background:var(--oro-suave)}.pin-surf{border-color:#0E9F8C}
 .leaflet-tooltip.cartel{background:var(--tinta);color:#fff;border:0;border-radius:8px;padding:5px 8px;font:500 12px/1.25 var(--texto);box-shadow:0 2px 8px rgba(11,27,46,.3)}
-.leaflet-tooltip.cartel b{font-family:var(--titulo);font-size:12.5px}
+.leaflet-tooltip.cartel{transition:opacity .3s,transform .3s}.leaflet-tooltip.cartel.apagado{opacity:.35}.leaflet-tooltip.cartel.activo{background:var(--oro);color:var(--tinta);z-index:1000}.leaflet-tooltip.cartel b{font-family:var(--titulo);font-size:12.5px}
 .leaflet-tooltip-top.cartel::before{border-top-color:var(--tinta)}.leaflet-tooltip-bottom.cartel::before{border-bottom-color:var(--tinta)}.leaflet-tooltip-left.cartel::before{border-left-color:var(--tinta)}.leaflet-tooltip-right.cartel::before{border-right-color:var(--tinta)}
 .aviso{border-left:4px solid var(--oro);background:var(--oro-suave);border-radius:0 10px 10px 0;padding:10px 12px;font-size:14px}
 
@@ -516,7 +516,8 @@ var VIAJES = [
   { dia: 'Sáb 28', de: 'chapa', a: 'marayui', min: 5, sale: '15:45', llega: '15:50', tee: '16:30', nota: 'Marayui queda en Chapadmalal. Vuelta a la casa: 34 min.', color: '#B07A12' },
   { dia: 'Dom 29', de: 'casa', a: 'catedral', min: 5, sale: '12:30', llega: '12:35', tee: '13:00', nota: 'Última ronda, almuerzo y premios.', color: '#0B1B2E' }
 ];
-var MAPA = { sel: -1, rutas: {} };
+var MAPA = { sel: -1, rutas: {}, mk: {} };
+var NARRA = ["Jueves veintiséis. Ronda de práctica opcional en Mar del Plata Golf, la cancha de La Catedral. Queda a un kilómetro de Villa Surula: cinco minutos en auto.", "Viernes veintisiete, primera ronda en Golf Los Acantilados. Salimos de la casa a las once y cuarenta y cinco: son veinticinco minutos. Llegamos a las doce y cuarto para tirar el canasto de bolas, y la primera línea sale a las trece y veinte.", "Sábado veintiocho, temprano. Salimos a las siete y cuarenta hacia Miramar Links: cuarenta y tres minutos por la ruta once. Llegamos a las ocho y media para calentar, y salimos a jugar a las nueve.", "Al terminar en Miramar, cerca de las dos menos cuarto, vamos a la playa de Chapadmalal: veinticinco minutos. Ahí, sesión de surf.", "Después del surf, a las cuatro menos cuarto, son cinco minutos hasta Marayui. El scramble sale a las dieciséis y treinta. Desde Marayui, la vuelta a la casa es de treinta y cuatro minutos.", "Domingo veintinueve, última ronda en La Catedral. Salimos a las doce y media, cinco minutos de viaje, y jugamos a las trece. Después, almuerzo y entrega de premios."];
 var RUTAS_GUARDADAS = {"casa-catedral": "vdagFd|b~IfEDrBXx@b@pApBdJlThKxHvLtEu@hB", "casa-acantilados": "vdagFd|b~ItJbAjLpWxJtHfJtDzI_Ajx@tp@eOdUxCeDvoCpmDvHfCvf@OdJlFbpExvFsEhG", "casa-miramar": "vdagFd|b~Il_CbaBvhArVn\\aP~n@bRtg@_D`QzUtgByKfJfJjjCnfG|tAbwAhcAzTjy@tn@lgCpvChbDjvEfz@tsC|s@tg@~l@rwBtYv^|MtaBdaAdtDpgAtkB", "miramar-chapa": "linhFvvv_Jgs@ccAeQgb@eKqt@e]u{@}XggAiAqv@aIed@mEoKyUeXkJwk@__@ifAyJwMk^wNkHqHka@ceAeEak@iEyN_Sy\\gSgReMga@_Ug]oh@o`@sc@sv@xEd@", "chapa-marayui": "nr_hFxjz~IqBaAgBZlb@~t@jJ`KnAtCqmAbaB}R_S"};
 function decodificar(t) { var i = 0, lat = 0, lng = 0, out = []; while (i < t.length) { var b, sh = 0, r = 0; do { b = t.charCodeAt(i++) - 63; r |= (b & 31) << sh; sh += 5; } while (b >= 32); lat += r & 1 ? ~(r >> 1) : r >> 1; sh = 0; r = 0; do { b = t.charCodeAt(i++) - 63; r |= (b & 31) << sh; sh += 5; } while (b >= 32); lng += r & 1 ? ~(r >> 1) : r >> 1; out.push([lat / 1e5, lng / 1e5]); } return out; }
 function linkMaps(v) {
@@ -535,8 +536,8 @@ function traslados() {
     '</button>';
   }).join('');
   return '<div class="tras-cab"><div><div class="eyebrow">Desde Villa Surula</div><h2>Traslados</h2>' +
-      '<p class="bajada">En auto, según Google Maps y sin tráfico. Tocá un viaje para verlo en el mapa.</p></div>' +
-      '<button type="button" class="btn-todos" data-ruta="todos">Ver todos</button></div>' +
+      '<p class="bajada">En auto, según Google Maps y sin tráfico. Tocá un viaje para verlo y escucharlo, o mirá la secuencia completa con el sonido prendido.</p></div>' +
+      '<button type="button" class="btn-todos" data-ruta="seq">▶ Ver secuencia</button></div>' +
     '<div class="tras-grid"><div class="card tras-mapa"><div id="mapa-tras" role="img" aria-label="Mapa de los traslados"></div></div>' +
     '<div class="tras-lista">' + tarjetas + '</div></div>';
 }
@@ -565,7 +566,7 @@ function iniciarMapa() {
     var OFF = { right: [16, 0], left: [-16, 0], top: [0, -16], bottom: [0, 16] };
     Object.keys(LUGARES).forEach(function (k) {
       var g = LUGARES[k], ic = g.tipo === 'casa' ? '🏠' : g.tipo === 'surf' ? '🏄' : '⛳';
-      L.marker(g.c, { icon: L.divIcon({ className: 'pin pin-' + g.tipo, html: '<span>' + ic + '</span>', iconSize: [34, 34], iconAnchor: [17, 17] }) })
+      MAPA.mk[k] = L.marker(g.c, { icon: L.divIcon({ className: 'pin pin-' + g.tipo, html: '<span>' + ic + '</span>', iconSize: [34, 34], iconAnchor: [17, 17] }) })
         .addTo(m)
         .bindTooltip('<b>' + esc(g.n) + '</b><br>' + esc(g.cartel), { permanent: true, direction: DIR[k] || 'top', offset: OFF[DIR[k] || 'top'], className: 'cartel' });
     });
@@ -586,8 +587,12 @@ function geometria(v) {
 function mostrarRuta(i) {
   MAPA.sel = i;
   document.querySelectorAll('.tras').forEach(function (b) { b.classList.toggle('sel', Number(b.getAttribute('data-ruta')) === i); });
-  var t = document.querySelector('.btn-todos'); if (t) t.classList.toggle('sel', i < 0);
   if (!MAPA.m) return;
+  Object.keys(MAPA.mk).forEach(function (k) {
+    var tt = MAPA.mk[k].getTooltip(), el = tt && tt.getElement();
+    var on = i < 0 || k === VIAJES[i].a || k === VIAJES[i].de;
+    if (el) { el.classList.toggle('apagado', !on); el.classList.toggle('activo', i >= 0 && k === VIAJES[i].a); }
+  });
   var lista = i < 0 ? VIAJES : [VIAJES[i]];
   Promise.all(lista.map(geometria)).then(function (gs) {
     if (MAPA.sel !== i) return;
@@ -602,11 +607,59 @@ function mostrarRuta(i) {
     if (todo.length) MAPA.m.fitBounds(L.latLngBounds(todo), { padding: [46, 46], maxZoom: 14 });
   });
 }
+/* Voz: la más linda que tenga el navegador, en español y femenina. */
+var VOZ = { v: null, seq: false, gen: 0 };
+function elegirVoz() {
+  if (!('speechSynthesis' in window)) return null;
+  var vs = speechSynthesis.getVoices().filter(function (v) { return /^es/i.test(v.lang); });
+  if (!vs.length) return null;
+  var puntos = function (v) {
+    var n = v.name, p = 0;
+    if (/natural|neural|online|premium|enhanced|mejorada/i.test(n)) p += 40;
+    if (/elena|paulina|m[oó]nica|helena|elvira|dalia|sabina|laura|luc[ií]a|isabela|valentina|camila|marisol|esperanza|paloma|female|mujer/i.test(n)) p += 30;
+    if (/google/i.test(n)) p += 15;
+    if (/jorge|diego|pablo|alvaro|álvaro|raul|raúl|enrique|carlos|tom[aá]s|juan|male/i.test(n) && !/female/i.test(n)) p -= 60;
+    if (/es-AR/i.test(v.lang)) p += 12; else if (/es-(US|MX|419)/i.test(v.lang)) p += 8; else if (/es-ES/i.test(v.lang)) p += 5;
+    return p;
+  };
+  return vs.sort(function (a, b) { return puntos(b) - puntos(a); })[0];
+}
+if ('speechSynthesis' in window) { VOZ.v = elegirVoz(); speechSynthesis.onvoiceschanged = function () { VOZ.v = elegirVoz(); }; }
+function decir(texto) {
+  return new Promise(function (ok) {
+    if (!('speechSynthesis' in window)) return setTimeout(ok, 4500);
+    speechSynthesis.cancel();
+    var u = new SpeechSynthesisUtterance(texto);
+    u.lang = VOZ.v ? VOZ.v.lang : 'es-AR'; if (VOZ.v) u.voice = VOZ.v;
+    u.rate = 0.96; u.pitch = 1.05;
+    var listo = false, fin = function () { if (!listo) { listo = true; ok(); } };
+    u.onend = fin; u.onerror = fin;
+    setTimeout(fin, 30000);
+    speechSynthesis.speak(u);
+  });
+}
+function callar() { VOZ.seq = false; VOZ.gen++; if ('speechSynthesis' in window) speechSynthesis.cancel(); botonSeq(); }
+function botonSeq() { var b = document.querySelector('.btn-todos'); if (b) { b.textContent = VOZ.seq ? '■ Detener' : '▶ Ver secuencia'; b.classList.toggle('sel', VOZ.seq); } }
+function secuencia() {
+  callar(); VOZ.seq = true; var gen = VOZ.gen; botonSeq();
+  var paso = function (i) {
+    if (gen !== VOZ.gen) return;
+    if (i >= VIAJES.length) {
+      mostrarRuta(-1);
+      return decir('Esos son todos los traslados de la gira. ¡Buen golf!').then(function () { if (gen === VOZ.gen) { VOZ.seq = false; botonSeq(); } });
+    }
+    mostrarRuta(i);
+    decir(NARRA[i]).then(function () { setTimeout(function () { paso(i + 1); }, 700); });
+  };
+  mostrarRuta(-1);
+  decir('Estos son los traslados de la gira, desde Villa Surula.').then(function () { paso(0); });
+}
 document.addEventListener('click', function (e) {
   if (e.target.closest('.tras a')) return;
   var b = e.target.closest('[data-ruta]'); if (!b) return;
   var v = b.getAttribute('data-ruta');
-  mostrarRuta(v === 'todos' ? -1 : Number(v));
+  if (v === 'seq') { if (VOZ.seq) callar(); else secuencia(); }
+  else { callar(); mostrarRuta(Number(v)); decir(NARRA[Number(v)]); }
   if (window.innerWidth < 760) { var mp = document.getElementById('mapa-tras'); if (mp) mp.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
 });
 
