@@ -219,6 +219,7 @@ details.rubro .pm{display:grid;justify-items:end;gap:4px;text-align:right;flex:0
 .presu-pie .dato b{font-size:19px}
 @media (max-width:520px){.presu-pie{grid-template-columns:1fr 1fr}.presu-pie .dato:last-child{grid-column:1 / -1}}
 
+tr.sel td{background:var(--oro-suave)}
 .aviso{border-left:4px solid var(--oro);background:var(--oro-suave);border-radius:0 10px 10px 0;padding:10px 12px;font-size:14px}
 
 footer{border-top:1px solid var(--linea);padding-block:18px 30px;font-size:13.5px;color:var(--tinta-2);display:grid;gap:8px}
@@ -278,17 +279,17 @@ var RESPALDO = {
     { clave: 'app', valor: 'https://andr3sb3nv3.github.io/GolfTourMdq/' }
   ],
   Canchas: [
-    { dia: 'Vie 27', cancha: 'Miramar Links', salida: '13:40 · 13:50 · 14:00', lineas: '3 de 4', juego: 'Stableford + fourball', green_fee: '50000', estado: 'Confirmada', gestiona: 'Andrés', nota: 'Primera ronda.' },
-    { dia: 'Sáb 28 AM', cancha: 'Acantilados', salida: 'Mañana · a definir', lineas: '', juego: 'Stableford + fourball', green_fee: '80000', estado: 'Falta reservar', gestiona: 'Andrés', nota: 'Pedir salidas a la mañana.' },
+    { dia: 'Vie 27', cancha: 'Acantilados', salida: '13:20 · 13:30 · 13:40', lineas: '3 de 4', juego: 'Stableford + fourball', green_fee: '80000', estado: 'Confirmada', gestiona: 'Andrés', nota: 'Primera ronda. Cancha Azul (Merlo y Medio). Con el green fee viene un canasto de bolas. Pagado: $960.000 (12 × $80.000), lo transfirió Lucas.' },
+    { dia: 'Sáb 28 AM', cancha: 'Miramar Links', salida: '9:00 · 9:10 · 9:20', lineas: '3 de 4', juego: 'Stableford + fourball', green_fee: '50000', estado: 'Confirmada', gestiona: 'Andrés', nota: 'Segunda ronda. Después: surf en Chapadmalal y Marayui a la tarde.' },
     { dia: 'Sáb 28 PM', cancha: 'Marayui Golf', salida: '16:30 · 16:40 · 16:50 · 17:00', lineas: '4 líneas de 3', juego: 'Scramble de a 3 · 9 hoyos', green_fee: '55000', estado: 'Confirmada', gestiona: 'Andrés', nota: 'Cuenta solo para la Ryder (medal neto por equipo). Pagamos 18: el que quiera sigue los otros 9, no suman.' },
     { dia: 'Dom 29', cancha: 'La Catedral', salida: '13:00', lineas: '3 de 4', juego: 'Stableford + fourball', green_fee: '150000', estado: 'En trámite', gestiona: 'Andrés', nota: 'Mar del Plata Golf Club. Después: almuerzo y premios.' }
   ],
   Agenda: [
     { fecha: '25', dia: 'Mié', hora: 'Todo el día', titulo: 'Abre la casa', detalle: 'Cada uno llega cuando puede.', estado: '' },
-    { fecha: '26', dia: 'Jue', hora: 'Opcional', titulo: 'Ronda de práctica · Mar del Plata Golf', detalle: 'Opcional. Puede haber también una tarde de golf.', estado: '' },
+    { fecha: '26', dia: 'Jue', hora: 'Opcional', titulo: 'Ronda de práctica · Mar del Plata Golf', detalle: 'Opcional. Puede haber también una tarde de golf o de surf.', estado: '' },
     { fecha: '27', dia: 'Vie', hora: 'Media mañana', titulo: 'Todos en Mar del Plata', detalle: 'Último momento para llegar.', estado: '' },
-    { fecha: '27', dia: 'Vie', hora: '13:40', titulo: 'Ronda 1 · Miramar Links', detalle: 'Stableford + fourball.', estado: 'Confirmada' },
-    { fecha: '28', dia: 'Sáb', hora: 'Mañana', titulo: 'Ronda 2 · Acantilados', detalle: 'Stableford + fourball.', estado: 'Falta reservar' },
+    { fecha: '27', dia: 'Vie', hora: '13:20', titulo: 'Ronda 1 · Acantilados', detalle: 'Stableford + fourball. Cancha Azul (Merlo y Medio). Con el green fee viene un canasto de bolas.', estado: 'Confirmada' },
+    { fecha: '28', dia: 'Sáb', hora: '9:00', titulo: 'Ronda 2 · Miramar Links', detalle: 'Stableford + fourball.', estado: 'Confirmada' },
     { fecha: '28', dia: 'Sáb', hora: '16:30', titulo: 'Ronda 3 · Marayui Golf', detalle: 'Scramble de a 3, 9 hoyos: cuenta para la Ryder. Después, el que quiera sigue los otros 9.', estado: 'Confirmada' },
     { fecha: '28', dia: 'Sáb', hora: 'Noche', titulo: 'Asado en la casa', detalle: 'Un buen asado.', estado: '' },
     { fecha: '29', dia: 'Dom', hora: '13:00', titulo: 'Ronda 4 · La Catedral', detalle: 'Almuerzo y entrega de premios.', estado: 'En trámite' }
@@ -315,14 +316,14 @@ var RESPALDO = {
   ],
   Pendientes: [
     { tarea: 'Pagar la 3ª cuota', detalle: 'Venció el 31/10.', responsable: 'Cada uno', seccion: 'pagos', hecho: '' },
-    { tarea: 'Reservar Acantilados', detalle: 'Sábado a la mañana.', responsable: 'Andrés', seccion: 'reservas', hecho: '' },
+    { tarea: 'Transferencia a Acantilados', detalle: 'Pagado: $960.000 (12 × $80.000), lo transfirió Lucas.', responsable: 'Andrés', seccion: 'reservas', hecho: 'Sí' },
     { tarea: 'Confirmar La Catedral', detalle: 'Domingo 13:00. Pasar matrículas y pagar.', responsable: 'Andrés', seccion: 'reservas', hecho: '' },
     { tarea: 'Juntada en Green: draft', detalle: 'Fecha a confirmar.', responsable: 'Lucas · Mateo · Mati', seccion: 'formato', hecho: '' },
     { tarea: 'Handicap de todos', detalle: 'Chino, Fran y Nari.', responsable: 'Ellos', seccion: 'jugadores', hecho: '' },
     { tarea: 'Armar los autos', detalle: 'El que maneja avisa lugares.', responsable: 'Todos', seccion: 'autos', hecho: '' },
     { tarea: 'Chombas y premios', detalle: 'Juntar talles.', responsable: 'Lucas', seccion: 'merch', hecho: '' },
     { tarea: 'App en Stableford', detalle: '', responsable: 'Andrés', seccion: 'formato', hecho: '' },
-    { tarea: 'Miramar confirmado', detalle: 'Vie 27, 13:40 a 14:00.', responsable: 'Andrés', seccion: 'reservas', hecho: 'Sí' },
+    { tarea: 'Miramar confirmado', detalle: 'Sáb 28 a la mañana: 9:00, 9:10 y 9:20.', responsable: 'Andrés', seccion: 'reservas', hecho: 'Sí' },
     { tarea: 'Marayui confirmado', detalle: 'Sáb 28, 16:30 a 17:00, 4 líneas.', responsable: 'Andrés', seccion: 'reservas', hecho: 'Sí' }
   ],
   Presupuesto: [
@@ -332,7 +333,7 @@ var RESPALDO = {
     { rubro: 'Comidas afuera', concepto: 'Almuerzo del domingo en La Catedral', detalle: 'Después de la ronda, con la entrega de premios.', por_persona: '40000', estado: 'Estimado', opcional: '' },
     { rubro: 'Casa y súper', concepto: 'Asado del viernes', detalle: 'Carne, achuras, pan y ensalada para 12.', por_persona: '16000', estado: 'Estimado', opcional: '' },
     { rubro: 'Casa y súper', concepto: 'Asado del sábado', detalle: 'Un buen asado en la casa.', por_persona: '16000', estado: 'Estimado', opcional: '' },
-    { rubro: 'Casa y súper', concepto: 'Desayunos y almuerzo del viernes', detalle: 'Desayunos de vie, sáb y dom, y algo liviano antes de Miramar.', por_persona: '12000', estado: 'Estimado', opcional: '' },
+    { rubro: 'Casa y súper', concepto: 'Desayunos y almuerzo del viernes', detalle: 'Desayunos de vie, sáb y dom, y algo liviano antes de Acantilados.', por_persona: '12000', estado: 'Estimado', opcional: '' },
     { rubro: 'Casa y súper', concepto: 'Bebidas', detalle: 'Cerveza, vino, fernet, gaseosas y agua para todo el fin de semana.', por_persona: '30000', estado: 'Estimado', opcional: '' },
     { rubro: 'Casa y súper', concepto: 'Carbón, hielo y descartables', detalle: 'Más bolsas, servilletas y lo que falte en la casa.', por_persona: '5000', estado: 'Estimado', opcional: '' },
     { rubro: 'Merch y premios', concepto: 'Chomba del equipo', detalle: 'Del color del equipo, con apellido. Green Golf.', por_persona: '45000', estado: 'Estimado', opcional: '' },
@@ -474,6 +475,48 @@ function presupuestoHTML() {
       'Asumimos que las cuotas van a estos gastos. Tocá un rubro para ver el detalle.</p></div>';
 }
 
+/* ---------- traslados: casa ↔ canchas (tiempos de Google Maps en auto, sin tráfico) ---------- */
+var LUGARES = {
+  casa: { n: 'Villa Surula', q: '-38.0220356,-57.5280206' },
+  acantilados: { n: 'Golf Los Acantilados', q: '-38.1040192,-57.61573' },
+  miramar: { n: 'Miramar Links', q: '-38.253244,-57.7933263' },
+  marayui: { n: 'Marayui Golf', q: '-38.1691339,-57.6711634' },
+  catedral: { n: 'La Catedral', q: '-38.030281,-57.5356082' },
+  chapa: { n: 'Playa Chapadmalal', q: 'Playa Chapadmalal, Buenos Aires' }
+};
+var VIAJES = [
+  { dia: 'Jue 26', de: 'casa', a: 'catedral', min: 5, sale: '', nota: 'Práctica opcional en Mar del Plata Golf: queda a 1 km de la casa.' },
+  { dia: 'Vie 27', de: 'casa', a: 'acantilados', min: 25, sale: '11:45', llega: '12:15', salida: '13:20', nota: 'Una hora antes para tirar el canasto de bolas que viene con el green fee.' },
+  { dia: 'Sáb 28', de: 'casa', a: 'miramar', min: 43, sale: '7:40', llega: '8:30', salida: '9:00', nota: 'Media hora antes para calentar.' },
+  { dia: 'Sáb 28', de: 'miramar', a: 'chapa', min: 25, sale: '~13:45', llega: '~14:10', nota: 'Al terminar en Miramar: surf en Chapadmalal, de camino a Marayui.' },
+  { dia: 'Sáb 28', de: 'chapa', a: 'marayui', min: 5, sale: '15:45', llega: '16:00', salida: '16:30', nota: 'Marayui queda en Chapadmalal. Vuelta a la casa: 34 min.' },
+  { dia: 'Dom 29', de: 'casa', a: 'catedral', min: 5, sale: '12:30', llega: '12:35', salida: '13:00', nota: 'A 1 km de la casa.' }
+];
+function urlMapa(v, embed) {
+  var o = encodeURIComponent(LUGARES[v.de].q), d = encodeURIComponent(LUGARES[v.a].q);
+  return embed ? 'https://maps.google.com/maps?saddr=' + o + '&daddr=' + d + '&output=embed'
+               : 'https://www.google.com/maps/dir/?api=1&origin=' + o + '&destination=' + d + '&travelmode=driving';
+}
+function traslados() {
+  var filas = VIAJES.map(function (v, i) {
+    return '<tr' + (i === 1 ? ' class="sel"' : '') + '><td><b>' + esc(v.dia) + '</b></td><td>' + esc(LUGARES[v.de].n) + ' → <b>' + esc(LUGARES[v.a].n) + '</b><br><span class="t2 chico">' + esc(v.nota) + '</span></td>' +
+      '<td class="c">' + v.min + ' min</td><td class="c">' + (v.sale ? '<b>' + esc(v.sale) + '</b>' : '–') + (v.salida ? '<br><span class="t2 chico">tee ' + esc(v.salida) + '</span>' : '') + '</td>' +
+      '<td class="c"><button type="button" class="lapiz" data-ruta="' + i + '">Ver</button></td></tr>';
+  }).join('');
+  return '<div style="margin-top:20px"><div class="eyebrow">Desde Villa Surula</div><h2>Traslados</h2>' +
+    '<p class="bajada">Tiempos en auto según Google Maps, sin tráfico. "Sale" es la hora de salida sugerida de la casa (o del lugar anterior).</p></div>' +
+    '<div class="scroll"><table><thead><tr><th>Día</th><th>Viaje</th><th class="c">Auto</th><th class="c">Sale</th><th></th></tr></thead><tbody>' + filas + '</tbody></table></div>' +
+    '<div class="card" style="padding:0;overflow:hidden;margin-top:12px"><iframe id="mapa-ruta" title="Mapa del traslado" src="' + urlMapa(VIAJES[1], true) + '" style="display:block;width:100%;height:340px;border:0" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe></div>' +
+    '<p class="chico" style="margin-top:8px"><a id="link-ruta" href="' + urlMapa(VIAJES[1]) + '" target="_blank" rel="noopener"><b>Abrir este viaje en Google Maps →</b></a></p>';
+}
+document.addEventListener('click', function (e) {
+  var b = e.target.closest('[data-ruta]'); if (!b) return;
+  var v = VIAJES[Number(b.getAttribute('data-ruta'))], f = document.getElementById('mapa-ruta'), l = document.getElementById('link-ruta');
+  if (f) f.src = urlMapa(v, true); if (l) l.href = urlMapa(v);
+  document.querySelectorAll('tr.sel').forEach(function (t) { t.classList.remove('sel'); });
+  b.closest('tr').classList.add('sel');
+});
+
 var TABS = [['inicio', 'Inicio'], ['agenda', 'Agenda'], ['reservas', 'Reservas'], ['pagos', 'Pagos'], ['jugadores', 'Jugadores'],
   ['formato', 'Formato'], ['autos', 'Autos'], ['casa', 'Casa'], ['merch', 'Merch'], ['pendientes', 'Pendientes']];
 
@@ -508,7 +551,7 @@ var V = {
           d.items.map(function (a) {
             return '<div class="slot"><span class="h">' + esc(a.hora) + '</span><div class="t">' + esc(a.titulo) + ' ' + chipEstado(a.estado) + lapiz('Agenda', a) + '</div>' + (a.detalle ? '<p>' + esc(a.detalle) + '</p>' : '') + '</div>';
           }).join('') + '</div></div>';
-      }).join('') + '</div>' + mas('Agenda', 'Agregar actividad') +
+      }).join('') + '</div>' + mas('Agenda', 'Agregar actividad') + traslados() +
       '<div class="aviso">Antes de la gira: juntada en Green para el draft. Fecha a confirmar.</div>';
   },
 
@@ -568,8 +611,8 @@ var V = {
   formato: function () {
     return '<div><div class="eyebrow">Cómo se juega</div><h2>Formato y reglas</h2></div>' +
       '<div class="g2">' +
-        '<div class="card"><h3>Individual</h3><ul class="lista"><li><b>Stableford neto</b> en Miramar, Acantilados y La Catedral.</li><li>Gana el que más puntos suma en total.</li><li>Marayui no suma para el individual.</li></ul></div>' +
-        '<div class="card"><h3>Ryder: <span style="color:var(--usa)">USA</span> vs <span style="color:var(--eur)">Europe</span></h3><ul class="lista"><li>Dos equipos de 6.</li><li><b>Fourball</b> en Miramar y Acantilados; cada equipo arma sus parejas.</li><li><b>Marayui: scramble de a 3, 9 hoyos.</b> Dos partidos de 3 contra 3.</li><li><b>Domingo en La Catedral: singles</b> (matches individuales).</li><li>Sin foursome.</li></ul></div>' +
+        '<div class="card"><h3>Individual</h3><ul class="lista"><li><b>Stableford neto</b> en Acantilados, Miramar y La Catedral.</li><li>Gana el que más puntos suma en total.</li><li>Marayui no suma para el individual.</li></ul></div>' +
+        '<div class="card"><h3>Ryder: <span style="color:var(--usa)">USA</span> vs <span style="color:var(--eur)">Europe</span></h3><ul class="lista"><li>Dos equipos de 6.</li><li><b>Fourball</b> en Acantilados (vie) y Miramar (sáb a la mañana); cada equipo arma sus parejas.</li><li><b>Marayui: scramble de a 3, 9 hoyos.</b> Dos partidos de 3 contra 3.</li><li><b>Domingo en La Catedral: singles</b> (matches individuales).</li><li>Sin foursome.</li></ul></div>' +
         '<div class="card"><h3>Draft</h3><ul class="lista"><li>Capitanes: <b>Mati Arizu</b> y <b>Sebastián Bergadá</b> (reemplaza a Mateo Gazzera, que se bajó).</li><li>Los equipos se rehacen.</li><li>Se sortea quién elige primero.</li><li>Eligen 1 y 1 en privado; después se anuncian.</li></ul></div>' +
         '<div class="card"><h3>Scramble en Marayui</h3><ul class="lista"><li>Tiran los tres, eligen la mejor pelota y desde ahí vuelven a tirar los tres.</li><li>Una tarjeta por equipo, 9 hoyos.</li><li>Medal neto: golpes de los 9 hoyos menos el handicap del equipo. En cada 3 contra 3, el menor neto gana el punto (empate, ½).</li><li>El handicap de cada equipo lo fija el comité (base: 20% + 15% + 10% del más bajo al más alto, a la mitad por ser 9 hoyos).</li><li>En cada hoyo se anota de quién fue la salida: mínimo 2 de cada jugador; el equipo que no llega pierde el match. La app lleva la cuenta.</li><li>Salimos de 16:30 a 17:00: sobra luz y el que quiera sigue los otros 9 (están pagos). No suman.</li></ul></div>' +
         '<div class="card"><h3>Ritmo de juego</h3><ul class="lista"><li>Más de doble bogey neto: levantás (0 puntos).</li><li>Rifle sanitario: a los 10 golpes se levanta.</li><li>Hcp +25 con OB en par 4 o 5: sigue desde el fairway, 4º golpe.</li></ul></div>' +
