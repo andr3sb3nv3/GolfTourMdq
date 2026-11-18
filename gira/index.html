@@ -117,6 +117,21 @@ a.dato{text-decoration:none;color:inherit;display:grid;gap:5px}
 .fecha span{font-size:10.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--tenue)}
 .fecha.gira{background:var(--navy);border-color:var(--navy);color:#fff}
 .fecha.gira span{color:rgba(255,255,255,.7)}
+.dia2{grid-template-columns:62px minmax(0,1fr) minmax(0,1fr);gap:14px;padding:14px 0;border-top:1px solid var(--linea)}
+.agenda2{display:grid;gap:0}
+.agenda2 .dia2:first-of-type{border-top:0}
+.ag-cab{display:grid;grid-template-columns:62px minmax(0,1fr) minmax(0,1fr);gap:14px;font:700 11px/1 var(--texto);letter-spacing:.08em;text-transform:uppercase;color:var(--tenue);padding-bottom:10px;border-bottom:2px solid var(--linea)}
+.ag-col.com{background:var(--oro-suave);border-radius:10px;padding:10px 12px}
+.ag-col.com .slot{border-bottom-color:rgba(200,164,77,.45)}
+.ag-tit{display:none;font:700 11px/1 var(--texto);letter-spacing:.08em;text-transform:uppercase;color:#8A6A1F;margin-bottom:6px}
+.chip.dist{background:var(--panel-2);color:var(--tinta-2);border:1px solid var(--linea);text-transform:none;letter-spacing:0;font-size:11.5px}
+.ag-vacio{color:var(--tenue);font-size:14px;font-style:italic}
+@media (max-width:700px){
+  .ag-cab{display:none}
+  .dia2{grid-template-columns:52px minmax(0,1fr)}
+  .dia2 .ag-col.com{grid-column:2}
+  .ag-tit{display:block}
+}
 .slot{display:grid;gap:3px;padding:9px 0;border-bottom:1px dashed var(--linea-2)}
 .slot:first-child{padding-top:0}
 .slot:last-child{border-bottom:0;padding-bottom:0}
@@ -222,24 +237,16 @@ details.rubro .pm{display:grid;justify-items:end;gap:4px;text-align:right;flex:0
 .tras-cab{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-top:22px;flex-wrap:wrap}
 .btn-todos{font:700 12px/1 var(--texto);letter-spacing:.06em;text-transform:uppercase;padding:10px 14px;border-radius:999px;border:1px solid var(--linea-2);background:var(--panel);color:var(--tinta);cursor:pointer}
 .btn-todos.sel{background:var(--tinta);color:#fff;border-color:var(--tinta)}
-.tras-grid{display:grid;gap:12px;margin-top:12px;grid-template-columns:minmax(0,1fr)}
-@media (min-width:860px){.tras-grid{grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);align-items:start}.tras-mapa{position:sticky;top:110px}}
-.tras-mapa{padding:0;overflow:hidden}
-#mapa-tras{height:420px;width:100%;background:var(--panel-2)}
-@media (max-width:600px){#mapa-tras{height:340px}}
-.tras-lista{display:grid;gap:8px}
-.tras{all:unset;box-sizing:border-box;display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 12px;padding:12px 14px;border-radius:12px;background:var(--panel);border:1px solid var(--linea);border-left:5px solid var(--c);cursor:pointer;box-shadow:var(--sombra);transition:transform .12s,box-shadow .12s}
-.tras:hover{transform:translateY(-1px)}
-.tras.sel{border-color:var(--c);box-shadow:0 0 0 2px var(--c)}
-.tras:focus-visible{outline:3px solid var(--oro);outline-offset:2px}
-.tras-dia{grid-row:span 3;font:800 13px/1.1 var(--titulo);text-transform:uppercase;color:var(--c);width:44px}
-.tras-ruta{font-size:15px;color:var(--tinta-2)}.tras-ruta b{color:var(--tinta)}.tras-ruta i{font-style:normal;color:var(--tenue)}
-.tras-horas{display:flex;gap:14px;flex-wrap:wrap}
-.tras-horas span{display:grid}.tras-horas small{font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--tenue);font-weight:700}
-.tras-horas b{font:600 17px/1.15 var(--num);color:var(--tinta)}
-.tras-horas .tee b{color:var(--c)}
-.tras-nota{font-size:13.5px;color:var(--tinta-2)}.tras-nota a{color:var(--eur);font-weight:700;white-space:nowrap}
-.pin{display:grid;place-items:center;border-radius:50%;background:#fff;border:2px solid var(--tinta);box-shadow:0 2px 6px rgba(11,27,46,.35);font-size:17px}
+.tras-mapa{padding:0;overflow:hidden;margin-top:12px}
+#mapa-tras{height:480px;width:100%;background:var(--panel-2)}
+@media (max-width:600px){#mapa-tras{height:440px}}
+.leyenda{display:grid;gap:4px;max-width:210px;margin:8px 8px 0 0}
+.ley{all:unset;box-sizing:border-box;display:grid;gap:1px;padding:6px 9px;border-radius:8px;background:rgba(255,255,255,.94);border-left:4px solid var(--c);box-shadow:0 1px 4px rgba(11,27,46,.25);cursor:pointer;font:500 11.5px/1.25 var(--texto);color:var(--tinta-2)}
+.ley b{color:var(--c);font:800 12px/1.2 var(--titulo)}
+.ley.sel{background:var(--c);color:#fff}.ley.sel b{color:#fff}
+.ley:focus-visible{outline:3px solid var(--oro)}
+@media (max-width:600px){.leyenda{max-width:160px}.ley{padding:5px 7px;font-size:10.5px}.ley b{font-size:11px}}
+.pin span{display:grid;place-items:center;width:34px;height:34px;box-sizing:border-box;border-radius:50%;background:#fff;border:3px solid var(--tinta);box-shadow:0 2px 6px rgba(11,27,46,.35);font-size:16px}
 .pin-casa{border-color:var(--oro);background:var(--oro-suave)}.pin-surf{border-color:#0E9F8C}
 .leaflet-tooltip.cartel{background:var(--tinta);color:#fff;border:0;border-radius:8px;padding:5px 8px;font:500 12px/1.25 var(--texto);box-shadow:0 2px 8px rgba(11,27,46,.3)}
 .leaflet-tooltip.cartel{transition:opacity .3s,transform .3s}.leaflet-tooltip.cartel.apagado{opacity:.35}.leaflet-tooltip.cartel.activo{background:var(--oro);color:var(--tinta);z-index:1000}.leaflet-tooltip.cartel b{font-family:var(--titulo);font-size:12.5px}
@@ -499,6 +506,25 @@ function presupuestoHTML() {
       'Asumimos que las cuotas van a estos gastos. Tocá un rubro para ver el detalle.</p></div>';
 }
 
+/* ---------- agenda: deportes a la izquierda, comida a la derecha ---------- */
+function esComida(a) { return /^(desayuno|almuerzo|cena|asado|merienda|picada|entrega de premios|premios|birras|comida)/i.test(String(a.titulo || '').trim()); }
+function distanciaSurula(t) {
+  t = String(t || '').toLowerCase();
+  if (esComida({ titulo: t })) return 0;
+  if (/acantilados/.test(t)) return 25;
+  if (/miramar/.test(t)) return 43;
+  if (/marayui/.test(t)) return 34;
+  if (/catedral|mar del plata golf/.test(t)) return 5;
+  return 0;
+}
+function momento(a) {
+  var t = (a.hora + ' ' + a.titulo).toLowerCase();
+  if (/desayuno|ma(ñ|n)ana/.test(t)) return 1;
+  if (/almuerzo|mediod(í|i)a|antes del/.test(t)) return 2;
+  if (/premios|despu(é|e)s|tarde|merienda/.test(t)) return 3;
+  if (/noche|cena|asado/.test(t)) return 4;
+  return 2.5;
+}
 /* ---------- traslados: casa ↔ canchas (tiempos de Google Maps en auto, sin tráfico) ---------- */
 var LUGARES = {
   casa: { n: 'Villa Surula', c: [-38.0220356, -57.5280206], tipo: 'casa', cartel: 'Base' },
@@ -509,15 +535,15 @@ var LUGARES = {
   marayui: { n: 'Marayui Golf', c: [-38.1691339, -57.6711634], tipo: 'golf', cartel: 'Sáb 16:30' }
 };
 var VIAJES = [
-  { dia: 'Jue 26', de: 'casa', a: 'catedral', min: 5, sale: 'Opcional', nota: 'Práctica en Mar del Plata Golf, a 1 km de la casa.', color: '#7C8CA3' },
-  { dia: 'Vie 27', de: 'casa', a: 'acantilados', min: 25, sale: '11:45', llega: '12:15', tee: '13:20', nota: 'Una hora antes para tirar el canasto de bolas.', color: '#C8102E' },
-  { dia: 'Sáb 28', de: 'casa', a: 'miramar', min: 43, sale: '7:40', llega: '8:30', tee: '9:00', nota: 'Media hora antes para calentar.', color: '#003DA5' },
-  { dia: 'Sáb 28', de: 'miramar', a: 'chapa', min: 25, sale: '13:45', llega: '14:10', nota: 'Al terminar: surf en Chapadmalal, de camino a Marayui.', color: '#0E9F8C' },
-  { dia: 'Sáb 28', de: 'chapa', a: 'marayui', min: 5, sale: '15:45', llega: '15:50', tee: '16:30', nota: 'Marayui queda en Chapadmalal. Vuelta a la casa: 34 min.', color: '#B07A12' },
-  { dia: 'Dom 29', de: 'casa', a: 'catedral', min: 5, sale: '12:30', llega: '12:35', tee: '13:00', nota: 'Última ronda, almuerzo y premios.', color: '#0B1B2E' }
+  { dia: 'Jue 26', de: 'casa', a: 'catedral', min: 5, sale: 'Opcional', nota: 'Opcional: práctica en Mar del Plata Golf (a 1 km) o surf en Playa Grande.', color: '#7C8CA3', d: 0 },
+  { dia: 'Vie 27', de: 'casa', a: 'acantilados', min: 25, sale: '11:45', llega: '12:15', tee: '13:20', nota: 'Una hora antes para tirar el canasto de bolas.', color: '#C8102E', d: 1 },
+  { dia: 'Sáb 28', de: 'casa', a: 'miramar', min: 43, sale: '7:40', llega: '8:30', tee: '9:00', nota: 'Media hora antes para calentar.', color: '#003DA5', d: 2 },
+  { dia: 'Sáb 28', de: 'miramar', a: 'chapa', min: 25, sale: '13:45', llega: '14:10', nota: 'Al terminar: surf en Chapadmalal, de camino a Marayui.', color: '#003DA5', d: 2 },
+  { dia: 'Sáb 28', de: 'chapa', a: 'marayui', min: 5, sale: '15:45', llega: '15:50', tee: '16:30', nota: 'Marayui queda en Chapadmalal. Vuelta a la casa: 34 min.', color: '#003DA5', d: 2 },
+  { dia: 'Dom 29', de: 'casa', a: 'catedral', min: 5, sale: '12:30', llega: '12:35', tee: '13:00', nota: 'Última ronda, almuerzo y premios.', color: '#1E8E3E', d: 3 }
 ];
 var MAPA = { sel: -1, rutas: {}, mk: {} };
-var NARRA = ["Arrancamos el jueves. Para el que quiera, hay práctica en Mar del Plata Golf, la cancha de La Catedral. Está a cinco minutos de la casa.", "Viernes, primera ronda en Golf Los Acantilados. Salimos de la casa a las doce menos cuarto, son veinticinco minutos. Llegamos a las doce y cuarto, tiramos el canasto de bolas, y a la una y veinte sale la primera línea.", "Sábado temprano, nos vamos a Miramar Links. Salimos a las ocho menos veinte: son unos cuarenta minutos por la costa. A las ocho y media estamos calentando, y a las nueve salimos a jugar.", "Terminamos en Miramar cerca de las dos menos cuarto, y en veinticinco minutos estamos en la playa de Chapadmalal. Momento de surf.", "A las cuatro menos cuarto dejamos la playa, y en cinco minutos llegamos a Marayui. El scramble sale a las cuatro y media de la tarde. Después, a la casa: son treinta y cinco minutos.", "Domingo, última ronda en La Catedral, a cinco minutos de la casa. Salimos a las doce y media y jugamos a la una. Después, almuerzo y entrega de premios."];
+var NARRA = ["Arrancamos el jueves. Para el que quiera, práctica en Mar del Plata Golf, a cinco minutos de la casa, o un día de surf en Playa Grande.", "Viernes, primera ronda en Golf Los Acantilados. Salimos de la casa a las doce menos cuarto, son veinticinco minutos. Llegamos a las doce y cuarto, tiramos el canasto de bolas, y a la una y veinte sale la primera línea.", "Sábado temprano, nos vamos a Miramar Links. Salimos a las ocho menos veinte: son unos cuarenta minutos por la costa. A las ocho y media estamos calentando, y a las nueve salimos a jugar.", "Terminamos en Miramar cerca de las dos menos cuarto, y en veinticinco minutos estamos en la playa de Chapadmalal. Momento de surf.", "A las cuatro menos cuarto dejamos la playa, y en cinco minutos llegamos a Marayui. El scramble sale a las cuatro y media de la tarde. Después, a la casa: son treinta y cinco minutos.", "Domingo, última ronda en La Catedral, a cinco minutos de la casa. Salimos a las doce y media y jugamos a la una. Después, almuerzo y entrega de premios."];
 var RUTAS_GUARDADAS = {"casa-catedral": "vdagFd|b~IfEDrBXx@b@pApBdJlThKxHvLtEu@hB", "casa-acantilados": "vdagFd|b~ItJbAjLpWxJtHfJtDzI_Ajx@tp@eOdUxCeDvoCpmDvHfCvf@OdJlFbpExvFsEhG", "casa-miramar": "vdagFd|b~Il_CbaBvhArVn\\aP~n@bRtg@_D`QzUtgByKfJfJjjCnfG|tAbwAhcAzTjy@tn@lgCpvChbDjvEfz@tsC|s@tg@~l@rwBtYv^|MtaBdaAdtDpgAtkB", "miramar-chapa": "linhFvvv_Jgs@ccAeQgb@eKqt@e]u{@}XggAiAqv@aIed@mEoKyUeXkJwk@__@ifAyJwMk^wNkHqHka@ceAeEak@iEyN_Sy\\gSgReMga@_Ug]oh@o`@sc@sv@xEd@", "chapa-marayui": "nr_hFxjz~IqBaAgBZlb@~t@jJ`KnAtCqmAbaB}R_S"};
 function decodificar(t) { var i = 0, lat = 0, lng = 0, out = []; while (i < t.length) { var b, sh = 0, r = 0; do { b = t.charCodeAt(i++) - 63; r |= (b & 31) << sh; sh += 5; } while (b >= 32); lat += r & 1 ? ~(r >> 1) : r >> 1; sh = 0; r = 0; do { b = t.charCodeAt(i++) - 63; r |= (b & 31) << sh; sh += 5; } while (b >= 32); lng += r & 1 ? ~(r >> 1) : r >> 1; out.push([lat / 1e5, lng / 1e5]); } return out; }
 function linkMaps(v) {
@@ -526,20 +552,16 @@ function linkMaps(v) {
 }
 function traslados() {
   setTimeout(iniciarMapa, 0);
-  var tarjetas = VIAJES.map(function (v, i) {
-    return '<button type="button" class="tras" data-ruta="' + i + '" style="--c:' + v.color + '">' +
-      '<span class="tras-dia">' + esc(v.dia) + '</span>' +
-      '<span class="tras-ruta">' + esc(LUGARES[v.de].n) + ' <i>→</i> <b>' + esc(LUGARES[v.a].n) + '</b></span>' +
-      '<span class="tras-horas"><span><small>Sale</small><b>' + esc(v.sale) + '</b></span><span><small>Auto</small><b>' + v.min + "'</b></span>" +
-        (v.tee ? '<span class="tee"><small>Tee</small><b>' + esc(v.tee) + '</b></span>' : '') + '</span>' +
-      '<span class="tras-nota">' + esc(v.nota) + ' <a href="' + linkMaps(v) + '" target="_blank" rel="noopener">Google Maps ↗</a></span>' +
-    '</button>';
-  }).join('');
   return '<div class="tras-cab"><div><div class="eyebrow">Desde Villa Surula</div><h2>Traslados</h2>' +
-      '<p class="bajada">En auto, según Google Maps y sin tráfico. Tocá un viaje para verlo y escucharlo, o mirá la secuencia completa con el sonido prendido.</p></div>' +
+      '<p class="bajada">Rojo: viernes · Azul: sábado · Verde: domingo. Tocá un cartel para ver el viaje, o mirá la secuencia con el sonido prendido.</p></div>' +
       '<button type="button" class="btn-todos" data-ruta="seq">▶ Ver secuencia</button></div>' +
-    '<div class="tras-grid"><div class="card tras-mapa"><div id="mapa-tras" role="img" aria-label="Mapa de los traslados"></div></div>' +
-    '<div class="tras-lista">' + tarjetas + '</div></div>';
+    '<div class="card tras-mapa"><div id="mapa-tras" role="img" aria-label="Mapa de los traslados"></div></div>';
+}
+function leyenda() {
+  return VIAJES.map(function (v, i) {
+    return '<button type="button" class="ley" data-ruta="' + i + '" style="--c:' + v.color + '"><b>' + esc(v.dia) + ' · ' + esc(LUGARES[v.a].n) + '</b>' +
+      '<span>' + (v.tee ? 'Tee ' + esc(v.tee) + ' · ' : '') + (/^\d/.test(v.sale) ? 'sale ' + esc(v.sale) + ' · ' : '') + v.min + "' en auto</span></button>";
+  }).join('');
 }
 function cargarLeaflet(cb) {
   if (!document.getElementById('leaflet-css')) {
@@ -562,14 +584,15 @@ function iniciarMapa() {
       maxZoom: 18, attribution: '© OpenStreetMap'
     }).addTo(m);
     m.setView([-38.12, -57.66], 10);
-    var DIR = { casa: 'right', catedral: 'left', acantilados: 'right', marayui: 'left', chapa: 'bottom', miramar: 'top' };
-    var OFF = { right: [16, 0], left: [-16, 0], top: [0, -16], bottom: [0, 16] };
+    var COLOR = { casa: 'var(--oro)', catedral: '#1E8E3E', acantilados: '#C8102E', miramar: '#003DA5', chapa: '#003DA5', marayui: '#003DA5' };
     Object.keys(LUGARES).forEach(function (k) {
       var g = LUGARES[k], ic = g.tipo === 'casa' ? '🏠' : g.tipo === 'surf' ? '🏄' : '⛳';
-      MAPA.mk[k] = L.marker(g.c, { icon: L.divIcon({ className: 'pin pin-' + g.tipo, html: '<span>' + ic + '</span>', iconSize: [34, 34], iconAnchor: [17, 17] }) })
-        .addTo(m)
-        .bindTooltip('<b>' + esc(g.n) + '</b><br>' + esc(g.cartel), { permanent: true, direction: DIR[k] || 'top', offset: OFF[DIR[k] || 'top'], className: 'cartel' });
+      MAPA.mk[k] = L.marker(g.c, { icon: L.divIcon({ className: 'pin', html: '<span style="border-color:' + COLOR[k] + '">' + ic + '</span>', iconSize: [34, 34], iconAnchor: [17, 17] }) })
+        .addTo(m).bindTooltip(esc(g.n), { direction: 'top', offset: [0, -16], className: 'cartel' });
     });
+    var ley = L.control({ position: 'topright' });
+    ley.onAdd = function () { var d = L.DomUtil.create('div', 'leyenda'); d.innerHTML = leyenda(); L.DomEvent.disableClickPropagation(d); L.DomEvent.disableScrollPropagation(d); return d; };
+    ley.addTo(m);
     MAPA.m = m; MAPA.capa = L.layerGroup().addTo(m);
     mostrarRuta(MAPA.sel);
   });
@@ -586,13 +609,8 @@ function geometria(v) {
 }
 function mostrarRuta(i) {
   MAPA.sel = i;
-  document.querySelectorAll('.tras').forEach(function (b) { b.classList.toggle('sel', Number(b.getAttribute('data-ruta')) === i); });
+  document.querySelectorAll('.ley').forEach(function (b) { b.classList.toggle('sel', Number(b.getAttribute('data-ruta')) === i); });
   if (!MAPA.m) return;
-  Object.keys(MAPA.mk).forEach(function (k) {
-    var tt = MAPA.mk[k].getTooltip(), el = tt && tt.getElement();
-    var on = i < 0 || k === VIAJES[i].a || k === VIAJES[i].de;
-    if (el) { el.classList.toggle('apagado', !on); el.classList.toggle('activo', i >= 0 && k === VIAJES[i].a); }
-  });
   var lista = i < 0 ? VIAJES : [VIAJES[i]];
   Promise.all(lista.map(geometria)).then(function (gs) {
     if (MAPA.sel !== i) return;
@@ -658,12 +676,10 @@ function secuencia() {
   decir('Te cuento cómo nos movemos en la gira, siempre desde Villa Surula.').then(function () { paso(0); });
 }
 document.addEventListener('click', function (e) {
-  if (e.target.closest('.tras a')) return;
   var b = e.target.closest('[data-ruta]'); if (!b) return;
   var v = b.getAttribute('data-ruta');
   if (v === 'seq') { if (VOZ.seq) callar(); else secuencia(); }
   else { callar(); mostrarRuta(Number(v)); decir(NARRA[Number(v)]); }
-  if (window.innerWidth < 760) { var mp = document.getElementById('mapa-tras'); if (mp) mp.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
 });
 
 var TABS = [['inicio', 'Inicio'], ['agenda', 'Agenda'], ['reservas', 'Reservas'], ['pagos', 'Pagos'], ['jugadores', 'Jugadores'],
@@ -693,13 +709,22 @@ var V = {
     var dias = [];
     D.Agenda.forEach(function (a) { var d = dias.filter(function (x) { return x.fecha === a.fecha; })[0]; if (!d) dias.push(d = { fecha: a.fecha, dia: a.dia, items: [] }); d.items.push(a); });
     dias.sort(function (a, b) { return (Number(a.fecha) || 99) - (Number(b.fecha) || 99); });
+    var slot = function (a) {
+      var km = distanciaSurula(a.titulo);
+      return '<div class="slot"><span class="h">' + esc(a.hora) + '</span><div class="t">' + esc(a.titulo) + (km ? ' <span class="chip dist">🚗 ' + km + "' de Surula</span>" : '') + ' ' + chipEstado(a.estado) + lapiz('Agenda', a) + '</div>' + (a.detalle ? '<p>' + esc(a.detalle) + '</p>' : '') + '</div>';
+    };
     return '<div><div class="eyebrow">Cronograma</div><h2>Agenda</h2></div>' +
-      '<div class="card" style="display:grid;gap:16px">' + dias.map(function (d) {
+      '<div class="card agenda2">' +
+      '<div class="ag-cab"><span></span><span>⛳ Golf y surf</span><span>🍽 Comida</span></div>' +
+      dias.map(function (d) {
         var gira = Number(d.fecha) >= 27;
-        return '<div class="dia"><div class="fecha' + (gira ? ' gira' : '') + '"><span>' + esc(d.dia) + '</span><b>' + esc(d.fecha) + '</b><span>nov</span></div><div>' +
-          d.items.map(function (a) {
-            return '<div class="slot"><span class="h">' + esc(a.hora) + '</span><div class="t">' + esc(a.titulo) + ' ' + chipEstado(a.estado) + lapiz('Agenda', a) + '</div>' + (a.detalle ? '<p>' + esc(a.detalle) + '</p>' : '') + '</div>';
-          }).join('') + '</div></div>';
+        var dep = d.items.filter(function (a) { return !esComida(a); });
+        var com = d.items.filter(esComida).map(function (a, i) { return [a, i]; })
+          .sort(function (x, y) { return momento(x[0]) - momento(y[0]) || x[1] - y[1]; }).map(function (x) { return x[0]; });
+        return '<div class="dia dia2"><div class="fecha' + (gira ? ' gira' : '') + '"><span>' + esc(d.dia) + '</span><b>' + esc(d.fecha) + '</b><span>nov</span></div>' +
+          '<div class="ag-col dep">' + (dep.length ? dep.map(slot).join('') : '<p class="ag-vacio">Libre</p>') + '</div>' +
+          '<div class="ag-col com"><span class="ag-tit">🍽 Comida</span>' + (com.length ? com.map(slot).join('') : '<p class="ag-vacio">' + (Number(d.fecha) < 27 ? 'Cada uno se arregla' : '—') + '</p>') + '</div>' +
+        '</div>';
       }).join('') + '</div>' + mas('Agenda', 'Agregar actividad') + traslados() +
       '<div class="aviso">Antes de la gira: juntada en Green para el draft. Fecha a confirmar.</div>';
   },
