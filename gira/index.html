@@ -517,6 +517,8 @@ var VIAJES = [
   { dia: 'Dom 29', de: 'casa', a: 'catedral', min: 5, sale: '12:30', llega: '12:35', tee: '13:00', nota: 'Última ronda, almuerzo y premios.', color: '#0B1B2E' }
 ];
 var MAPA = { sel: -1, rutas: {} };
+var RUTAS_GUARDADAS = {"casa-catedral": "vdagFd|b~IfEDrBXx@b@pApBdJlThKxHvLtEu@hB", "casa-acantilados": "vdagFd|b~ItJbAjLpWxJtHfJtDzI_Ajx@tp@eOdUxCeDvoCpmDvHfCvf@OdJlFbpExvFsEhG", "casa-miramar": "vdagFd|b~Il_CbaBvhArVn\\aP~n@bRtg@_D`QzUtgByKfJfJjjCnfG|tAbwAhcAzTjy@tn@lgCpvChbDjvEfz@tsC|s@tg@~l@rwBtYv^|MtaBdaAdtDpgAtkB", "miramar-chapa": "linhFvvv_Jgs@ccAeQgb@eKqt@e]u{@}XggAiAqv@aIed@mEoKyUeXkJwk@__@ifAyJwMk^wNkHqHka@ceAeEak@iEyN_Sy\\gSgReMga@_Ug]oh@o`@sc@sv@xEd@", "chapa-marayui": "nr_hFxjz~IqBaAgBZlb@~t@jJ`KnAtCqmAbaB}R_S"};
+function decodificar(t) { var i = 0, lat = 0, lng = 0, out = []; while (i < t.length) { var b, sh = 0, r = 0; do { b = t.charCodeAt(i++) - 63; r |= (b & 31) << sh; sh += 5; } while (b >= 32); lat += r & 1 ? ~(r >> 1) : r >> 1; sh = 0; r = 0; do { b = t.charCodeAt(i++) - 63; r |= (b & 31) << sh; sh += 5; } while (b >= 32); lng += r & 1 ? ~(r >> 1) : r >> 1; out.push([lat / 1e5, lng / 1e5]); } return out; }
 function linkMaps(v) {
   var f = function (l) { return LUGARES[l].c.join(','); };
   return 'https://www.google.com/maps/dir/?api=1&origin=' + f(v.de) + '&destination=' + f(v.a) + '&travelmode=driving';
@@ -572,7 +574,7 @@ function geometria(v) {
   var key = v.de + '-' + v.a;
   if (MAPA.rutas[key]) return Promise.resolve(MAPA.rutas[key]);
   var a = LUGARES[v.de].c, b = LUGARES[v.a].c;
-  var recta = [a, b];
+  var recta = RUTAS_GUARDADAS[key] ? decodificar(RUTAS_GUARDADAS[key]) : [a, b];
   return fetch('https://router.project-osrm.org/route/v1/driving/' + a[1] + ',' + a[0] + ';' + b[1] + ',' + b[0] + '?overview=full&geometries=geojson')
     .then(function (r) { return r.json(); })
     .then(function (j) { var c = j.routes[0].geometry.coordinates.map(function (p) { return [p[1], p[0]]; }); MAPA.rutas[key] = c; return c; })
