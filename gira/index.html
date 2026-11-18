@@ -219,6 +219,7 @@ details.rubro .pm{display:grid;justify-items:end;gap:4px;text-align:right;flex:0
 .presu-pie .dato b{font-size:19px}
 @media (max-width:520px){.presu-pie{grid-template-columns:1fr 1fr}.presu-pie .dato:last-child{grid-column:1 / -1}}
 
+tr.sel td{background:var(--oro-suave)}
 .aviso{border-left:4px solid var(--oro);background:var(--oro-suave);border-radius:0 10px 10px 0;padding:10px 12px;font-size:14px}
 
 footer{border-top:1px solid var(--linea);padding-block:18px 30px;font-size:13.5px;color:var(--tinta-2);display:grid;gap:8px}
@@ -474,6 +475,48 @@ function presupuestoHTML() {
       'Asumimos que las cuotas van a estos gastos. Tocá un rubro para ver el detalle.</p></div>';
 }
 
+/* ---------- traslados: casa ↔ canchas (tiempos de Google Maps en auto, sin tráfico) ---------- */
+var LUGARES = {
+  casa: { n: 'Villa Surula', q: '-38.0220356,-57.5280206' },
+  acantilados: { n: 'Golf Los Acantilados', q: '-38.1040192,-57.61573' },
+  miramar: { n: 'Miramar Links', q: '-38.253244,-57.7933263' },
+  marayui: { n: 'Marayui Golf', q: '-38.1691339,-57.6711634' },
+  catedral: { n: 'La Catedral', q: '-38.030281,-57.5356082' },
+  chapa: { n: 'Playa Chapadmalal', q: 'Playa Chapadmalal, Buenos Aires' }
+};
+var VIAJES = [
+  { dia: 'Jue 26', de: 'casa', a: 'catedral', min: 5, sale: '', nota: 'Práctica opcional en Mar del Plata Golf: queda a 1 km de la casa.' },
+  { dia: 'Vie 27', de: 'casa', a: 'acantilados', min: 25, sale: '11:45', llega: '12:15', salida: '13:20', nota: 'Una hora antes para tirar el canasto de bolas que viene con el green fee.' },
+  { dia: 'Sáb 28', de: 'casa', a: 'miramar', min: 43, sale: '7:40', llega: '8:30', salida: '9:00', nota: 'Media hora antes para calentar.' },
+  { dia: 'Sáb 28', de: 'miramar', a: 'chapa', min: 25, sale: '~13:45', llega: '~14:10', nota: 'Al terminar en Miramar: surf en Chapadmalal, de camino a Marayui.' },
+  { dia: 'Sáb 28', de: 'chapa', a: 'marayui', min: 5, sale: '15:45', llega: '16:00', salida: '16:30', nota: 'Marayui queda en Chapadmalal. Vuelta a la casa: 34 min.' },
+  { dia: 'Dom 29', de: 'casa', a: 'catedral', min: 5, sale: '12:30', llega: '12:35', salida: '13:00', nota: 'A 1 km de la casa.' }
+];
+function urlMapa(v, embed) {
+  var o = encodeURIComponent(LUGARES[v.de].q), d = encodeURIComponent(LUGARES[v.a].q);
+  return embed ? 'https://maps.google.com/maps?saddr=' + o + '&daddr=' + d + '&output=embed'
+               : 'https://www.google.com/maps/dir/?api=1&origin=' + o + '&destination=' + d + '&travelmode=driving';
+}
+function traslados() {
+  var filas = VIAJES.map(function (v, i) {
+    return '<tr' + (i === 1 ? ' class="sel"' : '') + '><td><b>' + esc(v.dia) + '</b></td><td>' + esc(LUGARES[v.de].n) + ' → <b>' + esc(LUGARES[v.a].n) + '</b><br><span class="t2 chico">' + esc(v.nota) + '</span></td>' +
+      '<td class="c">' + v.min + ' min</td><td class="c">' + (v.sale ? '<b>' + esc(v.sale) + '</b>' : '–') + (v.salida ? '<br><span class="t2 chico">tee ' + esc(v.salida) + '</span>' : '') + '</td>' +
+      '<td class="c"><button type="button" class="lapiz" data-ruta="' + i + '">Ver</button></td></tr>';
+  }).join('');
+  return '<div style="margin-top:20px"><div class="eyebrow">Desde Villa Surula</div><h2>Traslados</h2>' +
+    '<p class="bajada">Tiempos en auto según Google Maps, sin tráfico. "Sale" es la hora de salida sugerida de la casa (o del lugar anterior).</p></div>' +
+    '<div class="scroll"><table><thead><tr><th>Día</th><th>Viaje</th><th class="c">Auto</th><th class="c">Sale</th><th></th></tr></thead><tbody>' + filas + '</tbody></table></div>' +
+    '<div class="card" style="padding:0;overflow:hidden;margin-top:12px"><iframe id="mapa-ruta" title="Mapa del traslado" src="' + urlMapa(VIAJES[1], true) + '" style="display:block;width:100%;height:340px;border:0" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe></div>' +
+    '<p class="chico" style="margin-top:8px"><a id="link-ruta" href="' + urlMapa(VIAJES[1]) + '" target="_blank" rel="noopener"><b>Abrir este viaje en Google Maps →</b></a></p>';
+}
+document.addEventListener('click', function (e) {
+  var b = e.target.closest('[data-ruta]'); if (!b) return;
+  var v = VIAJES[Number(b.getAttribute('data-ruta'))], f = document.getElementById('mapa-ruta'), l = document.getElementById('link-ruta');
+  if (f) f.src = urlMapa(v, true); if (l) l.href = urlMapa(v);
+  document.querySelectorAll('tr.sel').forEach(function (t) { t.classList.remove('sel'); });
+  b.closest('tr').classList.add('sel');
+});
+
 var TABS = [['inicio', 'Inicio'], ['agenda', 'Agenda'], ['reservas', 'Reservas'], ['pagos', 'Pagos'], ['jugadores', 'Jugadores'],
   ['formato', 'Formato'], ['autos', 'Autos'], ['casa', 'Casa'], ['merch', 'Merch'], ['pendientes', 'Pendientes']];
 
@@ -508,7 +551,7 @@ var V = {
           d.items.map(function (a) {
             return '<div class="slot"><span class="h">' + esc(a.hora) + '</span><div class="t">' + esc(a.titulo) + ' ' + chipEstado(a.estado) + lapiz('Agenda', a) + '</div>' + (a.detalle ? '<p>' + esc(a.detalle) + '</p>' : '') + '</div>';
           }).join('') + '</div></div>';
-      }).join('') + '</div>' + mas('Agenda', 'Agregar actividad') +
+      }).join('') + '</div>' + mas('Agenda', 'Agregar actividad') + traslados() +
       '<div class="aviso">Antes de la gira: juntada en Green para el draft. Fecha a confirmar.</div>';
   },
 
