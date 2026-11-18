@@ -219,7 +219,31 @@ details.rubro .pm{display:grid;justify-items:end;gap:4px;text-align:right;flex:0
 .presu-pie .dato b{font-size:19px}
 @media (max-width:520px){.presu-pie{grid-template-columns:1fr 1fr}.presu-pie .dato:last-child{grid-column:1 / -1}}
 
-tr.sel td{background:var(--oro-suave)}
+.tras-cab{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-top:22px;flex-wrap:wrap}
+.btn-todos{font:700 12px/1 var(--texto);letter-spacing:.06em;text-transform:uppercase;padding:10px 14px;border-radius:999px;border:1px solid var(--linea-2);background:var(--panel);color:var(--tinta);cursor:pointer}
+.btn-todos.sel{background:var(--tinta);color:#fff;border-color:var(--tinta)}
+.tras-grid{display:grid;gap:12px;margin-top:12px;grid-template-columns:minmax(0,1fr)}
+@media (min-width:860px){.tras-grid{grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);align-items:start}.tras-mapa{position:sticky;top:110px}}
+.tras-mapa{padding:0;overflow:hidden}
+#mapa-tras{height:420px;width:100%;background:var(--panel-2)}
+@media (max-width:600px){#mapa-tras{height:340px}}
+.tras-lista{display:grid;gap:8px}
+.tras{all:unset;box-sizing:border-box;display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 12px;padding:12px 14px;border-radius:12px;background:var(--panel);border:1px solid var(--linea);border-left:5px solid var(--c);cursor:pointer;box-shadow:var(--sombra);transition:transform .12s,box-shadow .12s}
+.tras:hover{transform:translateY(-1px)}
+.tras.sel{border-color:var(--c);box-shadow:0 0 0 2px var(--c)}
+.tras:focus-visible{outline:3px solid var(--oro);outline-offset:2px}
+.tras-dia{grid-row:span 3;font:800 13px/1.1 var(--titulo);text-transform:uppercase;color:var(--c);width:44px}
+.tras-ruta{font-size:15px;color:var(--tinta-2)}.tras-ruta b{color:var(--tinta)}.tras-ruta i{font-style:normal;color:var(--tenue)}
+.tras-horas{display:flex;gap:14px;flex-wrap:wrap}
+.tras-horas span{display:grid}.tras-horas small{font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--tenue);font-weight:700}
+.tras-horas b{font:600 17px/1.15 var(--num);color:var(--tinta)}
+.tras-horas .tee b{color:var(--c)}
+.tras-nota{font-size:13.5px;color:var(--tinta-2)}.tras-nota a{color:var(--eur);font-weight:700;white-space:nowrap}
+.pin{display:grid;place-items:center;border-radius:50%;background:#fff;border:2px solid var(--tinta);box-shadow:0 2px 6px rgba(11,27,46,.35);font-size:17px}
+.pin-casa{border-color:var(--oro);background:var(--oro-suave)}.pin-surf{border-color:#0E9F8C}
+.leaflet-tooltip.cartel{background:var(--tinta);color:#fff;border:0;border-radius:8px;padding:5px 8px;font:500 12px/1.25 var(--texto);box-shadow:0 2px 8px rgba(11,27,46,.3)}
+.leaflet-tooltip.cartel b{font-family:var(--titulo);font-size:12.5px}
+.leaflet-tooltip-top.cartel::before{border-top-color:var(--tinta)}.leaflet-tooltip-left.cartel::before{border-left-color:var(--tinta)}.leaflet-tooltip-right.cartel::before{border-right-color:var(--tinta)}
 .aviso{border-left:4px solid var(--oro);background:var(--oro-suave);border-radius:0 10px 10px 0;padding:10px 12px;font-size:14px}
 
 footer{border-top:1px solid var(--linea);padding-block:18px 30px;font-size:13.5px;color:var(--tinta-2);display:grid;gap:8px}
@@ -477,44 +501,107 @@ function presupuestoHTML() {
 
 /* ---------- traslados: casa ↔ canchas (tiempos de Google Maps en auto, sin tráfico) ---------- */
 var LUGARES = {
-  casa: { n: 'Villa Surula', q: '-38.0220356,-57.5280206' },
-  acantilados: { n: 'Golf Los Acantilados', q: '-38.1040192,-57.61573' },
-  miramar: { n: 'Miramar Links', q: '-38.253244,-57.7933263' },
-  marayui: { n: 'Marayui Golf', q: '-38.1691339,-57.6711634' },
-  catedral: { n: 'La Catedral', q: '-38.030281,-57.5356082' },
-  chapa: { n: 'Playa Chapadmalal', q: 'Playa Chapadmalal, Buenos Aires' }
+  casa: { n: 'Villa Surula', c: [-38.0220356, -57.5280206], tipo: 'casa', cartel: 'Base' },
+  catedral: { n: 'La Catedral', c: [-38.030281, -57.5356082], tipo: 'golf', cartel: 'Jue práctica · Dom 13:00' },
+  acantilados: { n: 'Golf Los Acantilados', c: [-38.1040192, -57.61573], tipo: 'golf', cartel: 'Vie 13:20' },
+  miramar: { n: 'Miramar Links', c: [-38.253244, -57.7933263], tipo: 'golf', cartel: 'Sáb 9:00' },
+  chapa: { n: 'Playa Chapadmalal', c: [-38.1786, -57.6467], tipo: 'surf', cartel: 'Sáb surf' },
+  marayui: { n: 'Marayui Golf', c: [-38.1691339, -57.6711634], tipo: 'golf', cartel: 'Sáb 16:30' }
 };
 var VIAJES = [
-  { dia: 'Jue 26', de: 'casa', a: 'catedral', min: 5, sale: '', nota: 'Práctica opcional en Mar del Plata Golf: queda a 1 km de la casa.' },
-  { dia: 'Vie 27', de: 'casa', a: 'acantilados', min: 25, sale: '11:45', llega: '12:15', salida: '13:20', nota: 'Una hora antes para tirar el canasto de bolas que viene con el green fee.' },
-  { dia: 'Sáb 28', de: 'casa', a: 'miramar', min: 43, sale: '7:40', llega: '8:30', salida: '9:00', nota: 'Media hora antes para calentar.' },
-  { dia: 'Sáb 28', de: 'miramar', a: 'chapa', min: 25, sale: '~13:45', llega: '~14:10', nota: 'Al terminar en Miramar: surf en Chapadmalal, de camino a Marayui.' },
-  { dia: 'Sáb 28', de: 'chapa', a: 'marayui', min: 5, sale: '15:45', llega: '16:00', salida: '16:30', nota: 'Marayui queda en Chapadmalal. Vuelta a la casa: 34 min.' },
-  { dia: 'Dom 29', de: 'casa', a: 'catedral', min: 5, sale: '12:30', llega: '12:35', salida: '13:00', nota: 'A 1 km de la casa.' }
+  { dia: 'Jue 26', de: 'casa', a: 'catedral', min: 5, sale: 'Opcional', nota: 'Práctica en Mar del Plata Golf, a 1 km de la casa.', color: '#7C8CA3' },
+  { dia: 'Vie 27', de: 'casa', a: 'acantilados', min: 25, sale: '11:45', llega: '12:15', tee: '13:20', nota: 'Una hora antes para tirar el canasto de bolas.', color: '#C8102E' },
+  { dia: 'Sáb 28', de: 'casa', a: 'miramar', min: 43, sale: '7:40', llega: '8:30', tee: '9:00', nota: 'Media hora antes para calentar.', color: '#003DA5' },
+  { dia: 'Sáb 28', de: 'miramar', a: 'chapa', min: 25, sale: '13:45', llega: '14:10', nota: 'Al terminar: surf en Chapadmalal, de camino a Marayui.', color: '#0E9F8C' },
+  { dia: 'Sáb 28', de: 'chapa', a: 'marayui', min: 5, sale: '15:45', llega: '15:50', tee: '16:30', nota: 'Marayui queda en Chapadmalal. Vuelta a la casa: 34 min.', color: '#B07A12' },
+  { dia: 'Dom 29', de: 'casa', a: 'catedral', min: 5, sale: '12:30', llega: '12:35', tee: '13:00', nota: 'Última ronda, almuerzo y premios.', color: '#0B1B2E' }
 ];
-function urlMapa(v, embed) {
-  var o = encodeURIComponent(LUGARES[v.de].q), d = encodeURIComponent(LUGARES[v.a].q);
-  return embed ? 'https://maps.google.com/maps?saddr=' + o + '&daddr=' + d + '&output=embed'
-               : 'https://www.google.com/maps/dir/?api=1&origin=' + o + '&destination=' + d + '&travelmode=driving';
+var MAPA = { sel: -1, rutas: {} };
+function linkMaps(v) {
+  var f = function (l) { return LUGARES[l].c.join(','); };
+  return 'https://www.google.com/maps/dir/?api=1&origin=' + f(v.de) + '&destination=' + f(v.a) + '&travelmode=driving';
 }
 function traslados() {
-  var filas = VIAJES.map(function (v, i) {
-    return '<tr' + (i === 1 ? ' class="sel"' : '') + '><td><b>' + esc(v.dia) + '</b></td><td>' + esc(LUGARES[v.de].n) + ' → <b>' + esc(LUGARES[v.a].n) + '</b><br><span class="t2 chico">' + esc(v.nota) + '</span></td>' +
-      '<td class="c">' + v.min + ' min</td><td class="c">' + (v.sale ? '<b>' + esc(v.sale) + '</b>' : '–') + (v.salida ? '<br><span class="t2 chico">tee ' + esc(v.salida) + '</span>' : '') + '</td>' +
-      '<td class="c"><button type="button" class="lapiz" data-ruta="' + i + '">Ver</button></td></tr>';
+  setTimeout(iniciarMapa, 0);
+  var tarjetas = VIAJES.map(function (v, i) {
+    return '<button type="button" class="tras" data-ruta="' + i + '" style="--c:' + v.color + '">' +
+      '<span class="tras-dia">' + esc(v.dia) + '</span>' +
+      '<span class="tras-ruta">' + esc(LUGARES[v.de].n) + ' <i>→</i> <b>' + esc(LUGARES[v.a].n) + '</b></span>' +
+      '<span class="tras-horas"><span><small>Sale</small><b>' + esc(v.sale) + '</b></span><span><small>Auto</small><b>' + v.min + "'</b></span>" +
+        (v.tee ? '<span class="tee"><small>Tee</small><b>' + esc(v.tee) + '</b></span>' : '') + '</span>' +
+      '<span class="tras-nota">' + esc(v.nota) + ' <a href="' + linkMaps(v) + '" target="_blank" rel="noopener">Google Maps ↗</a></span>' +
+    '</button>';
   }).join('');
-  return '<div style="margin-top:20px"><div class="eyebrow">Desde Villa Surula</div><h2>Traslados</h2>' +
-    '<p class="bajada">Tiempos en auto según Google Maps, sin tráfico. "Sale" es la hora de salida sugerida de la casa (o del lugar anterior).</p></div>' +
-    '<div class="scroll"><table><thead><tr><th>Día</th><th>Viaje</th><th class="c">Auto</th><th class="c">Sale</th><th></th></tr></thead><tbody>' + filas + '</tbody></table></div>' +
-    '<div class="card" style="padding:0;overflow:hidden;margin-top:12px"><iframe id="mapa-ruta" title="Mapa del traslado" src="' + urlMapa(VIAJES[1], true) + '" style="display:block;width:100%;height:340px;border:0" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe></div>' +
-    '<p class="chico" style="margin-top:8px"><a id="link-ruta" href="' + urlMapa(VIAJES[1]) + '" target="_blank" rel="noopener"><b>Abrir este viaje en Google Maps →</b></a></p>';
+  return '<div class="tras-cab"><div><div class="eyebrow">Desde Villa Surula</div><h2>Traslados</h2>' +
+      '<p class="bajada">En auto, según Google Maps y sin tráfico. Tocá un viaje para verlo en el mapa.</p></div>' +
+      '<button type="button" class="btn-todos" data-ruta="todos">Ver todos</button></div>' +
+    '<div class="tras-grid"><div class="card tras-mapa"><div id="mapa-tras" role="img" aria-label="Mapa de los traslados"></div></div>' +
+    '<div class="tras-lista">' + tarjetas + '</div></div>';
+}
+function cargarLeaflet(cb) {
+  if (window.L) return cb();
+  if (!document.getElementById('leaflet-css')) {
+    var l = document.createElement('link'); l.id = 'leaflet-css'; l.rel = 'stylesheet';
+    l.href = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css'; document.head.appendChild(l);
+  }
+  var sc = document.getElementById('leaflet-js');
+  if (!sc) { sc = document.createElement('script'); sc.id = 'leaflet-js'; sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js'; document.head.appendChild(sc); }
+  sc.addEventListener('load', cb);
+}
+function iniciarMapa() {
+  var el = document.getElementById('mapa-tras');
+  if (!el || el._listo) return;
+  el._listo = true;
+  cargarLeaflet(function () {
+    if (!document.body.contains(el)) return;
+    var m = L.map(el, { scrollWheelZoom: false, zoomControl: true, attributionControl: true });
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+      maxZoom: 18, subdomains: 'abcd', attribution: '© OpenStreetMap · © CARTO'
+    }).addTo(m);
+    Object.keys(LUGARES).forEach(function (k) {
+      var g = LUGARES[k], ic = g.tipo === 'casa' ? '🏠' : g.tipo === 'surf' ? '🏄' : '⛳';
+      L.marker(g.c, { icon: L.divIcon({ className: 'pin pin-' + g.tipo, html: '<span>' + ic + '</span>', iconSize: [34, 34], iconAnchor: [17, 17] }) })
+        .addTo(m)
+        .bindTooltip('<b>' + esc(g.n) + '</b><br>' + esc(g.cartel), { permanent: true, direction: k === 'catedral' ? 'left' : k === 'casa' ? 'right' : 'top', offset: k === 'catedral' ? [-14, 0] : k === 'casa' ? [14, 0] : [0, -16], className: 'cartel' });
+    });
+    MAPA.m = m; MAPA.capa = L.layerGroup().addTo(m);
+    mostrarRuta(MAPA.sel);
+  });
+}
+function geometria(v) {
+  var key = v.de + '-' + v.a;
+  if (MAPA.rutas[key]) return Promise.resolve(MAPA.rutas[key]);
+  var a = LUGARES[v.de].c, b = LUGARES[v.a].c;
+  var recta = [a, b];
+  return fetch('https://router.project-osrm.org/route/v1/driving/' + a[1] + ',' + a[0] + ';' + b[1] + ',' + b[0] + '?overview=full&geometries=geojson')
+    .then(function (r) { return r.json(); })
+    .then(function (j) { var c = j.routes[0].geometry.coordinates.map(function (p) { return [p[1], p[0]]; }); MAPA.rutas[key] = c; return c; })
+    .catch(function () { return recta; });
+}
+function mostrarRuta(i) {
+  MAPA.sel = i;
+  document.querySelectorAll('.tras').forEach(function (b) { b.classList.toggle('sel', Number(b.getAttribute('data-ruta')) === i); });
+  var t = document.querySelector('.btn-todos'); if (t) t.classList.toggle('sel', i < 0);
+  if (!MAPA.m) return;
+  var lista = i < 0 ? VIAJES : [VIAJES[i]];
+  Promise.all(lista.map(geometria)).then(function (gs) {
+    if (MAPA.sel !== i) return;
+    MAPA.capa.clearLayers();
+    var todo = [];
+    gs.forEach(function (g, n) {
+      L.polyline(g, { color: '#fff', weight: 8, opacity: .9 }).addTo(MAPA.capa);
+      L.polyline(g, { color: lista[n].color, weight: 4.5, opacity: .95 }).addTo(MAPA.capa);
+      todo = todo.concat(g);
+    });
+    if (todo.length) MAPA.m.fitBounds(L.latLngBounds(todo), { padding: [46, 46], maxZoom: 14 });
+  });
 }
 document.addEventListener('click', function (e) {
+  if (e.target.closest('.tras a')) return;
   var b = e.target.closest('[data-ruta]'); if (!b) return;
-  var v = VIAJES[Number(b.getAttribute('data-ruta'))], f = document.getElementById('mapa-ruta'), l = document.getElementById('link-ruta');
-  if (f) f.src = urlMapa(v, true); if (l) l.href = urlMapa(v);
-  document.querySelectorAll('tr.sel').forEach(function (t) { t.classList.remove('sel'); });
-  b.closest('tr').classList.add('sel');
+  var v = b.getAttribute('data-ruta');
+  mostrarRuta(v === 'todos' ? -1 : Number(v));
+  if (window.innerWidth < 760) { var mp = document.getElementById('mapa-tras'); if (mp) mp.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
 });
 
 var TABS = [['inicio', 'Inicio'], ['agenda', 'Agenda'], ['reservas', 'Reservas'], ['pagos', 'Pagos'], ['jugadores', 'Jugadores'],
