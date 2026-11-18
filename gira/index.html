@@ -623,7 +623,8 @@ function mostrarRuta(i) {
     });
     MAPA.m.invalidateSize();
     MAPA.m.stop();
-    if (todo.length) MAPA.m.fitBounds(L.latLngBounds(todo), { padding: [46, 46], maxZoom: 14, animate: false });
+    var ancho = (document.querySelector('.leyenda') || {}).offsetWidth || 0;
+    if (todo.length) MAPA.m.fitBounds(L.latLngBounds(todo), { paddingTopLeft: [40, 40], paddingBottomRight: [ancho + 30, 40], maxZoom: 14, animate: false });
     Object.keys(MAPA.mk).forEach(function (k) { var tt = MAPA.mk[k].getTooltip(); if (tt) tt.update(); });
   });
 }
