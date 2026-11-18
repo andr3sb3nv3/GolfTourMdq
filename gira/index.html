@@ -517,7 +517,7 @@ var VIAJES = [
   { dia: 'Dom 29', de: 'casa', a: 'catedral', min: 5, sale: '12:30', llega: '12:35', tee: '13:00', nota: 'Última ronda, almuerzo y premios.', color: '#0B1B2E' }
 ];
 var MAPA = { sel: -1, rutas: {}, mk: {} };
-var NARRA = ["Jueves veintiséis. Ronda de práctica opcional en Mar del Plata Golf, la cancha de La Catedral. Queda a un kilómetro de Villa Surula: cinco minutos en auto.", "Viernes veintisiete, primera ronda en Golf Los Acantilados. Salimos de la casa a las once y cuarenta y cinco: son veinticinco minutos. Llegamos a las doce y cuarto para tirar el canasto de bolas, y la primera línea sale a las trece y veinte.", "Sábado veintiocho, temprano. Salimos a las siete y cuarenta hacia Miramar Links: cuarenta y tres minutos por la ruta once. Llegamos a las ocho y media para calentar, y salimos a jugar a las nueve.", "Al terminar en Miramar, cerca de las dos menos cuarto, vamos a la playa de Chapadmalal: veinticinco minutos. Ahí, sesión de surf.", "Después del surf, a las cuatro menos cuarto, son cinco minutos hasta Marayui. El scramble sale a las dieciséis y treinta. Desde Marayui, la vuelta a la casa es de treinta y cuatro minutos.", "Domingo veintinueve, última ronda en La Catedral. Salimos a las doce y media, cinco minutos de viaje, y jugamos a las trece. Después, almuerzo y entrega de premios."];
+var NARRA = ["Arrancamos el jueves. Para el que quiera, hay práctica en Mar del Plata Golf, la cancha de La Catedral. Está a cinco minutos de la casa.", "Viernes, primera ronda en Golf Los Acantilados. Salimos de la casa a las doce menos cuarto, son veinticinco minutos. Llegamos a las doce y cuarto, tiramos el canasto de bolas, y a la una y veinte sale la primera línea.", "Sábado temprano, nos vamos a Miramar Links. Salimos a las ocho menos veinte: son unos cuarenta minutos por la costa. A las ocho y media estamos calentando, y a las nueve salimos a jugar.", "Terminamos en Miramar cerca de las dos menos cuarto, y en veinticinco minutos estamos en la playa de Chapadmalal. Momento de surf.", "A las cuatro menos cuarto dejamos la playa, y en cinco minutos llegamos a Marayui. El scramble sale a las cuatro y media de la tarde. Después, a la casa: son treinta y cinco minutos.", "Domingo, última ronda en La Catedral, a cinco minutos de la casa. Salimos a las doce y media y jugamos a la una. Después, almuerzo y entrega de premios."];
 var RUTAS_GUARDADAS = {"casa-catedral": "vdagFd|b~IfEDrBXx@b@pApBdJlThKxHvLtEu@hB", "casa-acantilados": "vdagFd|b~ItJbAjLpWxJtHfJtDzI_Ajx@tp@eOdUxCeDvoCpmDvHfCvf@OdJlFbpExvFsEhG", "casa-miramar": "vdagFd|b~Il_CbaBvhArVn\\aP~n@bRtg@_D`QzUtgByKfJfJjjCnfG|tAbwAhcAzTjy@tn@lgCpvChbDjvEfz@tsC|s@tg@~l@rwBtYv^|MtaBdaAdtDpgAtkB", "miramar-chapa": "linhFvvv_Jgs@ccAeQgb@eKqt@e]u{@}XggAiAqv@aIed@mEoKyUeXkJwk@__@ifAyJwMk^wNkHqHka@ceAeEak@iEyN_Sy\\gSgReMga@_Ug]oh@o`@sc@sv@xEd@", "chapa-marayui": "nr_hFxjz~IqBaAgBZlb@~t@jJ`KnAtCqmAbaB}R_S"};
 function decodificar(t) { var i = 0, lat = 0, lng = 0, out = []; while (i < t.length) { var b, sh = 0, r = 0; do { b = t.charCodeAt(i++) - 63; r |= (b & 31) << sh; sh += 5; } while (b >= 32); lat += r & 1 ? ~(r >> 1) : r >> 1; sh = 0; r = 0; do { b = t.charCodeAt(i++) - 63; r |= (b & 31) << sh; sh += 5; } while (b >= 32); lng += r & 1 ? ~(r >> 1) : r >> 1; out.push([lat / 1e5, lng / 1e5]); } return out; }
 function linkMaps(v) {
@@ -617,9 +617,10 @@ function elegirVoz() {
   if (!vs.length) return null;
   var puntos = function (v) {
     var n = v.name, p = 0;
-    if (/natural|neural|online|premium|enhanced|mejorada/i.test(n)) p += 40;
-    if (/elena|paulina|m[oó]nica|helena|elvira|dalia|sabina|laura|luc[ií]a|isabela|valentina|camila|marisol|esperanza|paloma|female|mujer/i.test(n)) p += 30;
-    if (/google/i.test(n)) p += 15;
+    if (/natural|neural|online|premium|enhanced|mejorada|superior/i.test(n)) p += 50;
+    if (/elena|paulina|m[oó]nica|marisol|isabela|helena|elvira|dalia|sabina|laura|luc[ií]a|valentina|camila|esperanza|paloma|female|mujer/i.test(n)) p += 30;
+    if (/google/i.test(n)) p += 35;
+    if (/eddy|flo|grandma|grandpa|reed|rocko|sandy|shelley|bells|bubbles|bad news|good news|organ|zarvox|whisper|trinoids|albert|jester|superstar|wobble|cellos|boing/i.test(n)) p -= 100;
     if (/jorge|diego|pablo|alvaro|álvaro|raul|raúl|enrique|carlos|tom[aá]s|juan|male/i.test(n) && !/female/i.test(n)) p -= 60;
     if (/es-AR/i.test(v.lang)) p += 12; else if (/es-(US|MX|419)/i.test(v.lang)) p += 8; else if (/es-ES/i.test(v.lang)) p += 5;
     return p;
@@ -633,7 +634,7 @@ function decir(texto) {
     speechSynthesis.cancel();
     var u = new SpeechSynthesisUtterance(texto);
     u.lang = VOZ.v ? VOZ.v.lang : 'es-AR'; if (VOZ.v) u.voice = VOZ.v;
-    u.rate = 0.96; u.pitch = 1.05;
+    u.rate = 1; u.pitch = 1;
     var listo = false, fin = function () { if (!listo) { listo = true; ok(); } };
     u.onend = fin; u.onerror = fin;
     setTimeout(fin, 30000);
@@ -648,13 +649,13 @@ function secuencia() {
     if (gen !== VOZ.gen) return;
     if (i >= VIAJES.length) {
       mostrarRuta(-1);
-      return decir('Esos son todos los traslados de la gira. ¡Buen golf!').then(function () { if (gen === VOZ.gen) { VOZ.seq = false; botonSeq(); } });
+      return decir('Y eso es todo. ¡Buena gira, y buen golf!').then(function () { if (gen === VOZ.gen) { VOZ.seq = false; botonSeq(); } });
     }
     mostrarRuta(i);
     decir(NARRA[i]).then(function () { setTimeout(function () { paso(i + 1); }, 700); });
   };
   mostrarRuta(-1);
-  decir('Estos son los traslados de la gira, desde Villa Surula.').then(function () { paso(0); });
+  decir('Te cuento cómo nos movemos en la gira, siempre desde Villa Surula.').then(function () { paso(0); });
 }
 document.addEventListener('click', function (e) {
   if (e.target.closest('.tras a')) return;
