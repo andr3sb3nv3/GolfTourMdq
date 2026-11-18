@@ -1,6 +1,6 @@
 /* Service worker: la app funciona sin señal.
    El caparazón se cachea; los datos van siempre a la red y quedan en localStorage. */
-var CACHE = 'gtm-v56';   // subir este número en cada cambio: obliga al celular a bajar la versión nueva
+var CACHE = 'gtm-v63';   // subir este número en cada cambio: obliga al celular a bajar la versión nueva
 var ARCHIVOS = ['./', 'index.html', 'app.css', 'app.js', 'config.js',
                 'manifest.webmanifest', 'escudo.png',
                 'icono-192.png', 'icono-512.png', 'icono-maskable.png'];
@@ -11,7 +11,10 @@ self.window = self;
 try { importScripts('config.js'); } catch (e) {}
 
 self.addEventListener('install', function (e) {
-  e.waitUntil(caches.open(CACHE).then(function (c) { return c.addAll(ARCHIVOS); }).then(function () { return self.skipWaiting(); }));
+  e.waitUntil(caches.open(CACHE).then(function (c) {
+    // cache 'reload': que no copie lo que el navegador tenga guardado de GitHub Pages (hasta 10 min viejo)
+    return c.addAll(ARCHIVOS.map(function (u) { return new Request(u, { cache: 'reload' }); }));
+  }).then(function () { return self.skipWaiting(); }));
 });
 
 self.addEventListener('activate', function (e) {
@@ -69,7 +72,8 @@ function redPrimero(req, espera) {
     var listo = false;
     function dar(r) { if (!listo && r) { listo = true; resolver(r); } }
     var reloj = setTimeout(function () { caches.match(req).then(dar); }, espera);
-    fetch(req).then(function (res) {
+    // no-cache: siempre pregunta a GitHub Pages si hay versión nueva, sin esperar los 10 min de su caché
+    fetch(req, { cache: 'no-cache' }).then(function (res) {
       clearTimeout(reloj);
       if (res && res.status === 200) {
         var copia = res.clone();

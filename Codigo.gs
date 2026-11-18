@@ -11,7 +11,7 @@
  */
 
 var SS_ID = '1aroTWtBKWw8xb9d7Lliki0cCXZvbjdgrxHqB8fqlZtI';
-var CACHE_SEG = 15;          // segundos que se cachea el estado (cuida la cuota diaria)
+var CACHE_SEG = 10;          // segundos que se cachea el estado (cuida la cuota diaria)
 var TOKEN_DIAS = 60;         // duración de la sesión en el celular
 
 var HOJAS = {
@@ -119,6 +119,48 @@ function borrarTodoYEmpezarDeNuevo() {
  * NO correr configurar() de nuevo: eso borra jugadores y tarjetas.
  */
 /**
+ * PREPARAR LA GIRA — correr UNA vez después de pegar esta versión. No borra nada.
+ *  · Deja las 4 canchas en el orden de la gira: vie Miramar · sáb Acantilados
+ *    (mañana) y Marayui (tarde) · dom La Catedral. Si falta Marayui, la agrega.
+ *  · Marayui queda con su tarjeta oficial (azules, par 72; se juegan los hoyos 1 al 9).
+ *  · A las que no tienen modalidad les pone la de la gira: Miramar four-ball,
+ *    Acantilados foursome, Marayui scramble de a 3, La Catedral individuales.
+ *    (Si una ya tiene modalidad, no la toca: se cambia desde la app, pestaña Ryder.)
+ */
+/* Se llama sola al armar el estado: si falta Marayui o alguna cancha de la gira
+   no tiene modalidad, corre prepararGira(). Así no hace falta ejecutarla a mano. */
+function giraAlDia_() {
+  try {
+    var cs = leer('Canchas'), fmt = { miramar: 1, acantilados: 1, marayui: 1, catedral: 1 };
+    var falta = !cs.some(function (c) { return c.id === 'marayui'; }) ||
+      cs.some(function (c) { return fmt[c.id] && !String(c.formato || '').trim(); });
+    if (falta) prepararGira();
+  } catch (e) { Logger.log('giraAlDia_: ' + e); }
+}
+function prepararGira() {
+  var hechas = [migrarScramble()];
+  var hoja = SpreadsheetApp.openById(SS_ID).getSheetByName('Canchas');
+  var v = hoja.getDataRange().getValues();
+  var fmt = { miramar: 'fourball', acantilados: 'foursomes', marayui: 'scramble', catedral: 'singles' };
+  for (var i = 1; i < v.length; i++) {
+    var id = String(v[i][0]);
+    if (fmt[id] && !String(v[i][4] || '').trim()) { hoja.getRange(i + 1, 5).setValue(fmt[id]); hechas.push(id + ' → ' + fmt[id]); }
+  }
+  // Marayui con tarjeta provisoria → la oficial (tees azules; se juegan los hoyos 1 al 9)
+  for (var r = 1; r < v.length; r++) {
+    if (String(v[r][0]) !== 'marayui' || v[r][3] === true || v[r][3] === 'TRUE') continue;
+    hoja.getRange(r + 1, 6, 1, 18).setValues([[4,4,4,3,4,4,5,3,5, 4,4,4,3,4,4,5,3,5]]);
+    hoja.getRange(r + 1, 24, 1, 18).setValues([[7,9,11,15,5,13,3,17,1, 6,12,10,18,2,14,8,16,4]]);
+    hoja.getRange(r + 1, 4).setValue(true);
+    hechas.push('Marayui → tarjeta oficial (azules)');
+  }
+  limpiarCache();
+  var texto = hechas.join('\n');
+  Logger.log(texto);
+  return texto;
+}
+
+/**
  * MIGRACIÓN SCRAMBLE — correr UNA vez después de pegar esta versión. No borra nada.
  *  · Agrega Marayui Golf (sábado a la tarde, scramble de a 3, 9 hoyos) si no está.
  *  · Ordena los días como quedó la gira: vie Miramar · sáb Acantilados y Marayui · dom La Catedral.
@@ -132,9 +174,9 @@ function migrarScramble() {
   var fila = {};
   for (var i = 1; i < v.length; i++) fila[String(v[i][0])] = i + 1;
   if (!fila.marayui) {
-    var par = [4,4,3,5,4,4,3,5,4, 4,4,3,5,4,4,3,5,4], si = [1,3,5,7,9,11,13,15,17, 2,4,6,8,10,12,14,16,18];
-    hoja.appendRow(['marayui', 2, 'Marayui Golf', false, 'scramble'].concat(par, si));
-    hechas.push('Marayui agregada (tarjeta provisoria)');
+    var par = [4,4,4,3,4,4,5,3,5, 4,4,4,3,4,4,5,3,5], si = [7,9,11,15,5,13,3,17,1, 6,12,10,18,2,14,8,16,4];
+    hoja.appendRow(['marayui', 2, 'Marayui Golf', true, 'scramble'].concat(par, si));
+    hechas.push('Marayui agregada con la tarjeta oficial (azules)');
   }
   var dias = { miramar: 1, acantilados: 2, marayui: 2, catedral: 3 };
   Object.keys(dias).forEach(function (id) {
@@ -226,9 +268,10 @@ function responder(obj) {
 function despachar(p) {
   try {
     switch (p.accion) {
-      case 'ping':      return { ok: true, version: 1 };
+      case 'ping':      return { ok: true, version: 60 };
       case 'diag':      return diagnostico();
       case 'registrar': return registrar(p);
+      case 'precargar': exigir(p.token, true); return precargarPerfiles_();
       case 'login':     return login(p);
       case 'estado':    return { ok: true, estado: estado(p.token) };
       case 'golpes':    return guardarGolpes(p);
@@ -240,6 +283,9 @@ function despachar(p) {
       case 'partidos':  return guardarPartidos(p);
       case 'golpesEquipo': return guardarGolpesEquipo(p);
       case 'hcpEquipo': return guardarHcpEquipo(p);
+      case 'capitanes': return guardarCapitanes(p);
+      case 'equipoJugador': return guardarEquipoJugador(p);
+      case 'linea':     return guardarLinea(p);
       case 'resetPedir':   return resetPedir(p);
       case 'resetAplicar': return resetAplicar(p);
       case 'resetPendientes': return resetPendientes(p);
@@ -361,6 +407,85 @@ function exigir(token, admin) {
 /* ============================================================
    ALTA E INGRESO
    ============================================================ */
+/* ============================================================
+   PERFILES PRECARGADOS
+   Los de la gira (Mateo Gazzera se bajó; Boa entra cuando se confirme con su handicap), con el handicap y el equipo de la planilla de la gira.
+   Quedan con matrícula "pre-…" y sin PIN: nadie puede entrar con ellos. Cada
+   jugador, en "Primera vez", elige el suyo, pone su matrícula y su PIN, y el
+   perfil pasa a ser suyo (con partidos y tarjetas que ya tuviera).
+   Se corre una vez: desde el editor (precargarPerfiles) o desde la app
+   (pestaña Jugadores, el organizador). Si se corre de nuevo, actualiza
+   handicap y equipo y no duplica a nadie.
+   ============================================================ */
+var PERFILES_GIRA = [
+  ['Andrés Benvenuto', 'Benve', 16, 'azul'], ['Tobías Benítez Cruz', 'Toba', 28, 'azul'],
+  ['Francisco Socas', 'Fran', 20, 'azul'], ['Sebastián Bergadá', 'Sebas', 12, 'azul'],
+  ['Matías Arizu', 'Mati', 4, 'azul'], ['Joaquín Viboud', 'Vibu', 35, 'azul'],
+  ['Facundo Urtubey', 'Chino', 35, 'rojo'], ['Santiago Beccar Varela', 'Nari', 30, 'rojo'],
+  ['Bautista Caputo', 'Bauti', 25, 'rojo'], ['Lucas Santamarina', 'Luqui', 13, 'rojo'],
+  ['Ignacio Paz', 'Ini', 18, 'rojo']
+];
+function esPerfilPrecargado(mat) { return /^pre-/.test(String(mat || '').trim()); }
+function sinAcentos_(t) {
+  return String(t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim();
+}
+function precargarPerfiles() { Logger.log(JSON.stringify(precargarPerfiles_().resumen)); }
+function precargarPerfiles_() {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var hoja = SpreadsheetApp.openById(SS_ID).getSheetByName('Jugadores');
+    var resumen = { nuevos: 0, actualizados: 0 };
+    PERFILES_GIRA.forEach(function (x) {
+      var slug = 'pre-' + sinAcentos_(x[1]).replace(/[^a-z0-9]/g, '');
+      var apellido = sinAcentos_(x[0]).split(' ').slice(1).join(' ');
+      // ¿Ya está? Por el perfil precargado, o porque ya se registró con ese apellido.
+      var fila = buscarFila(hoja, function (v) {
+        if (String(v[0]).trim() === slug) return true;
+        var n = sinAcentos_(v[1]);
+        return !esPerfilPrecargado(v[0]) && apellido && (n === sinAcentos_(x[0]) || n.indexOf(apellido) >= 0);
+      });
+      if (fila) {
+        hoja.getRange(fila, 4, 1, 2).setValues([[x[2], x[3]]]);
+        if (!String(hoja.getRange(fila, 3).getValue()).trim()) hoja.getRange(fila, 3).setValue(x[1]);
+        resumen.actualizados++;
+      } else {
+        hoja.appendRow([slug, x[0], x[1], x[2], x[3], 'jugador', '', '', '', new Date(), '']);
+        resumen.nuevos++;
+      }
+    });
+    anotar('sistema', 'precargar', resumen.nuevos + ' nuevos · ' + resumen.actualizados + ' actualizados');
+    limpiarCache();
+    return { ok: true, resumen: resumen, estado: estadoCrudo() };
+  } finally { lock.releaseLock(); }
+}
+// Cuando alguien reclama un perfil, todo lo que estaba a nombre de "pre-…" pasa a su matrícula.
+function cambiarMatricula_(viejo, nuevo) {
+  var ss = SpreadsheetApp.openById(SS_ID);
+  var cambiar = function (nombre, columnas, enLista) {
+    var hoja = ss.getSheetByName(nombre);
+    if (!hoja || hoja.getLastRow() < 2) return;
+    var cab = hoja.getRange(1, 1, 1, hoja.getLastColumn()).getValues()[0].map(String);
+    var rango = hoja.getRange(2, 1, hoja.getLastRow() - 1, cab.length), datos = rango.getValues(), tocado = false;
+    datos.forEach(function (f) {
+      columnas.forEach(function (c) {
+        var k = cab.indexOf(c);
+        if (k < 0) return;
+        if (enLista) {
+          var partes = String(f[k]).split(',');
+          var nuevas = partes.map(function (x) { return String(x).trim() === viejo ? nuevo : x; });
+          if (nuevas.join(',') !== partes.join(',')) { f[k] = nuevas.join(','); tocado = true; }
+        } else if (String(f[k]).trim() === viejo) { f[k] = nuevo; tocado = true; }
+      });
+    });
+    if (tocado) rango.setValues(datos);
+  };
+  cambiar('Partidos', ['usa1', 'usa2', 'usa3', 'eur1', 'eur2', 'eur3']);
+  cambiar('Tarjetas', ['matricula']);
+  cambiar('TarjetasEquipo', ['salidas'], true);
+  cambiar('Config', ['valor']);          // los capitanes se guardan por matrícula
+}
+
 function registrar(p) {
   var mat = String(p.matricula || '').trim();
   var pass = String(p.password || '');
@@ -368,12 +493,28 @@ function registrar(p) {
   // Para entrar alcanza con la matrícula y un PIN de cuatro números: ya no hay
   // clave del viaje. La fila claveViaje de la hoja Config queda sin uso.
   if (!/^\d{4}$/.test(pass)) return { ok: false, error: 'password_corta' };
+  if (esPerfilPrecargado(mat)) return { ok: false, error: 'falta_matricula' };
 
   var lock = LockService.getScriptLock();
   lock.waitLock(20000);
   try {
     if (jugadorPorMatricula(mat)) return { ok: false, error: 'ya_registrado' };
     var hoja = SpreadsheetApp.openById(SS_ID).getSheetByName('Jugadores');
+    // Perfil precargado: el jugador lo reclama con su matrícula y su PIN. Se
+    // quedan el nombre, el handicap y el equipo que ya tenía el perfil.
+    if (p.perfil) {
+      var fp = buscarFila(hoja, function (v) { return String(v[0]).trim() === String(p.perfil).trim(); });
+      if (!fp || !esPerfilPrecargado(p.perfil)) return { ok: false, error: 'perfil_tomado' };
+      hoja.getRange(fp, 1).setValue(mat);
+      hoja.getRange(fp, 9, 1, 3).setValues([[hashear(mat, pass), new Date(), new Date()]]);
+      if (p.handicap !== undefined && p.handicap !== null && p.handicap !== '' && Number(p.handicap) > 0)
+        hoja.getRange(fp, 4).setValue(Number(p.handicap));
+      cambiarMatricula_(String(p.perfil), mat);
+      anotar(mat, 'alta', 'reclamó el perfil ' + p.perfil);
+      limpiarCache();
+      var jp = jugadorPorMatricula(mat);
+      return { ok: true, token: emitirToken(mat), jugador: sinHash(jp), estado: estadoCrudo() };
+    }
     var primero = hoja.getLastRow() < 2;
     var equipo = p.equipo === 'rojo' ? 'rojo' : (p.equipo === 'azul' ? 'azul' : (contarEquipo('azul') <= contarEquipo('rojo') ? 'azul' : 'rojo'));
     hoja.appendRow([mat, String(p.nombre || '').trim() || ('Matrícula ' + mat), String(p.apodo || ''),
@@ -389,7 +530,7 @@ function registrar(p) {
 function login(p) {
   var mat = String(p.matricula || '').trim();
   var j = jugadorPorMatricula(mat);
-  if (!j) return { ok: false, error: 'no_registrado' };
+  if (!j || !j.hash) return { ok: false, error: 'no_registrado' };
   if (j.hash !== hashear(mat, String(p.password || ''))) return { ok: false, error: 'password_incorrecta' };
   tocarAcceso(mat);
   return { ok: true, token: emitirToken(mat), jugador: sinHash(j), estado: estadoCrudo() };
@@ -486,10 +627,12 @@ function estadoCrudo() {
   var guardado = cache.get('estado');
   if (guardado) return JSON.parse(guardado);
 
+  giraAlDia_();
   var cfg = config();
   var salida = {
     torneo: { nombre: cfg.torneo, sede: cfg.sede, edicion: cfg.edicion },
-    equipos: { azul: { nombre: cfg.equipoAzul }, rojo: { nombre: cfg.equipoRojo } },
+    equipos: { azul: { nombre: cfg.equipoAzul, capitan: String(cfg.capitanAzul || '') },
+               rojo: { nombre: cfg.equipoRojo, capitan: String(cfg.capitanRojo || '') } },
     jugadores: leer('Jugadores').map(sinHash),
     canchas: leer('Canchas').map(function (c) {
       var par = [], si = [];
@@ -525,36 +668,26 @@ function estadoCrudo() {
 /* ============================================================
    ESCRITURA
    ============================================================ */
-/* ¿Salen los dos en la misma línea de esa cancha? Es lo único que habilita
-   cargarle la tarjeta a otro. La línea es el partido (four-ball, foursome,
-   scramble), salvo en singles: ahí salen dos partidos juntos, el 1 con el 2,
-   el 3 con el 4 y el 5 con el 6. La app (partidosDeLinea) usa la misma regla. */
-function mismaLinea(a, b, cid) {
-  var ms = leer('Partidos').filter(function (m) { return m.cancha === cid; });
-  var en = function (m) {
-    return [m.usa1, m.usa2, m.usa3, m.eur1, m.eur2, m.eur3].map(function (x) { return String(x || '').trim(); });
-  };
-  var grupo = function (m, k) {
-    if (String(m.formato || '') !== 'singles') return 'p' + k;
-    var n = parseInt(String(m.id).split('-').pop(), 10);
-    return 'g' + Math.ceil((isNaN(n) ? k + 1 : n) / 2);
-  };
-  var deA = {}, i;
-  for (i = 0; i < ms.length; i++) if (en(ms[i]).indexOf(String(a).trim()) >= 0) deA[grupo(ms[i], i)] = true;
-  for (i = 0; i < ms.length; i++) if (en(ms[i]).indexOf(String(b).trim()) >= 0 && deA[grupo(ms[i], i)]) return true;
-  return false;
+/* ¿Juega un partido en esa cancha? Cuando ya están armadas las líneas,
+   CUALQUIERA puede anotar CUALQUIER línea (una sola persona puede llevar las
+   cuatro), así que alcanza con que la tarjeta sea de alguien que juega ese día.
+   La app (puedeEditar) usa la misma regla. */
+function juegaEnCancha(mat, cid) {
+  mat = String(mat || '').trim();
+  return leer('Partidos').some(function (m) {
+    return m.cancha === cid && [m.usa1, m.usa2, m.usa3, m.eur1, m.eur2, m.eur3]
+      .some(function (x) { return String(x || '').trim() === mat; });
+  });
 }
 
 function guardarGolpes(p) {
-  /* Cada uno carga su tarjeta. La única excepción: en la Ryder anota uno solo
-     por toda la línea, así que se admite cargarle la tarjeta a alguien del
-     mismo partido. Fuera de tu partido, nadie te toca la tarjeta: tampoco el
-     organizador. */
+  /* Cada uno carga su tarjeta. Y en la Ryder, una vez armadas las líneas,
+     cualquiera puede anotar la de cualquiera que juegue un partido ese día. */
   var j = exigir(p.token);
   var mat = String(p.matricula || j.matricula).trim();
   var cambios = p.hoyos || [];        // [{hoyo:1..18, golpes:4|null}]
   if (!p.cancha || !cambios.length) return { ok: false, error: 'faltan_datos' };
-  if (mat !== String(j.matricula).trim() && !mismaLinea(j.matricula, mat, p.cancha))
+  if (mat !== String(j.matricula).trim() && !juegaEnCancha(mat, p.cancha))
     return { ok: false, error: 'no_es_tu_linea' };
 
   var lock = LockService.getScriptLock();
@@ -713,6 +846,86 @@ function guardarPartidos(p) {
   } finally { lock.releaseLock(); }
 }
 
+/* ============================================================
+   CAPITANES Y LÍNEAS
+   Los partidos no se sortean: cada capitán elige quiénes de su equipo van en la
+   línea 1, 2, 3… de cada cancha, y lo puede cambiar cuando quiera. El organizador
+   nombra a los capitanes y puede tocar todo. En la app, usa = rojo y eur = azul.
+   ============================================================ */
+function capitanDe_(mat) {
+  var cfg = config(), m = String(mat || '').trim();
+  if (m && String(cfg.capitanRojo || '').trim() === m) return 'rojo';
+  if (m && String(cfg.capitanAzul || '').trim() === m) return 'azul';
+  return null;
+}
+function guardarCapitanes(p) {
+  var j = exigir(p.token, true);
+  if (p.rojo !== undefined) escribirConfig('capitanRojo', String(p.rojo || ''));
+  if (p.azul !== undefined) escribirConfig('capitanAzul', String(p.azul || ''));
+  anotar(j.matricula, 'capitanes', 'rojo ' + (p.rojo || '-') + ' · azul ' + (p.azul || '-'));
+  limpiarCache();
+  return { ok: true, estado: estadoCrudo() };
+}
+// El organizador o un capitán pasan a un jugador de equipo.
+function guardarEquipoJugador(p) {
+  var j = exigir(p.token);
+  if (j.rol !== 'admin' && !capitanDe_(j.matricula)) return { ok: false, error: 'solo_capitanes' };
+  if (p.equipo !== 'rojo' && p.equipo !== 'azul') return { ok: false, error: 'faltan_datos' };
+  var hoja = SpreadsheetApp.openById(SS_ID).getSheetByName('Jugadores');
+  var fila = buscarFila(hoja, function (v) { return String(v[0]).trim() === String(p.matricula).trim(); });
+  if (!fila) return { ok: false, error: 'no_encontrado' };
+  hoja.getRange(fila, 5).setValue(p.equipo);
+  anotar(j.matricula, 'equipoJugador', p.matricula + ' → ' + p.equipo);
+  limpiarCache();
+  return { ok: true, estado: estadoCrudo() };
+}
+/**
+ * Un lado de una línea: { cancha, lado:'usa'|'eur', n (1, 2, 3…), mats:[…] }.
+ * Solo toca las columnas de ese lado, así los dos capitanes pueden cargar a la vez.
+ * Los elegidos se sacan de las otras líneas de esa cancha (nadie juega dos veces).
+ */
+function guardarLinea(p) {
+  var j = exigir(p.token);
+  var lado = p.lado === 'usa' ? 'usa' : (p.lado === 'eur' ? 'eur' : null);
+  var n = parseInt(p.n, 10);
+  if (!p.cancha || !lado || !(n >= 1 && n <= 12)) return { ok: false, error: 'faltan_datos' };
+  var cap = capitanDe_(j.matricula);
+  if (j.rol !== 'admin' && cap !== (lado === 'usa' ? 'rojo' : 'azul')) return { ok: false, error: 'solo_capitanes' };
+  var mats = (p.mats || []).map(function (x) { return String(x || '').trim(); }).slice(0, 3);
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var ss = SpreadsheetApp.openById(SS_ID), hoja = ss.getSheetByName('Partidos');
+    if (!hoja) return { ok: false, error: 'falta_migrar' };
+    var cab = columnasTrio(hoja), cols = [lado + '1', lado + '2', lado + '3'].map(function (c) { return cab.indexOf(c); });
+    var canchaFila = buscarFila(ss.getSheetByName('Canchas'), function (v) { return v[0] === p.cancha; });
+    var fmt = canchaFila ? String(ss.getSheetByName('Canchas').getRange(canchaFila, 5).getValue() || '') : '';
+    var id = p.cancha + '-' + n, fila = null;
+    if (hoja.getLastRow() > 1) {
+      var datos = hoja.getRange(2, 1, hoja.getLastRow() - 1, cab.length).getValues();
+      var elegidos = mats.filter(Boolean);
+      datos.forEach(function (f, i) {
+        if (f[1] !== p.cancha) return;
+        if (String(f[0]) === id) { fila = i + 2; return; }
+        var toca = false;
+        cols.forEach(function (k) { if (k >= 0 && elegidos.indexOf(String(f[k]).trim()) >= 0) { f[k] = ''; toca = true; } });
+        if (toca) hoja.getRange(i + 2, 1, 1, cab.length).setValues([f]);
+      });
+    }
+    if (!fila) {
+      var nueva = cab.map(function () { return ''; });
+      nueva[0] = id; nueva[1] = p.cancha; nueva[2] = fmt;
+      hoja.appendRow(nueva);
+      fila = hoja.getLastRow();
+    }
+    hoja.getRange(fila, 3).setValue(fmt);
+    cols.forEach(function (k, q) { if (k >= 0) hoja.getRange(fila, k + 1).setNumberFormat('@').setValue(mats[q] || ''); });
+    anotar(j.matricula, 'linea', id + ' · ' + lado + ' · ' + mats.join(','));
+    limpiarCache();
+    return { ok: true, estado: estadoCrudo() };
+  } finally { lock.releaseLock(); }
+}
+
 /* La pestaña Partidos nació con dos jugadores por lado. Para el scramble de a 3
    se agregan las columnas usa3, eur3, hcpUsa y hcpEur al final, sin mover nada de lo cargado. */
 function columnasTrio(hoja) { return columnasAlFinal(hoja, ['usa3', 'eur3', 'hcpUsa', 'hcpEur']); }
@@ -757,9 +970,9 @@ function guardarHcpEquipo(p) {
 
 /**
  * Foursomes y scramble: el lado juega una sola pelota, así que la tarjeta es del LADO.
- * En la Ryder anota uno por toda la línea: cualquiera que juegue el partido puede
- * cargar la tarjeta de cualquiera de los dos lados (p.lado). Si no viene p.lado
- * (versiones viejas de la app), se carga la de su propio lado, como antes.
+ * Cualquiera con sesión puede cargar la tarjeta de cualquier lado de cualquier
+ * partido (p.lado): una sola persona puede llevar todas las líneas. Si no viene
+ * p.lado (versiones viejas de la app), se carga la de su propio lado, como antes.
  */
 function guardarGolpesEquipo(p) {
   var j = exigir(p.token);
@@ -771,8 +984,8 @@ function guardarGolpesEquipo(p) {
   var mat = String(j.matricula);
   var miLado = (String(m.usa1) === mat || String(m.usa2) === mat || String(m.usa3 || '') === mat) ? 'usa'
              : (String(m.eur1) === mat || String(m.eur2) === mat || String(m.eur3 || '') === mat) ? 'eur' : null;
-  if (!miLado) return { ok: false, error: 'no_jugas_ese_partido' };
   var lado = (p.lado === 'usa' || p.lado === 'eur') ? p.lado : miLado;
+  if (!lado) return { ok: false, error: 'faltan_datos' };
 
   var lock = LockService.getScriptLock();
   lock.waitLock(20000);
