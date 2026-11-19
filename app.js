@@ -2,7 +2,7 @@
 (function () {
 'use strict';
 
-var VERSION = 'v72';                     // tiene que coincidir con el CACHE del sw.js
+var VERSION = 'v73';                     // tiene que coincidir con el CACHE del sw.js
 var LS = { ses: 'gtm-sesion', est: 'gtm-estado', cola: 'gtm-cola', ui: 'gtm-ui' };
 var API = (window.GTM_CONFIG && window.GTM_CONFIG.api) || '';
 
@@ -2653,7 +2653,7 @@ function vistaLinea() {
     return '<div class="pr-fila' + (f.golpes ? ' mejor' : '') + (f.destino.indexOf('lado:') === 0 ? ' lado' : '') + (f.corte ? ' corte' : '') + '">' +
       '<div class="pr-quien"><b class="' + f.clase.trim() + '">' + esc(f.etiqueta) + '</b>' +
       '<i>' + esc(f.sub) + (f.golpes ? ' · ' : '') +
-      (f.golpes ? '<b class="tiro' + f.clase + '">tira ' + f.golpes + '</b>' : '') + '</i></div>' +
+      (f.golpes ? '<b class="tiro' + f.clase + '">' + (f.golpes === 1 ? 'un golpe' : (f.golpes === 2 ? 'dos golpes' : f.golpes + ' golpes')) + '</b>' : '') + '</i></div>' +
       (puedo ? '<button class="rd chico" data-acc="ln-menos" data-v="' + f.destino + '">−</button>' : '<span></span>') +
       '<span class="pr-golpes' + (f.valor == null ? ' sin' : '') + '">' + (f.valor == null ? '–' : f.valor) + '</span>' +
       (puedo ? '<button class="rd chico" data-acc="ln-mas" data-v="' + f.destino + '">+</button>' : '<span></span>') +
