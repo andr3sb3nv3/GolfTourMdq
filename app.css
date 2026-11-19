@@ -126,6 +126,15 @@ h1.logo b{font-weight:800}
 .p-estado{font-family:Archivo;font-weight:800;font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--tinta-2)}
 .match{display:grid;grid-template-columns:1fr 66px 1fr;align-items:center;gap:6px;padding:10px 12px 6px}
 .m-lado{display:flex;flex-direction:column;gap:8px;min-width:0}
+/* Espejo (Andres, 19/11): Europe a la derecha con los globos contra el borde, el nombre
+   al lado y el handicap hacia el centro; una línea vertical parte la tarjeta al medio. */
+.match{position:relative}
+.match::before{content:"";position:absolute;left:50%;top:4px;bottom:0;width:2px;transform:translateX(-50%);background:var(--linea-2)}
+.match .m-badge{position:relative;z-index:1}
+.m-lado.izq .m-hcp{padding-right:4px}
+.m-lado.der .m-jug{flex-direction:row-reverse}
+.m-lado.der .m-nom{text-align:right}
+.m-lado.der .m-hcp{padding-left:4px}
 .m-jug{display:flex;align-items:center;gap:8px;min-width:0}
 .m-foto{width:34px;height:34px;border-radius:50%;flex:0 0 auto;object-fit:cover;background:var(--panel-3);
   display:grid;place-items:center;font-family:Archivo;font-weight:800;font-size:14px;color:var(--navy)}
