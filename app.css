@@ -151,6 +151,7 @@ h1.logo b{font-weight:800}
 .p-hoyos i.e{background:var(--eur);border-color:var(--eur);color:#fff}
 .p-hoyos i.h{background:#fff;border-color:var(--navy);color:var(--navy)}
 .p-hoyos i.fin{opacity:.3}
+.p-hoyos i.sin{opacity:.45;font-weight:500}
 .p-lados,.p-lado,.p-vs{display:none}
 
 /* ---------- leaderboard ---------- */
