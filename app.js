@@ -2,7 +2,7 @@
 (function () {
 'use strict';
 
-var VERSION = 'v82';                     // tiene que coincidir con el CACHE del sw.js
+var VERSION = 'v83';                     // tiene que coincidir con el CACHE del sw.js
 var LS = { ses: 'gtm-sesion', est: 'gtm-estado', cola: 'gtm-cola', ui: 'gtm-ui' };
 var API = (window.GTM_CONFIG && window.GTM_CONFIG.api) || '';
 
@@ -2603,6 +2603,9 @@ function detalleScramble(p, admin) {
 
 // La modalidad se decide el mismo día: no hay nada atado a la jornada.
 function selectorModalidad(c, admin) {
+  // En la gira las modalidades están fijas (Acantilados y Miramar four-ball, Marayui scramble,
+  // La Catedral individuales): no se muestra el selector (Andres, 20/11).
+  if (FORMATO_GIRA[c.id]) return '';
   if (!admin) return nota('<div class="candado"><span>🎛️</span><span>Se juega <b>' +
     (FORMATOS[c.formato] || 'con la modalidad que defina el organizador') + '</b>. La elige él antes de salir.</span></div>');
   return '<div class="grid2" style="grid-template-columns:1fr"><div class="campo">' +
