@@ -2,7 +2,7 @@
 (function () {
 'use strict';
 
-var VERSION = 'v92';                     // tiene que coincidir con el CACHE del sw.js
+var VERSION = 'v93';                     // tiene que coincidir con el CACHE del sw.js
 var LS = { ses: 'gtm-sesion', est: 'gtm-estado', cola: 'gtm-cola', ui: 'gtm-ui' };
 var API = (window.GTM_CONFIG && window.GTM_CONFIG.api) || '';
 
@@ -3297,13 +3297,13 @@ function vistaPerfil() {
    perfil. Revisión del 20/11/2026 sobre la v89, con la planilla real a la vista
    y probando la app en un celular de 360 px. Para actualizarlo alcanza con
    tocar esta lista. */
-var ANALISIS_FECHA = '20/11/2026 · v91';
+var ANALISIS_FECHA = '20/11/2026 · v93';
 var ANALISIS = [
   { grupo: 'Antes del viernes 27', items: [
-    { t: 'Solo 1 de los 12 entró a la app', tam: 'chico',
+    { t: 'Solo 1 de los 12 entró a la app', demo: 'faltan', tam: 'chico',
       hoy: 'En la planilla real hay 11 perfiles sin reclamar: el único con acceso sos vos. Sin entrar, nadie puede anotar ni ver su línea en vivo.',
       prop: 'Mandar por WhatsApp el link con la matrícula de cada uno y el código del viaje, y pedir que entren antes del jueves. La app puede mostrarle al organizador quién falta.' },
-    { t: 'Faltan las líneas y el handicap de cancha de las 4 canchas', tam: 'chico',
+    { t: 'Faltan las líneas y el handicap de cancha de las 4 canchas', demo: 'hcpfalta', tam: 'chico',
       hoy: 'Hoy hay 0 líneas armadas y 0 handicaps de cancha cargados. Sin el handicap de cancha, la app reparte golpes con el handicap del perfil, que no es el de la tarjeta del club.',
       prop: 'Cargarlos la noche anterior a cada cancha. Y que Cargar avise en rojo "falta el handicap de cancha de X" en vez de usar el del perfil en silencio.' },
     { t: 'El botón "Info del viaje" tapa la carga', demo: 'tapa', tam: 'chico',
@@ -3326,6 +3326,12 @@ var ANALISIS = [
     { t: 'Pasar de hoyo es manual', demo: 'auto', tam: 'chico',
       hoy: 'Con los cuatro golpes cargados igual hay que tocar "Hoyo 2 →", y ese botón queda abajo, tapado por "Info del viaje".',
       prop: 'Cuando está toda la línea cargada, pasar solo al hoyo siguiente después de 2 segundos (con un cartel "volver" por si fue sin querer).' },
+    { t: 'Deshacer el último golpe', demo: 'deshacer', tam: 'chico',
+      hoy: 'Si tocás + de más en el jugador equivocado, hay que darse cuenta y corregirlo a mano. Con cuatro tarjetas en la misma pantalla pasa seguido.',
+      prop: 'Después de cada toque, un cartel abajo "Santiago 6 · deshacer" durante 4 segundos.' },
+    { t: 'Sin señal: los golpes pendientes se ven poco', demo: 'senal', tam: 'chico',
+      hoy: 'Si no hay señal, los golpes se guardan en el celular y suben solos después (eso anda bien). Pero solo lo dice una barra arriba, que queda fuera de la vista al bajar a cargar.',
+      prop: 'Marcar en los puntitos de los hoyos cuáles todavía no subieron (un punto naranja), al lado de donde se carga.' },
     { t: 'Quién puede anotar en cada línea', tam: 'chico',
       hoy: 'Hoy cualquiera con sesión puede anotar en cualquier línea, no solo en la suya.',
       prop: 'Si van a anotar solo los de la misma línea, se limita a eso y el resto la ve en vivo sin poder tocarla. Conviene decidirlo cuando lo prueben juntos.' }
@@ -3337,6 +3343,9 @@ var ANALISIS = [
     { t: 'En Cargar, lo importante queda abajo', demo: 'arriba', tam: 'mediano',
       hoy: 'El cartel del estado del match ocupa media pantalla arriba y los jugadores para cargar quedan abajo, cerca de los botones flotantes.',
       prop: 'Achicar el estado del match a una franja de una línea arriba ("Team USA 2 arriba · hoyo 6") y dejar los cuatro jugadores en el centro de la pantalla.' },
+    { t: 'Modo sol: un botón de alto contraste', demo: 'modosol', tam: 'chico',
+      hoy: 'Fondo celeste grisáceo, tarjetas blancas y textos grises: lindo a la sombra, flojo con el sol de frente.',
+      prop: 'Un botón ☀️ que pasa todo a blanco puro, negro puro y letra un 15% más grande. Se queda prendido en ese celular.' },
     { t: 'Cada fila de jugador dice demasiado', demo: 'fila', tam: 'chico',
       hoy: 'Nombre, HCP de cancha, cuántos recibe, la etiqueta "un golpe" y el neto: a 360 px la línea de abajo se parte en dos o tres renglones.',
       prop: 'Dejar nombre y un punto por cada golpe que recibe en el hoyo (● o ●●). El detalle del handicap, en la tarjeta del partido.' }
@@ -3348,6 +3357,9 @@ var ANALISIS = [
     { t: 'La tabla individual arranca en Medal neto', demo: 'medal', tam: 'chico',
       hoy: 'La gira se juega Stableford y la Ryder le da 3 puntos al equipo con más Stableford, pero la pestaña Medal abre en Medal neto.',
       prop: 'Abrir en Stableford y dejar Medal neto y Bruto como alternativas.' },
+    { t: 'Stableford por equipo no dice quién se lleva los 3 puntos', demo: 'stbl', tam: 'chico',
+      hoy: 'En Ryder → General figura "Team USA 655 · terminado · 697 Team Europe". Hay que hacer la cuenta para saber quién ganó y por cuánto.',
+      prop: 'Decirlo en grande: "Team Europe +42 · se lleva los 3 puntos", con la diferencia proyectada mientras se juega.' },
     { t: 'Four-ball: el hoyo se define antes de cargar a los cuatro', demo: 'levanto', tam: 'mediano',
       hoy: 'Con un jugador cargado por lado el hoyo ya cuenta (sirve para el que levanta). Mientras el anotador carga de a uno, el match se mueve antes de tiempo.',
       prop: 'Botón "levantó" en cada jugador, y que el hoyo cuente cuando están los cuatro cargados o marcados.' },
@@ -3367,16 +3379,25 @@ var ANALISIS = [
     { t: 'Pestañas chicas y pegadas', demo: 'pestanas', tam: 'mediano',
       hoy: 'Son 6 pestañas en letra de 10 px. A 360 px "TARJETAS JUGADORES CANCHAS" quedan pegadas y al sol cuestan.',
       prop: 'Dejar 4: Cargar, Ryder, Medal y Más (con Tarjetas, Jugadores y Canchas adentro), en letra más grande.' },
+    { t: 'Medal repite el marcador de la Ryder', tam: 'chico',
+      hoy: 'Arriba de la tabla individual vuelve a estar el marcador de la Ryder. En un celular de 360 px el primer puesto recién aparece al 66% de la pantalla.',
+      prop: 'En Medal, el marcador de la Ryder en una franja de una línea. La tabla arranca en la primera pantalla.' },
     { t: 'Testeo aparece dos veces', tam: 'chico',
       hoy: 'Está el chip 🧪 Testeo en la cabecera y además el botón flotante. En el torneo ninguno de los dos hace falta a la vista.',
       prop: 'Dejar solo uno y pasarlo al perfil cuando arranque la gira.' }
   ]},
   { grupo: 'Velocidad', items: [
+    { t: 'El escudo pesa 204 KB', tam: 'chico',
+      hoy: 'escudo.png pesa 204 KB y el ícono grande 150 KB: entre los dos, más que todo el código de la app comprimido (80 KB). Con señal de cancha se nota en la primera carga.',
+      prop: 'Pasarlos a WebP o a un PNG optimizado: quedan en 20 a 30 KB cada uno y se ven igual.' },
     { t: 'Cada golpe relee toda la planilla', tam: 'mediano',
       hoy: 'Con 12 celulares preguntando cada 12 segundos y cada golpe releyendo todas las hojas, en los picos puede tardar varios segundos en subir o quedar en la cola.',
       prop: 'Guardar en memoria la configuración y los jugadores, y devolver solo lo que cambió. Igual la cola guarda todo en el celular y no se pierde nada.' }
   ]},
   { grupo: 'Para después del torneo', items: [
+    { t: 'Compartir el marcador por WhatsApp', demo: 'compartir', tam: 'mediano',
+      hoy: 'Para mandar cómo va la Ryder al grupo hay que sacar captura y recortarla.',
+      prop: 'Un botón "Compartir" que arma una imagen prolija con el marcador y los partidos del día y abre WhatsApp.' },
     { t: 'Resumen final y premios', demo: 'premios', tam: 'mediano',
       hoy: 'Al terminar hay que armar a mano quién ganó qué.',
       prop: 'Una pantalla final con el resultado de la Ryder, el mejor Stableford de cada cancha, más birdies, el MVP de cada equipo y la descarga de todo en Excel.' }
@@ -3466,6 +3487,43 @@ var DEMOS = {
     return [mkTel(t(['CARGAR', 'RYDER', 'MEDAL', 'TARJETAS', 'JUGADORES', 'CANCHAS'])),
             mkTel(t(['Cargar', 'Ryder', 'Medal', 'Más ▾'], true))];
   },
+  faltan: function () {
+    var js = [['Benve', 1], ['Mati', 0], ['Sebas', 0], ['Luqui', 0], ['Toba', 0], ['Nari', 0]];
+    return [mkTel('<p class="mk-chico">Jugadores: "11 por reclamar". ¿Cuáles? Hay que ir uno por uno.</p>' +
+      '<div class="mk-lb"><span>Toba</span><b class="mk-gris">sin reclamar</b></div><div class="mk-lb"><span>Mati</span><b class="mk-gris">sin reclamar</b></div>'),
+      mkTel('<div class="mk-franja">1 de 12 entraron</div>' + js.map(function (x) {
+        return '<div class="mk-lb"><span>' + (x[1] ? '✅ ' : '⭕ ') + x[0] + '</span><b class="' + (x[1] ? 'mk-ok' : 'mk-wa') + '">' +
+          (x[1] ? 'adentro' : 'mandar link') + '</b></div>'; }).join(''))];
+  },
+  hcpfalta: function () {
+    return [mkTel(mkFila('Tobías', 'txt-azul', 'HCP 30 · recibe 14', 5) + '<p class="mk-chico">Usa el 30 del perfil y nadie se entera.</p>'),
+      mkTel('<div class="mk-toast mal">⚠️ Falta el handicap de cancha de Tobías: se usa el del perfil (30)</div>' +
+      mkFila('Tobías', 'txt-azul', 'HCP perfil 30 · recibe 14', 5, true))];
+  },
+  deshacer: function () {
+    var f = mkFila('Lucas', 'txt-rojo', '', 4, true) + mkFila('Santiago', 'txt-rojo', '', 7, true);
+    return [mkTel(f + '<p class="mk-chico">¿Fue 6 o 7? Hay que acordarse y tocar −.</p>'),
+            mkTel(f + '<div class="mk-snack">Santiago <b>7</b> <u>deshacer</u></div>')];
+  },
+  senal: function () {
+    var d = function (marcar) { var h = '<div class="mk-dots">'; for (var k = 1; k <= 9; k++)
+      h += '<span class="' + (k < 6 ? 'ok' : '') + (marcar && (k === 4 || k === 5) ? ' pend' : '') + '">' + k + '</span>'; return h + '</div>'; };
+    return [mkTel('<p class="mk-chico" style="margin-top:30px">(la barra "2 golpes sin subir" quedó arriba, fuera de la vista)</p>' + d(false)),
+            mkTel('<p class="mk-chico" style="margin-top:20px">📴 Sin señal · <b>4 y 5</b> esperan para subir</p>' + d(true))];
+  },
+  modosol: function () {
+    return [mkTel('<div class="mk-cel">' + mkFila('Santiago', 'txt-rojo', 'HCP cancha 32 · recibe 15', 6) + '</div>', 'mk-brillo'),
+            mkTel('<div class="mk-alto">' + mkFila('Santiago', 'mk-negro', 'recibe 1 acá', 6, true) + '</div>', 'mk-brillo')];
+  },
+  stbl: function () {
+    return [mkTel('<div class="mk-lb"><span class="txt-rojo">Team USA 655</span><span>terminado</span><span class="txt-azul">697 Team Europe</span></div>'),
+      mkTel('<div class="mk-match azul"><small>STABLEFORD POR EQUIPO</small><b>Europe +42</b><small>se lleva los 3 puntos</small></div>')];
+  },
+  compartir: function () {
+    return [mkTel('<p class="mk-chico">Captura → recortar → mandar. Sale con la barra del celular y medio menú.</p>'),
+      mkTel('<div class="mk-premio"><small>RYDER MDQ · SÁBADO</small><b>USA 7 – 9 Europe</b><span>Miramar: Europe 2 – 1</span>' +
+      '<span>Marayui: USA 2 – 0</span></div><div class="mk-wsp">Compartir por WhatsApp</div>')];
+  },
   premios: function () {
     return [mkTel('<p class="mk-chico">Al terminar: planilla, calculadora y WhatsApp.</p>'),
       mkTel('<div class="mk-premio"><small>RYDER MDQ 2026</small><b>Team Europe 15½ – 12½</b>' +
@@ -3478,6 +3536,79 @@ function demoHTML(k) {
   return '<div class="mk-par"><div><span class="mk-tag antes">Hoy</span>' + d[0] + '</div>' +
     '<div><span class="mk-tag despues">Propuesta</span>' + d[1] + '</div></div>';
 }
+
+/* Los números del análisis: medidos el 20/11 contra el backend real, la planilla real y la
+   app en un celular de 360 px (Playwright). Los toques salen del torneo simulado del testeo. */
+var ANALISIS_DATOS = [
+  { titulo: 'La planilla hoy', nota: 'Datos reales al 20/11, 18:50.', tiles: [
+    ['1 / 12', 'con acceso', 'mal'], ['0 / 12', 'con foto', 'mal'], ['1', 'celular con avisos', 'mal'],
+    ['0', 'líneas armadas', 'wa'], ['0', 'handicaps de cancha', 'wa'], ['79', 'versión del backend', 'ok']] },
+  { titulo: 'Cuánto tarda la planilla', nota: 'Medido 6 veces cada uno desde afuera. El estado se guarda 15 s: pasado eso, la siguiente consulta paga la lectura completa.', barras: [
+    ['Ping', 1.1, 5.1, '1,1 s', ''], ['Estado (recién leído)', 1.2, 5.1, '1,0 a 1,4 s', ''],
+    ['Estado (vencido)', 4.3, 5.1, '3,5 a 5,1 s', 'mal']] },
+  { titulo: 'Consultas durante una vuelta', nota: 'Cada celular abierto en Cargar, Ryder o Medal pregunta cada 12 segundos.', tiles: [
+    ['300', 'por hora, un celular', ''], ['3.600', 'por hora, los 12', 'wa'], ['18.000', 'en 5 horas de juego', 'wa']] },
+  { titulo: 'Toques para cargar los golpes', nota: 'Torneo simulado: 648 golpes cargados. Con + y − cada golpe arranca en el par.', barras: [
+    ['Con + y − (hoy)', 1474, 1474, '1.474 toques · 2,3 por golpe', 'mal'], ['Con fila de números', 648, 1474, '648 toques · 1 por golpe (−56%)', 'ok']],
+    tiles: [['17%', 'par', ''], ['43%', 'bogey', ''], ['30%', 'doble', 'wa'], ['10%', 'triple o birdie', '']] },
+  { titulo: 'Tamaño de lo que se toca', nota: 'Apple y Google recomiendan al menos 44 a 48 px para un dedo. Cuenta botones y puntitos de hoyos.', barras: [
+    ['Cargar', 50, 56, '50 de 56 por debajo de 44 px', 'mal'], ['Medal', 31, 44, '31 de 44', 'wa'],
+    ['Jugadores', 37, 38, '37 de 38', 'mal'], ['Canchas', 80, 86, '80 de 86', 'mal']],
+    tiles: [['40 px', 'botones + y −', 'wa'], ['55×38', 'cada pestaña', 'wa'], ['10 px', 'letra de pestañas', 'mal']] },
+  { titulo: 'Letra chica y contraste', nota: 'Textos visibles con letra menor a 12 px, y contraste contra el blanco (lo recomendado es 4,5 a 1 o más).', barras: [
+    ['Cargar', 42, 165, '42 de 165 textos', 'wa'], ['Medal', 39, 103, '39 de 103', 'mal'], ['Jugadores', 26, 79, '26 de 79', 'wa']],
+    tiles: [['3,4 : 1', 'gris claro (rótulos)', 'mal'], ['7,5 : 1', 'gris oscuro', 'ok'], ['17,4 : 1', 'negro', 'ok']] },
+  { titulo: 'Dónde queda lo importante', nota: 'Celular de 360×740. Porcentaje de la primera pantalla que hay que pasar antes de llegar a lo que se usa.', barras: [
+    ['Cargar: primer jugador', 73, 100, 'al 73% de la pantalla', 'mal'], ['Medal: primer puesto', 66, 100, 'al 66%', 'wa']],
+    tiles: [['4.475 px', 'alto de Canchas (6 pantallas)', 'wa'], ['3.028 px', 'alto de Ryder', '']] },
+  { titulo: 'Peso de la primera carga', nota: 'Lo que baja el celular la primera vez (después queda guardado).', barras: [
+    ['escudo.png', 204, 243, '204 KB', 'mal'], ['icono-512.png', 150, 243, '150 KB', 'wa'],
+    ['app.js', 243, 243, '243 KB (68 KB comprimido)', ''], ['app.css', 52, 243, '52 KB (11 KB comprimido)', '']] }
+];
+var ANALISIS_CAPTURAS = [
+  { img: 'analisis/cargar.jpg', titulo: 'Cargar, al entrar', marcas: [
+    [86, 10, 'Pestañas en letra de 10 px: TARJETAS, JUGADORES y CANCHAS quedan pegadas.'],
+    [4, 21, 'Cancha y línea: tres renglones de botones antes de ver el hoyo.'],
+    [93, 51, 'El estado del match ocupa 13% de la pantalla.'],
+    [5, 76, 'El primer jugador recién arranca al 73% de la pantalla.'],
+    [25, 80, 'Rótulos en gris claro (3,4 : 1) y 10 a 11 px.']] },
+  { img: 'analisis/cargar-abajo.jpg', titulo: 'Cargar, los cuatro jugadores', marcas: [
+    [62, 51, 'Botones + y − de 40 px, pegados al número.'],
+    [33, 65, '"un golpe" se repite en 3 de 4 jugadores.'],
+    [92, 63, '"neto 4" en letra de máquina, chica.'],
+    [80, 95, 'Con los cuatro cargados igual hay que tocar "Hoyo 2 →".']] },
+  { img: 'analisis/ryder.jpg', titulo: 'Ryder, vista general', marcas: [
+    [50, 23, 'Con 5 opciones, Catedral queda sola en otra fila.'],
+    [8, 38, '"USA" aparece tres veces: escudo, nombre y color.'],
+    [50, 56, 'Stableford por equipo: no dice quién se lleva los 3 puntos.']] },
+  { img: 'analisis/medal.jpg', titulo: 'Medal', marcas: [
+    [93, 30, 'El marcador de la Ryder se repite y empuja la tabla para abajo.'],
+    [18, 55, 'Arranca en Medal neto: la gira se juega Stableford.'],
+    [5, 69, 'El primer puesto aparece al 66% de la pantalla.']] }
+];
+function analisisDatosHTML() {
+  return '<section class="card"><div class="sec-tit"><h2>Los números</h2><span class="eyebrow">medido el 20/11</span></div>' +
+    ANALISIS_DATOS.map(function (d) {
+      var h = '<div class="an-dato"><h4>' + esc(d.titulo) + '</h4>';
+      if (d.barras) h += d.barras.map(function (b) {
+        var w = Math.max(3, Math.round(b[1] / b[2] * 100));
+        return '<div class="an-barra"><span>' + esc(b[0]) + '</span><div><i class="' + b[4] + '" style="width:' + w + '%"></i></div><b>' + esc(b[3]) + '</b></div>';
+      }).join('');
+      if (d.tiles) h += '<div class="an-tiles">' + d.tiles.map(function (t) {
+        return '<div class="' + t[2] + '"><b>' + esc(t[0]) + '</b><span>' + esc(t[1]) + '</span></div>';
+      }).join('') + '</div>';
+      return h + '<p class="an-nota">' + esc(d.nota) + '</p></div>';
+    }).join('') + '</section>';
+}
+function analisisCapturasHTML() {
+  return '<section class="card"><div class="sec-tit"><h2>Capturas reales</h2><span class="eyebrow">360 px</span></div>' +
+    '<p class="an-intro">Así se ve hoy en un celular chico. Cada número marca algo para mejorar.</p>' +
+    ANALISIS_CAPTURAS.map(function (c) {
+      return '<div class="an-cap"><h4>' + esc(c.titulo) + '</h4><div class="an-cap-img"><img src="' + c.img + '" alt="' + esc(c.titulo) + '" loading="lazy">' +
+        c.marcas.map(function (m, k) { return '<b style="left:' + m[0] + '%;top:' + m[1] + '%">' + (k + 1) + '</b>'; }).join('') + '</div>' +
+        '<ol>' + c.marcas.map(function (m) { return '<li>' + esc(m[2]) + '</li>'; }).join('') + '</ol></div>';
+    }).join('') + '</section>';
+}
 function vistaAnalisis() {
   var todos = [], n = 0;
   ANALISIS.forEach(function (g) { g.items.forEach(function (x) { todos.push(x); }); });
@@ -3485,15 +3616,16 @@ function vistaAnalisis() {
   var h = '<div class="pila">' +
     '<div class="acc" style="padding:0"><button class="btn fin" data-acc="tab" data-v="perfil">← Volver al perfil</button></div>' +
     '<section class="card an-portada"><small>' + esc(ANALISIS_FECHA) + '</small><h2>Análisis de mejoras</h2>' +
-    '<p>Lo que se puede mejorar de la app, de lo más urgente a lo que puede esperar. Las principales tienen un ejemplo: ' +
-    'a la izquierda cómo se ve hoy, a la derecha la propuesta.</p>' +
+    '<p>Lo que se puede mejorar de la app, de lo más urgente a lo que puede esperar. Primero los números medidos y las capturas ' +
+    'reales; después cada mejora, con un ejemplo de cómo se ve hoy y cómo quedaría.</p>' +
     '<div class="an-kpi"><div><b>' + todos.length + '</b><span>mejoras</span></div>' +
     '<div class="urg"><b>' + ANALISIS[0].items.length + '</b><span>antes del 27</span></div>' +
     '<div><b>' + cuenta(function (x) { return x.demo; }) + '</b><span>con ejemplo</span></div>' +
     '<div class="ok"><b>' + cuenta(function (x) { return x.hecho; }) + '</b><span>hechas</span></div></div>' +
-    '<div class="an-indice">' + ANALISIS.map(function (g, k) {
+    '<div class="an-indice"><span>Los números</span><span>Capturas reales</span>' + ANALISIS.map(function (g, k) {
       return '<span class="' + (k === 0 ? 'urg' : '') + '">' + esc(g.grupo) + ' · ' + g.items.length + '</span>';
     }).join('') + '</div></section>';
+  h += analisisDatosHTML() + analisisCapturasHTML();
   ANALISIS.forEach(function (g, gk) {
     h += '<section class="card' + (gk === 0 ? ' an-urgente' : '') + '"><div class="sec-tit"><h2>' + esc(g.grupo) + '</h2><span class="eyebrow">' + g.items.length + '</span></div>';
     g.items.forEach(function (x) {
