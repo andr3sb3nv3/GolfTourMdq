@@ -2,7 +2,7 @@
 (function () {
 'use strict';
 
-var VERSION = 'v81';                     // tiene que coincidir con el CACHE del sw.js
+var VERSION = 'v82';                     // tiene que coincidir con el CACHE del sw.js
 var LS = { ses: 'gtm-sesion', est: 'gtm-estado', cola: 'gtm-cola', ui: 'gtm-ui' };
 var API = (window.GTM_CONFIG && window.GTM_CONFIG.api) || '';
 
@@ -1443,18 +1443,20 @@ function generarTest() {
   var base = leerLS(LS.est, null);
   var canchas = (base && base.canchas && base.canchas.length >= 3)
     ? JSON.parse(JSON.stringify(base.canchas))
-    : [{ id: 'miramar', dia: 1, nombre: 'Miramar Links', confirmada: false,
-         par: [4,4,3,5,4,4,3,4,5,4,3,5,4,4,3,4,5,4], si: [5,3,17,11,1,9,15,7,13,6,12,4,10,2,18,8,14,16] },
-       { id: 'acantilados', dia: 2, nombre: 'Acantilados Golf', confirmada: false,
-         par: [4,4,3,5,4,4,3,4,4,4,3,4,5,4,3,4,4,4], si: [5,3,17,11,1,9,15,7,13,6,12,4,10,2,18,8,14,16] },
+    : [{ id: 'acantilados', dia: 1, nombre: 'Acantilados Golf · Azul', confirmada: true,
+         par: [4,4,5,4,3,5,3,4,4, 5,3,4,4,4,5,3,4,4], si: [3,9,7,1,17,5,15,13,11, 12,16,10,14,4,2,18,8,6] },
+       { id: 'miramar', dia: 2, nombre: 'Miramar Links', confirmada: true,
+         par: [4,3,4,4,5,5,3,4,4, 5,4,3,4,4,5,3,4,4], si: [1,13,17,11,7,9,15,3,5, 18,10,14,12,6,2,16,8,4] },
        { id: 'catedral', dia: 3, nombre: 'La Catedral', confirmada: true,
          par: [4,3,5,4,3,4,5,3,4,4,4,3,5,3,4,4,4,4], si: [3,13,1,11,15,7,5,17,9,14,8,16,4,18,6,10,2,12] }];
   if (!canchas.some(function (c) { return c.id === 'marayui'; }))
     canchas.splice(2, 0, { id: 'marayui', dia: 2, nombre: 'Marayui Golf', confirmada: true,
       par: [4,4,4,3,4,4,5,3,5, 4,4,4,3,4,4,5,3,5], si: [7,9,11,15,5,13,3,17,1, 6,12,10,18,2,14,8,16,4] });
   canchas = ordenarCanchas(canchas);
-  var rota = ['fourball', 'foursomes', 'singles'], kf = 0;
+  var rota = ['fourball', 'fourball', 'singles'], kf = 0;
   canchas.forEach(function (c) { c.formato = FORMATO_GIRA[c.id] || rota[kf++ % 3]; });
+  canchas = canchas.filter(function (c) { return ORDEN_GIRA.indexOf(c.id) >= 0; }).length >= 4
+    ? canchas.filter(function (c) { return ORDEN_GIRA.indexOf(c.id) >= 0; }) : canchas;
 
   // Los 12 de la gira con su handicap real y equipos FICTICIOS (parejos por handicap),
   // capitanes Mati (Team USA) y Sebas (Team Europe). Vos entrás como organizador.
@@ -1482,7 +1484,11 @@ function generarTest() {
       for (i = 0; i < Math.min(usa.length, eur.length); i++)
         lista.push({ usa: [usa[i].matricula], eur: [eur[i].matricula] });
     } else {
-      var pu = c.formato === 'scramble' ? trios(usa) : duplas(usa), pe = c.formato === 'scramble' ? trios(eur) : duplas(eur);
+      // Acantilados: el mejor con el peor; Miramar: de a dos por handicap (otras parejas)
+      var deADos = function (eq) { var r = []; for (var q = 0; q + 1 < eq.length; q += 2) r.push([String(eq[q].matricula), String(eq[q + 1].matricula)]); return r; };
+      var arma = c.id === 'miramar' ? deADos : duplas;
+      var pu = c.formato === 'scramble' ? trios(usa) : arma(usa), pe = c.formato === 'scramble' ? trios(eur) : arma(eur);
+      if (c.id === 'miramar') pe = pe.slice(1).concat(pe.slice(0, 1));   // otros cruces
       for (i = 0; i < Math.min(pu.length, pe.length); i++) lista.push({ usa: pu[i], eur: pe[i] });
     }
     lista.forEach(function (m, k) {
@@ -1503,8 +1509,17 @@ function generarTest() {
     });
   });
 
+  // Handicap de cancha del día (como el que da la tarjeta de cada club, por slope)
+  var slope = { acantilados: 1.08, miramar: 1.12, catedral: 1.05 }, hcpC = {};
+  canchas.forEach(function (c) {
+    if (!slope[c.id]) return;
+    hcpC[c.id] = {};
+    jugadores.forEach(function (j) { hcpC[c.id][j.matricula] = Math.round(j.handicap * slope[c.id]); });
+  });
+
   return {
     torneo: { nombre: 'Ryder MDQ', sede: 'Mar del Plata', edicion: '2026' },
+    hcpCancha: hcpC,
     equipos: { azul: { nombre: 'Team Europe', capitan: '9002' }, rojo: { nombre: 'Team USA', capitan: '9001' } },
     jugadores: jugadores, canchas: canchas, tarjetas: tarjetas,
     partidos: partidos, tarjetasEquipo: tarjetasEquipo,
@@ -1515,17 +1530,17 @@ function jugador2(lista, mat) {
   for (var i = 0; i < lista.length; i++) if (String(lista[i].matricula) === String(mat)) return lista[i];
   return { handicap: 18 };
 }
-function guardarTest() { if (TEST) guardarLS('gtm-test-v69', E); }
+function guardarTest() { if (TEST) guardarLS('gtm-test-v82', E); }
 
 function entrarTest(regenerar) {
   if (!TEST) PROD = E;
-  var guardado = regenerar ? null : leerLS('gtm-test-v69', null);
+  var guardado = regenerar ? null : leerLS('gtm-test-v82', null);
   E = guardado || generarTest();
-  guardarLS('gtm-test-v69', E);
+  guardarLS('gtm-test-v82', E);
   TEST = true; guardarLS('gtm-test-on', true);
   UI.yoTest = (E.jugadores.filter(function (j) { return j.rol === 'admin'; })[0] || E.jugadores[0]).matricula;
   UI.cancha = E.canchas[0].id; UI.canchaLb = 'general'; UI.canchaRyder = 'general'; UI.lineas = {};
-  UI.tab = 'posiciones'; UI.hoyo = 0;
+  UI.tab = 'ryder'; UI.hoyo = 0; UI.armando = null; UI.modoCarga = null;
   guardarUI(); pintar(); refrescarProd();
 }
 function salirTest() {
@@ -3913,7 +3928,7 @@ TEST = false; guardarLS('gtm-test-on', false);
 UI.tab = 'ryder'; UI.canchaRyder = 'general';
 if (TEST) {
   PROD = E;
-  E = leerLS('gtm-test-v69', null) || generarTest();
+  E = leerLS('gtm-test-v82', null) || generarTest();
   if (!UI.yoTest) UI.yoTest = (E.jugadores.filter(function (j) { return j.rol === 'admin'; })[0] || E.jugadores[0]).matricula;
   refrescarProd();
 }
