@@ -326,7 +326,7 @@ function responder(obj) {
 function despachar(p) {
   try {
     switch (p.accion) {
-      case 'ping':      return { ok: true, version: 89 };
+      case 'ping':      return { ok: true, version: 90 };
       case 'diag':      return diagnostico();
       case 'registrar': return registrar(p);
       case 'precargar': exigir(p.token, true); return precargarPerfiles_();
