@@ -2,7 +2,7 @@
 (function () {
 'use strict';
 
-var VERSION = 'v80';                     // tiene que coincidir con el CACHE del sw.js
+var VERSION = 'v81';                     // tiene que coincidir con el CACHE del sw.js
 var LS = { ses: 'gtm-sesion', est: 'gtm-estado', cola: 'gtm-cola', ui: 'gtm-ui' };
 var API = (window.GTM_CONFIG && window.GTM_CONFIG.api) || '';
 
@@ -1541,7 +1541,11 @@ function vistaRapida(ryder) {
   if (ryder) PR = PR_R || (PR_R = prNuevaRyder());
   else PR = PR_N || (PR_N = prNueva());
   if (PR.id) return prVistaJuego();
-  return ryder ? prVistaArmadoRyder() : prVistaArmado();
+  // El botón 🏆 Ryder de arriba ahora lleva a la copa; la partida rápida Ryder se elige acá.
+  var sel = '<div class="seg" role="group" style="margin-bottom:10px">' +
+    '<button data-acc="rapida" aria-pressed="' + !ryder + '">Partida común</button>' +
+    '<button data-acc="rapida-ryder" aria-pressed="' + !!ryder + '">Ryder rápida</button></div>';
+  return sel + (ryder ? prVistaArmadoRyder() : prVistaArmado());
 }
 
 /* Nombre y handicap de cada uno. Se puede tocar antes de empezar y también
@@ -3275,8 +3279,8 @@ function pintar() {
     (navigator.onLine ? 'Vivo' : 'Sin señal') + '</button>' +
     '<button class="chip-test' + (TEST ? ' on' : '') + '" ' +
     (TEST ? 'data-acc="tab" data-v="testeo"' : 'data-acc="test-entrar"') + '>🧪 Testeo</button>' +
-    '<button class="chip-test' + (UI.tab === 'rapida' ? ' on' : '') + '" data-acc="rapida">⚡ Partida</button>' +
-    '<button class="chip-test' + (UI.tab === 'rapidaRyder' ? ' on' : '') + '" data-acc="rapida-ryder">🏆 Ryder</button>' +
+    '<button class="chip-test' + (UI.tab === 'rapida' || UI.tab === 'rapidaRyder' ? ' on' : '') + '" data-acc="rapida">⚡ Partida</button>' +
+    '<button class="chip-test' + (!TEST && ['rapida', 'rapidaRyder', 'testeo'].indexOf(UI.tab) < 0 ? ' on' : '') + '" data-acc="copa">🏆 Ryder</button>' +
     '<button class="btn-perfil" data-acc="ir-perfil">' + avatar(y) +
     '<span class="nom">' + esc(nombreCorto(y ? y.nombre : '')) + '</span></button></div></div>' +
     '<nav class="tabs">' + TABS.map(function (t) {
@@ -3310,6 +3314,7 @@ document.addEventListener('click', function (ev) {
   if (a === 'test-regenerar') { if (confirm('Se sortean de nuevo handicaps, tarjetas y partidos. ¿Seguimos?')) entrarTest(true); return; }
   if (a === 'test-yo') { UI.yoTest = v; UI.hoyo = 0; UI.selector = false; guardarUI(); pintar(); return; }
   if (a === 'rapida') { UI.tab = 'rapida'; guardarUI(); pintar(); return; }
+  if (a === 'copa') { if (TEST) salirTest(); UI.tab = 'ryder'; UI.canchaRyder = 'general'; guardarUI(); pintar(); window.scrollTo(0, 0); return; }
   if (a === 'rapida-ryder') { UI.tab = 'rapidaRyder'; guardarUI(); pintar(); return; }
   if (a && a.indexOf('pr-') === 0) { accionRapida(a, v, b); return; }
   if (a === 'sync') { sincronizar(); return; }
@@ -3902,6 +3907,10 @@ document.addEventListener('visibilitychange', function () {
   if (!document.hidden && SES && navigator.onLine) { sincronizar(); traerEstado().then(pintar, function () {}); }
 });
 
+/* Al abrir, la app arranca en la copa (datos reales, pestaña Ryder → General), no en el
+   testeo (Andres, 20/11). El testeo se prende con su botón; lo cargado ahí queda guardado. */
+TEST = false; guardarLS('gtm-test-on', false);
+UI.tab = 'ryder'; UI.canchaRyder = 'general';
 if (TEST) {
   PROD = E;
   E = leerLS('gtm-test-v69', null) || generarTest();
