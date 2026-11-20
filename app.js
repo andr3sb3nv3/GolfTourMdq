@@ -2,7 +2,7 @@
 (function () {
 'use strict';
 
-var VERSION = 'v86';                     // tiene que coincidir con el CACHE del sw.js
+var VERSION = 'v87';                     // tiene que coincidir con el CACHE del sw.js
 var LS = { ses: 'gtm-sesion', est: 'gtm-estado', cola: 'gtm-cola', ui: 'gtm-ui' };
 var API = (window.GTM_CONFIG && window.GTM_CONFIG.api) || '';
 
@@ -1558,7 +1558,7 @@ function escenarioTest(esc) {
   TEST = true; guardarLS('gtm-test-on', true);
   UI.yoTest = (E.jugadores.filter(function (j) { return j.rol === 'admin'; })[0] || E.jugadores[0]).matricula;
   UI.lineas = {}; UI.hoyo = 0; UI.armando = null; UI.modoCarga = null;
-  UI.tab = 'ryder'; UI.canchaLb = 'general';
+  UI.tab = 'cargar'; UI.canchaLb = 'general';
   UI.canchaRyder = ORDEN_GIRA.indexOf(esc) >= 0 ? esc : 'general';
   UI.cancha = ORDEN_GIRA.indexOf(esc) >= 0 ? esc : E.canchas[0].id;
   guardarUI(); pintar(); window.scrollTo(0, 0);
@@ -1573,7 +1573,7 @@ function entrarTest(regenerar) {
   TEST = true; guardarLS('gtm-test-on', true);
   UI.yoTest = (E.jugadores.filter(function (j) { return j.rol === 'admin'; })[0] || E.jugadores[0]).matricula;
   UI.cancha = E.canchas[0].id; UI.canchaLb = 'general'; UI.canchaRyder = 'general'; UI.lineas = {};
-  UI.tab = 'ryder'; UI.hoyo = 0; UI.armando = null; UI.modoCarga = null;
+  UI.tab = 'cargar'; UI.hoyo = 0; UI.armando = null; UI.modoCarga = null;
   guardarUI(); pintar(); refrescarProd();
 }
 function salirTest() {
@@ -2431,7 +2431,7 @@ function vistaRyder() {
   var admin = !!yo(), fmt = c.formato || '';   // cualquiera con sesión edita todo (Andres, 20/11)
   var ms = partidosDe(cid), marca = marcadorRyder(cid), gral = marcadorRyder('general');
   var arma = puedeArmar('usa') || puedeArmar('eur');
-  var armando = arma && (!ms.length || (UI.armando === cid));
+  var armando = arma && UI.armando === cid;   // el editor se abre solo si lo piden
 
   var h = '<div class="pila">' + chipsCancha(cid, 'ryder-cancha', true);
 
@@ -2456,7 +2456,8 @@ function vistaRyder() {
     return h + '</div>';
   }
   if (!ms.length) {
-    h += '<p class="vacio">Los capitanes todavía no armaron las líneas de esta cancha.</p>';
+    h += '<p class="vacio">Todavía no están armadas las líneas de esta cancha. Se arman la noche anterior.</p>' +
+      (arma ? '<div class="acc"><button class="btn fin" data-acc="armar-lineas" data-v="' + cid + '">✏️ Armar las líneas a mano</button></div>' : '');
     return h + '</section></div>';
   }
 
@@ -2869,6 +2870,7 @@ function tiraLinea(pr, titulo) {
 }
 
 function selectorCarga(c, armando) {
+  if (c && FORMATO_GIRA[c.id]) return '';   // copa: solo líneas, sin "Armar líneas" ni "Mi tarjeta"
   if (!c || !c.formato) return '';
   var hay = lineasDe(c.id).length, md = armando ? 'armar' : (UI.modoCarga === 'mia' ? 'mia' : 'linea');
   return '<div class="seg" role="group">' +
@@ -2983,18 +2985,20 @@ function avisoSalidas(st) {
 function vistaCargar() {
   var c = canchaActual(), j = yo();
   if (!c || !j) return '<p class="vacio">Cargando…</p>';
-  if (c.formato && (UI.modoCarga === 'armar' || (!lineasDe(c.id).length && UI.modoCarga !== 'mia')))
-    return '<div class="pila">' + chipsCancha(c.id, 'sel-cancha', false) + selectorCarga(c, true) + editorLineas(c) + '</div>';
+  /* En la copa solo se carga la línea que se está jugando (Andres, 20/11): no hay "Mi tarjeta"
+     ni armado de líneas acá; las líneas se arman la noche anterior (con Claude). */
+  if (c.formato && !lineasDe(c.id).length)
+    return '<div class="pila">' + chipsCancha(c.id, 'sel-cancha', false) +
+      '<p class="vacio">Todavía no están armadas las líneas de <b>' + esc(etiquetaCancha(c)) + '</b>. Se arman la noche anterior; ' +
+      'apenas estén, acá elegís tu línea y cargás el gross de cada uno.</p></div>';
   if (c.formato === 'scramble') {
     var ssc = lineaSel(c.id);
     if (ssc.l) return vistaScramble(c, ssc);
     return '<div class="pila">' + chipsCancha(c.id, 'sel-cancha', false) +
-      '<p class="vacio">Todavía no están armadas las líneas del scramble. El organizador las arma en la pestaña <b>Ryder</b>.</p></div>';
+      '<p class="vacio">Todavía no están armadas las líneas del scramble. Se arman la noche anterior.</p></div>';
   }
-  if (UI.modoCarga !== 'mia') {
-    var ln = vistaLinea();
-    if (ln) return ln;
-  }
+  var ln = vistaLinea();
+  if (ln) return ln;
   var fs = esFoursomes(c, j);
   var arr = fs ? tarjetaEquipo(fs.m.id, fs.lado) : hoyosDe(c.id, j.matricula);
   var r = fs ? calcTarjeta(c, arr, 0) : calc(c, j);
@@ -3264,7 +3268,7 @@ function vistaPerfil() {
 }
 
 /* ============ armado ============ */
-var TABS = [['posiciones', 'Medal'], ['ryder', 'Ryder'], ['cargar', 'Cargar'], ['tarjetas', 'Tarjetas'], ['jugadores', 'Jugadores'], ['canchas', 'Canchas']];
+var TABS = [['cargar', 'Cargar'], ['ryder', 'Ryder'], ['posiciones', 'Medal'], ['tarjetas', 'Tarjetas'], ['jugadores', 'Jugadores'], ['canchas', 'Canchas']];
 
 function desplegableJugadores() {
   if (!TEST || !UI.selector) return '';
@@ -3374,7 +3378,7 @@ document.addEventListener('click', function (ev) {
   if (a === 'test-regenerar') { if (confirm('Se sortean de nuevo handicaps, tarjetas y partidos. ¿Seguimos?')) entrarTest(true); return; }
   if (a === 'test-yo') { UI.yoTest = v; UI.hoyo = 0; UI.selector = false; guardarUI(); pintar(); return; }
   if (a === 'rapida') { UI.tab = 'rapida'; guardarUI(); pintar(); return; }
-  if (a === 'copa') { if (TEST) salirTest(); UI.tab = 'ryder'; UI.canchaRyder = 'general'; guardarUI(); pintar(); window.scrollTo(0, 0); return; }
+  if (a === 'copa') { if (TEST) salirTest(); UI.tab = 'cargar'; UI.canchaRyder = 'general'; guardarUI(); pintar(); window.scrollTo(0, 0); return; }
   if (a === 'rapida-ryder') { UI.tab = 'rapidaRyder'; guardarUI(); pintar(); return; }
   if (a && a.indexOf('pr-') === 0) { accionRapida(a, v, b); return; }
   if (a === 'sync') { sincronizar(); return; }
@@ -3970,7 +3974,7 @@ document.addEventListener('visibilitychange', function () {
 /* Al abrir, la app arranca en la copa (datos reales, pestaña Ryder → General), no en el
    testeo (Andres, 20/11). El testeo se prende con su botón; lo cargado ahí queda guardado. */
 TEST = false; guardarLS('gtm-test-on', false);
-UI.tab = 'ryder'; UI.canchaRyder = 'general';
+UI.tab = 'cargar'; UI.canchaRyder = 'general'; UI.modoCarga = null; UI.armando = null;
 if (TEST) {
   PROD = E;
   E = leerLS('gtm-test-v82', null) || generarTest();
