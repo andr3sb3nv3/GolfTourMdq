@@ -2,7 +2,7 @@
 (function () {
 'use strict';
 
-var VERSION = 'v78';                     // tiene que coincidir con el CACHE del sw.js
+var VERSION = 'v79';                     // tiene que coincidir con el CACHE del sw.js
 var LS = { ses: 'gtm-sesion', est: 'gtm-estado', cola: 'gtm-cola', ui: 'gtm-ui' };
 var API = (window.GTM_CONFIG && window.GTM_CONFIG.api) || '';
 
@@ -186,7 +186,8 @@ function golpesHoyo(p, si) {
   if (p >= 0) return Math.floor(p / 18) + (si <= (p % 18) ? 1 : 0);
   var q = -p; return -(Math.floor(q / 18) + (si >= 19 - (q % 18) ? 1 : 0));
 }
-function calc(c, j) { return calcTarjeta(c, hoyosDe(c.id, j.matricula), hcpJuego(j)); }
+// Stableford individual: handicap de cancha del día al 100% (si no está cargado, el del perfil).
+function calc(c, j) { return calcTarjeta(c, hoyosDe(c.id, j.matricula), Math.round(hcpCancha(c.id, j))); }
 function calcTarjeta(c, arr, p) {
   arr = arr || [];
   var r = { thru: 0, bruto: 0, neto: 0, pts: 0, parJug: 0, birdies: 0, eagles: 0, hoyos: [] };
@@ -451,6 +452,10 @@ function accionarTest(c) {
       if (m.id === c.partido) m[c.lado === 'usa' ? 'hcpUsa' : 'hcpEur'] = numeroHcp(c.hcp);
     });
   } else if (c.accion === 'borrar') { E.tarjetas = []; E.tarjetasEquipo = []; }
+  else if (c.accion === 'hcpCancha') {
+    E.hcpCancha = E.hcpCancha || {}; var hc = E.hcpCancha[c.cancha] = E.hcpCancha[c.cancha] || {};
+    (c.lista || []).forEach(function (x) { var n = numeroHcp(x.hcp); if (n == null) delete hc[x.matricula]; else hc[x.matricula] = n; });
+  }
   else if (c.accion === 'reiniciar') {
     var toca = function (cid) { return c.cancha === 'todo' || cid === c.cancha; };
     var deCancha = {};
@@ -2108,6 +2113,21 @@ function golpesUnaPelota(m) {
 // Handicap de juego del match: el 85% de la casa. El Medal Neto no se toca:
 // ese sigue con el handicap completo, que es lo que corresponde en medal.
 function ph(j) { return hcpDeJuego(j && j.handicap, ALLOWANCE); }
+/* Handicap de cancha del día (el que da la tarjeta del club, ajustado por slope). Se carga
+   por cancha y jugador; si no está, vale el handicap del perfil. */
+function hcpCancha(cid, j) {
+  var o = E.hcpCancha && E.hcpCancha[cid], v = o && o[String(j.matricula)];
+  if (v != null && v !== '') return Number(v);
+  var n = numeroHcp(j.handicap); return n == null ? 0 : n;
+}
+function hcpCanchaCargado(cid, j) { var o = E.hcpCancha && E.hcpCancha[cid]; return !!o && o[String(j.matricula)] != null; }
+/* Golpes de match (four-ball e individuales, regla WHS que pasó Andres el 20/11): el de
+   menor handicap de cancha del partido juega en 0 y los demás reciben el 85% de la
+   diferencia, redondeado al entero más cercano. Caen en los hoyos de menor índice. */
+function golpesMatch(cid, j, todos) {
+  var b = Math.min.apply(null, todos.map(function (x) { return hcpCancha(cid, x); }));
+  return Math.round(ALLOWANCE * (hcpCancha(cid, j) - b) + 1e-9);
+}
 // Golpes que recibe quien tiene 'diff' de diferencia, en el hoyo de índice si
 function golpesDif(diff, si) {
   if (diff <= 0) return 0;
@@ -2154,7 +2174,7 @@ function calcularPartido(m) {
     }
   } else {
     var todos = usa.concat(eur);
-    var base = Math.min.apply(null, todos.map(ph));
+    var gm = {}; todos.forEach(function (j) { gm[j.matricula] = golpesMatch(c.id, j, todos); });
     for (i = 0; i < 18; i++) {
       var idx = Number(c.si[i]) || (i + 1);
       // Se anota el gross de cada uno; el golpe de handicap (85%) lo pone la app.
@@ -2163,7 +2183,7 @@ function calcularPartido(m) {
         equipo.forEach(function (j) {
           var g = hoyosDe(c.id, j.matricula)[i];
           if (g == null) return;
-          var neto = g - golpesDif(ph(j) - base, idx);
+          var neto = g - golpesDif(gm[j.matricula], idx);
           if (mejor === null || neto < mejor || (neto === mejor && g < gross)) { mejor = neto; gross = g; }   // four-ball: la mejor bola
         });
         return { neto: mejor, gross: gross };
@@ -2715,12 +2735,12 @@ function vistaLinea() {
                      destino: 'lado:' + mm.id + '|' + lado });
       });
     } else {
-      var js = jugadoresDeLinea(mm);
-      var base = Math.min.apply(null, js.map(ph));
+      var js = jugadoresDeLinea(mm), delMatch = mm.usa.concat(mm.eur).map(jugador).filter(Boolean);
       js.forEach(function (x) {
-        filas.push({ etiqueta: nombreCorto(x.nombre), sub: 'HCP ' + x.handicap + ' · juega ' + ph(x),
+        var rx = golpesMatch(c.id, x, delMatch);
+        filas.push({ etiqueta: nombreCorto(x.nombre), sub: 'HCP cancha ' + fmtNum(hcpCancha(c.id, x)) + ' · recibe ' + rx,
                      clase: claseTxt(x),
-                     golpes: golpesDif(ph(x) - base, si),
+                     golpes: golpesDif(rx, si),
                      valor: hoyosDe(c.id, x.matricula)[i],
                      destino: 'jug:' + x.matricula,
                      corte: varios && filas.length > 0 && js.indexOf(x) === 0 });
@@ -3090,6 +3110,17 @@ function vistaCanchas() {
         '</div>' + nota('<div class="candado"><span>📋</span><span>El índice de cada hoyo va del 1 al 18: el <b>1</b> es el más difícil, ' +
         'y es donde se dan los primeros golpes de handicap.</span></div>');
     }
+    if (c.formato !== 'scramble') {
+      h += '<div class="sec-tit" style="padding-top:12px"><h2 style="font-size:16px">Handicap de cancha del día</h2></div><div class="hc-lista">' +
+        E.jugadores.slice().sort(function (a, b) { return (a.equipo || '').localeCompare(b.equipo || '') || String(a.nombre).localeCompare(String(b.nombre)); })
+        .map(function (j) {
+          var o = E.hcpCancha && E.hcpCancha[c.id], v = o && o[String(j.matricula)] != null ? o[String(j.matricula)] : '';
+          return '<label class="hc-fila"><span class="' + claseTxt(j).trim() + '">' + esc(nombreCorto(j.nombre)) + '</span>' +
+            '<input type="text" inputmode="decimal" value="' + esc(v) + '" placeholder="' + esc(j.handicap) + '" data-acc="ed-hcp-cancha" data-v="' + c.id + '" data-i="' + esc(j.matricula) + '"' + (admin ? '' : ' disabled') + '></label>';
+        }).join('') + '</div>' +
+        nota('<div class="candado"><span>🏷️</span><span>El que figura en la tarjeta del club ese día (ajustado por slope). Vacío: se usa el del perfil (en gris). ' +
+        'En el match, el de menor handicap de los cuatro juega en 0 y los demás reciben el <b>85% de la diferencia</b>, redondeado. El Stableford usa el handicap de cancha completo.</span></div>');
+    }
     h += nota('<div class="candado"><span>🎛️</span><span><b>' + esc(etiquetaCancha(c)) + '</b> (' + esc(fechaCancha(c)) + '): la modalidad ' +
       'de equipos (' + (FORMATOS[c.formato] || 'sin definir') + ') se elige en la pestaña <b>Ryder</b>.</span></div>');
     h += '</section>';
@@ -3412,6 +3443,7 @@ document.addEventListener('change', function (ev) {
     sels.forEach(function (x) { if (x.value && mats.indexOf(x.value) < 0) mats.push(x.value); });
     accionar({ accion: 'linea', cancha: v, lado: ladoL, n: Number(nL), mats: mats });
   }
+  else if (a === 'ed-hcp-cancha') { accionar({ accion: 'hcpCancha', cancha: v, lista: [{ matricula: el.getAttribute('data-i'), hcp: el.value.trim() }] }); }
   else if (a === 'ed-hcp-eq') { accionar({ accion: 'hcpEquipo', partido: v, lado: el.getAttribute('data-i'), hcp: el.value.trim() }); }
   else if (a === 'ed-eq') { var q = { accion: 'equipos' }; q[v] = el.value.trim(); accionar(q); }
   else if (a === 'ed-torneo') { var t = { accion: 'torneo' }; t[v] = el.value.trim(); accionar(t); }

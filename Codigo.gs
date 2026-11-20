@@ -20,6 +20,7 @@ var HOJAS = {
   Canchas:   ['id', 'dia', 'nombre', 'confirmada', 'formato'],   // + par1..par18 + si1..si18
   Tarjetas:  ['cancha', 'matricula'],                 // + h1..h18 + actualizado
   Partidos:  ['id', 'cancha', 'formato', 'usa1', 'usa2', 'eur1', 'eur2', 'usa3', 'eur3', 'hcpUsa', 'hcpEur'],   // usa3/eur3 y hcp del equipo: scramble de a 3
+  HcpCancha: ['cancha', 'matricula', 'hcp'],         // handicap de cancha del día (por slope), lo da la tarjeta del club
   TarjetasEquipo: ['partido', 'lado'],               // + h1..h18 + actualizado
   Partidas:  ['id', 'fecha', 'cancha', 'modalidad', 'jugadores', 'creador', 'hoja', 'resultado'],
   Log:       ['fecha', 'matricula', 'accion', 'detalle']
@@ -325,7 +326,7 @@ function responder(obj) {
 function despachar(p) {
   try {
     switch (p.accion) {
-      case 'ping':      return { ok: true, version: 78 };
+      case 'ping':      return { ok: true, version: 79 };
       case 'diag':      return diagnostico();
       case 'registrar': return registrar(p);
       case 'precargar': exigir(p.token, true); return precargarPerfiles_();
@@ -352,6 +353,7 @@ function despachar(p) {
       case 'prLeer':    return prLeer(p);
       case 'borrar':    return borrarTarjetas(p);
       case 'reiniciar': return reiniciarDatos_(p);
+      case 'hcpCancha': return guardarHcpCancha_(p);
       case 'avisos':    return avisosPublicos(p);
       case 'pushClave': return pushClave();
       case 'pushAlta':  return pushAlta(p);
@@ -712,6 +714,15 @@ function estadoCrudo() {
       while (sal.length < 18) sal.push(null);
       return { partido: String(t.partido), lado: t.lado, hoyos: h, salidas: sal };
     }),
+    hcpCancha: (function () {
+      var o = {};
+      leer('HcpCancha').forEach(function (r) {
+        var v = hcpONull(r.hcp);
+        if (v == null || !r.cancha) return;
+        (o[r.cancha] = o[r.cancha] || {})[String(r.matricula).trim()] = v;
+      });
+      return o;
+    })(),
     tarjetas: leer('Tarjetas').map(function (t) {
       var h = [];
       for (var i = 1; i <= 18; i++) { var v = t['h' + i]; h.push(v === '' || v === null ? null : Number(v)); }
@@ -876,7 +887,7 @@ function guardarEquipos(p) {
    de equipo de esa cancha; con lineas:true borra además los partidos (líneas).
    No toca jugadores, fotos ni canchas. */
 function reiniciarDatos_(p) {
-  var j = exigir(p.token);
+  var j = exigirP_(p);
   var cid = String(p.cancha || ''), todo = cid === 'todo';
   if (!cid) return { ok: false, error: 'faltan_datos' };
   var lock = LockService.getScriptLock();
@@ -900,6 +911,37 @@ function reiniciarDatos_(p) {
   limpiarCache();
   return { ok: true, estado: estadoCrudo() };
 }
+/* Claude (el asistente de Andres) carga parejas y handicaps de cancha la noche anterior
+   desde afuera de la app: manda la clave guardada en Propiedades del script como
+   CLAVE_CLAUDE. Si no está configurada, solo vale la sesión normal. */
+function exigirP_(p) {
+  var k = PropertiesService.getScriptProperties().getProperty('CLAVE_CLAUDE');
+  if (k && p.clave && String(p.clave) === String(k)) return { matricula: 'claude', nombre: 'Claude', rol: 'jugador' };
+  return exigir(p.token);
+}
+/* Handicap de cancha del día: lista [{ matricula, hcp }] para una cancha. hcp vacío lo borra
+   (vuelve al handicap del perfil). Con eso la app calcula los golpes de cada hoyo. */
+function guardarHcpCancha_(p) {
+  var j = exigirP_(p);
+  if (!p.cancha || !p.lista || !p.lista.length) return { ok: false, error: 'faltan_datos' };
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var ss = SpreadsheetApp.openById(SS_ID), hoja = ss.getSheetByName('HcpCancha');
+    if (!hoja) { hoja = ss.insertSheet('HcpCancha'); hoja.appendRow(HOJAS.HcpCancha); }
+    var v = hoja.getLastRow() > 1 ? hoja.getRange(2, 1, hoja.getLastRow() - 1, 3).getValues() : [];
+    p.lista.forEach(function (x) {
+      var mat = String(x.matricula || '').trim(); if (!mat) return;
+      var val = hcpONull(x.hcp), fila = 0;
+      for (var i = 0; i < v.length; i++) if (String(v[i][0]) === String(p.cancha) && String(v[i][1]).trim() === mat) { fila = i + 2; break; }
+      if (fila) hoja.getRange(fila, 3).setValue(val == null ? '' : val);
+      else if (val != null) { hoja.appendRow([p.cancha, mat, val]); v.push([p.cancha, mat, val]); }
+    });
+  } finally { lock.releaseLock(); }
+  anotar(j.matricula, 'hcpCancha', p.cancha + ' · ' + p.lista.length + ' jugador(es)');
+  limpiarCache();
+  return { ok: true, estado: estadoCrudo() };
+}
 function borrarTarjetas(p) {
   var j = exigir(p.token);
   var hoja = SpreadsheetApp.openById(SS_ID).getSheetByName('Tarjetas');
@@ -914,7 +956,7 @@ function borrarTarjetas(p) {
  * lista: [{ usa:[mat,mat], eur:[mat,mat] }]  — en singles, un solo jugador por lado.
  */
 function guardarPartidos(p) {
-  var j = exigir(p.token);
+  var j = exigirP_(p);
   if (!p.cancha) return { ok: false, error: 'faltan_datos' };
   var lock = LockService.getScriptLock();
   lock.waitLock(20000);
