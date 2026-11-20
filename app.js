@@ -2,7 +2,7 @@
 (function () {
 'use strict';
 
-var VERSION = 'v87';                     // tiene que coincidir con el CACHE del sw.js
+var VERSION = 'v88';                     // tiene que coincidir con el CACHE del sw.js
 var LS = { ses: 'gtm-sesion', est: 'gtm-estado', cola: 'gtm-cola', ui: 'gtm-ui' };
 var API = (window.GTM_CONFIG && window.GTM_CONFIG.api) || '';
 
@@ -920,11 +920,20 @@ function hcpDeJuego(bruto, pct) {
   return Math.round((n == null ? 0 : n) * pct);
 }
 function hcpPR(j) { return hcpDeJuego(j && j.hcp, prPct()); }
+/* Partida: el handicap que se anota es el de la tarjeta del día (por tee y slope). Golpes
+   (regla WHS, Andres 20/11): el más bajo de los que se comparan juega en 0 y los demás
+   reciben el % elegido (85% por defecto) de la diferencia, redondeado. */
+function hcpCrudoPR(j) { var n = numeroHcp(j && j.hcp); return n == null ? 0 : n; }
+function golpesPR(k, ks) {
+  var b = Math.min.apply(null, ks.map(function (x) { return hcpCrudoPR(PR.jugadores[x]); }));
+  return Math.round(prPct() * (hcpCrudoPR(PR.jugadores[k]) - b) + 1e-9);
+}
+function todosPR() { return PR.jugadores.map(function (j, k) { return k; }); }
 
 // Si todos tienen el mismo handicap no hay golpes de diferencia: el neto es el bruto.
 function prTodosIgual() {
   if (PR.jugadores.length < 2) return false;
-  var hs = PR.jugadores.map(hcpPR);
+  var hs = PR.jugadores.map(hcpCrudoPR);
   return Math.max.apply(null, hs) === Math.min.apply(null, hs);
 }
 function prBase() {
@@ -932,7 +941,7 @@ function prBase() {
 }
 function prRecibe(k, hoyo) {                 // golpes que recibe un jugador en un hoyo
   var c = canchaPR(PR.cancha);
-  return golpesDif(hcpPR(PR.jugadores[k]) - prBase(), Number(c.si[hoyo]) || (hoyo + 1));
+  return golpesDif(golpesPR(k, todosPR()), Number(c.si[hoyo]) || (hoyo + 1));
 }
 function prNetos(hoyo) {
   return PR.jugadores.map(function (j, k) {
@@ -1171,12 +1180,12 @@ function prRyder() {
   var r = { lados: l, mods: [] };
 
   // Four-ball: mejor bola neta, todos contra el más bajo de los cuatro
-  var base4 = Math.min.apply(null, [0, 1, 2, 3].map(ph));
+  var g4 = [0, 1, 2, 3].map(function (k) { return golpesPR(k, [0, 1, 2, 3]); });
   var fbNeto = function (lado) {
     var t = [];
     for (i = 0; i < 18; i++) {
       var gs = ryGolpes(lado, i);
-      t.push(gs ? Math.min.apply(null, gs.map(function (g, x) { return g - golpesDif(ph(lado[x]) - base4, siDe(i)); })) : null);
+      t.push(gs ? Math.min.apply(null, gs.map(function (g, x) { return g - golpesDif(g4[lado[x]], siDe(i)); })) : null);
     }
     return t;
   };
@@ -1186,8 +1195,9 @@ function prRyder() {
 
   // Foursome: una pelota por pareja (acá, el promedio de los dos). Handicap del
   // lado = promedio de los handicaps de juego; recibe la diferencia el más alto.
-  var hA = (ph(l.a[0]) + ph(l.a[1])) / 2, hB = (ph(l.b[0]) + ph(l.b[1])) / 2;
-  var difFs = Math.round(Math.abs(hA - hB)), recFs = hA > hB ? 'a' : 'b';
+  var cru = function (k) { return hcpCrudoPR(PR.jugadores[k]); };
+  var hA = (cru(l.a[0]) + cru(l.a[1])) / 2, hB = (cru(l.b[0]) + cru(l.b[1])) / 2;
+  var difFs = Math.round(pct * Math.abs(hA - hB) + 1e-9), recFs = hA > hB ? 'a' : 'b';
   var fsNeto = function (lado, quien) {
     var t = [];
     for (i = 0; i < 18; i++) {
@@ -1238,19 +1248,19 @@ function prRyder() {
 
   // Individual: dos singles, cada uno con la diferencia entre los dos
   r.singles = rySingles(l).map(function (par) {
-    var base = Math.min(ph(par[0]), ph(par[1]));
+    var gs1 = {}; gs1[par[0]] = golpesPR(par[0], par); gs1[par[1]] = golpesPR(par[1], par);
     var tira = function (k) {
       var t = [];
       for (i = 0; i < 18; i++) {
         var g = PR.jugadores[k].hoyos[i];
-        t.push(g == null ? null : g - golpesDif(ph(k) - base, siDe(i)));
+        t.push(g == null ? null : g - golpesDif(gs1[k], siDe(i)));
       }
       return t;
     };
     var m = ryMatch(tira(par[0]), tira(par[1]));
     m.ka = par[0]; m.kb = par[1];
-    m.dif = Math.abs(ph(par[0]) - ph(par[1]));
-    m.recibe = ph(par[0]) > ph(par[1]) ? par[0] : (ph(par[1]) > ph(par[0]) ? par[1] : null);
+    m.dif = Math.max(gs1[par[0]], gs1[par[1]]);
+    m.recibe = gs1[par[0]] > gs1[par[1]] ? par[0] : (gs1[par[1]] > gs1[par[0]] ? par[1] : null);
     return m;
   });
 
@@ -1672,9 +1682,8 @@ function prSelectorPct() {
 }
 function prTextoPct() {
   var pct = prPct();
-  if (pct === 1) return 'El match usa el handicap completo de cada uno.';
-  return 'Cada uno juega el match con el <b>' + Math.round(pct * 100) + '%</b> de su handicap. ' +
-    'Sobre esos handicaps reducidos, el más bajo va scratch y los demás reciben la diferencia, ' +
+  return 'Anotá el <b>handicap de la tarjeta del día</b> (según el tee y el slope de la cancha). ' +
+    'En cada match el más bajo va en 0 y los demás reciben el <b>' + Math.round(pct * 100) + '% de la diferencia</b>, redondeado, ' +
     'hoyo por hoyo según el índice.';
 }
 
@@ -1897,12 +1906,11 @@ function prTiraMatch(m) {
 function prResumen(r) {
   var h = '<section class="card"><div class="sec-tit"><h2>Tarjeta</h2>' +
     '<span class="eyebrow">' + (r.jugados || 0) + ' hoyos</span></div>';
-  var base = prBase();
   PR.jugadores.forEach(function (j, k) {
-    var jue = hcpPR(j), dif = jue - base;
+    var dif = golpesPR(k, todosPR());
     h += '<div class="jug"><span class="av">' + esc(inicial({ nombre: j.nombre })) + '</span>' +
       '<span><span class="lb-nom">' + esc(j.nombre) + '</span>' +
-      '<span class="lb-meta">HCP ' + esc(j.hcp) + (prPct() === 1 ? '' : ' · juega ' + jue) + ' · ' +
+      '<span class="lb-meta">HCP ' + esc(j.hcp) + ' · ' +
       (dif ? 'recibe ' + dif + ' golpe' + (dif > 1 ? 's' : '') : 'scratch') + '</span></span>' +
       '<span class="lb-val"><b>' + (r.bruto[k] || '–') + '</b><span>neto ' + (r.neto[k] || '–') + '</span></span></div>';
   });
