@@ -2,7 +2,7 @@
 (function () {
 'use strict';
 
-var VERSION = 'v84';                     // tiene que coincidir con el CACHE del sw.js
+var VERSION = 'v85';                     // tiene que coincidir con el CACHE del sw.js
 var LS = { ses: 'gtm-sesion', est: 'gtm-estado', cola: 'gtm-cola', ui: 'gtm-ui' };
 var API = (window.GTM_CONFIG && window.GTM_CONFIG.api) || '';
 
@@ -2608,6 +2608,7 @@ function vistaRyderGeneral() {
   });
   h += '</div>' + nota('<div class="candado solo"><span>🧢</span><span>El organizador nombra a los dos capitanes. ' +
     'Los capitanes (o el organizador) pasan jugadores de un equipo al otro con la flecha, y en cada cancha arman sus líneas.</span></div>') + '</section>';
+  h += panelReinicio();   // Reiniciar a cero, abajo de todo en Ryder → General
   return h + '</div>';
 }
 
