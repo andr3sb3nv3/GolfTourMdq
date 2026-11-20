@@ -2,7 +2,7 @@
 (function () {
 'use strict';
 
-var VERSION = 'v76';                     // tiene que coincidir con el CACHE del sw.js
+var VERSION = 'v78';                     // tiene que coincidir con el CACHE del sw.js
 var LS = { ses: 'gtm-sesion', est: 'gtm-estado', cola: 'gtm-cola', ui: 'gtm-ui' };
 var API = (window.GTM_CONFIG && window.GTM_CONFIG.api) || '';
 
@@ -451,6 +451,14 @@ function accionarTest(c) {
       if (m.id === c.partido) m[c.lado === 'usa' ? 'hcpUsa' : 'hcpEur'] = numeroHcp(c.hcp);
     });
   } else if (c.accion === 'borrar') { E.tarjetas = []; E.tarjetasEquipo = []; }
+  else if (c.accion === 'reiniciar') {
+    var toca = function (cid) { return c.cancha === 'todo' || cid === c.cancha; };
+    var deCancha = {};
+    (E.partidos || []).forEach(function (m) { if (toca(m.cancha)) deCancha[m.id] = 1; });
+    E.tarjetas = (E.tarjetas || []).filter(function (t) { return !toca(t.cancha); });
+    E.tarjetasEquipo = (E.tarjetasEquipo || []).filter(function (t) { return !deCancha[t.partido]; });
+    if (c.lineas) E.partidos = (E.partidos || []).filter(function (m) { return !toca(m.cancha); });
+  }
   E.sello = new Date().toISOString();
   guardarTest(); pintar();
   return Promise.resolve({ ok: true });
@@ -1904,6 +1912,28 @@ function prHistorialHTML() {
   return h + '</section>';
 }
 
+/* Reiniciar a cero (Andres, 20/11): para probar la app todos juntos como si se jugara
+   de verdad y después dejarla limpia. Por cancha se borran los golpes y las salidas
+   (las líneas quedan armadas); "Todo a cero" borra además las líneas de las 4 canchas.
+   Perfiles, fotos, handicaps y equipos no se tocan. En testeo es solo en este celular;
+   fuera del testeo lo puede hacer cualquiera con sesión y lo ven todos. */
+function panelReinicio() {
+  var real = !TEST;
+  if (real && !yo()) return '';
+  return '<section class="card"><div class="sec-tit"><h2>Reiniciar a cero</h2><span class="eyebrow">' + (real ? 'datos reales' : 'solo este celular') + '</span></div>' +
+    '<div class="reinicio">' + E.canchas.map(function (c) {
+      return '<button class="btn" data-acc="reiniciar" data-v="' + esc(c.id) + '">↺ ' + esc(etiquetaCancha(c)) + '</button>';
+    }).join('') + '<button class="btn fin peli" data-acc="reiniciar" data-v="todo">Todo a cero</button></div>' +
+    nota('<div class="candado solo"><span>↺</span><span>Cada cancha borra los <b>golpes y las salidas</b> de esa cancha; las líneas quedan armadas. ' +
+    '<b>Todo a cero</b> borra los golpes y también las líneas de las 4 canchas, como si no se hubiera empezado a jugar. ' +
+    'No se tocan perfiles, fotos, handicaps ni equipos.' + (real ? ' Lo ven todos al instante.' : '') + '</span></div>') + '</section>';
+}
+function reiniciar(cid) {
+  var todo = cid === 'todo', c = todo ? null : cancha(cid);
+  var que = todo ? 'los golpes y las líneas de las 4 canchas' : 'los golpes de ' + (c ? etiquetaCancha(c) : cid);
+  if (!confirm('Se borran ' + que + (TEST ? ' (solo en este celular)' : ', para todos') + '. ¿Seguimos?')) return;
+  accionar({ accion: 'reiniciar', cancha: cid, lineas: todo });
+}
 function vistaTesteo() {
   var y = yo();
   var h = '<div class="pila">' +
@@ -1923,7 +1953,7 @@ function vistaTesteo() {
     nota('<div class="candado" style="border-top:0"><span>📋</span><span>Acantilados y Miramar four-ball · Marayui scramble de a 3 · La Catedral individuales. ' +
     'Los partidos ya están armados por handicap y las tarjetas completas.</span></div>') +
     '<div class="acc"><button class="btn" data-acc="test-regenerar">Sortear todo de nuevo</button>' +
-    '<button class="btn pri" data-acc="test-salir">Salir del testeo</button></div></section></div>';
+    '<button class="btn pri" data-acc="test-salir">Salir del testeo</button></div></section>' + panelReinicio() + '</div>';
   return h;
 }
 
@@ -2326,7 +2356,7 @@ function vistaRyder() {
   if (cid === 'general') return vistaRyderGeneral();
   var c = cancha(cid);
   if (!c) return '<p class="vacio">Cargando…</p>';
-  var admin = esAdmin(), fmt = c.formato || '';
+  var admin = !!yo(), fmt = c.formato || '';   // cualquiera con sesión edita todo (Andres, 20/11)
   var ms = partidosDe(cid), marca = marcadorRyder(cid), gral = marcadorRyder('general');
   var arma = puedeArmar('usa') || puedeArmar('eur');
   var armando = arma && (!ms.length || (UI.armando === cid));
@@ -2457,7 +2487,7 @@ function editorLineas(c) {
 /* Vista general: los puntos de toda la Ryder, cancha por cancha y partido por
    partido, más los equipos y los capitanes. */
 function vistaRyderGeneral() {
-  var gral = marcadorRyder('general'), admin = esAdmin(), y = yo();
+  var gral = marcadorRyder('general'), admin = !!yo(), y = yo();
   var h = '<div class="pila">' + chipsCancha('general', 'ryder-cancha', true) +
     '<section class="card"><div class="lb-cab"><h2>Ryder Cup</h2><span class="eyebrow">' + gral.total + ' partidos</span></div>' +
     marcadorHTML(gral) + '</section>';
@@ -3017,7 +3047,7 @@ function vistaJugadores() {
 }
 
 function vistaCanchas() {
-  var admin = esAdmin();
+  var admin = !!yo();
   var h = '<div class="pila">';
   if (!admin) h += nota('<div class="candado solo"><span>🔒</span><span>Las canchas las carga el organizador. Acá las ves como quedaron.</span></div>');
   var faltan = E.canchas.filter(function (c) { return !c.confirmada; });
@@ -3074,7 +3104,7 @@ function vistaCanchas() {
     '<div class="campo"><label for="t-rojo">Equipo rojo</label>' +
     '<input id="t-rojo" type="text" value="' + esc(nombreEquipo('rojo')) + '" data-acc="ed-eq" data-v="rojo"></div></div>' +
     '<div class="acc"><button class="btn" data-acc="exportar">Descargar planilla (CSV)</button>' +
-    '<button class="btn fin peli" data-acc="reset">Borrar todas las tarjetas</button></div></section>';
+    '<button class="btn fin peli" data-acc="reset">Borrar todas las tarjetas</button></div></section>' + panelReinicio();
   return h + '</div>';
 }
 
@@ -3194,6 +3224,8 @@ function notasHTML() {
 
 function pintar() {
   NOTAS = [];
+  var ft = document.getElementById('fv-test');   // botón flotante: muestra si estás en testeo
+  if (ft) { ft.classList.toggle('on', !!TEST); ft.querySelector('b').textContent = TEST ? 'Salir del testeo' : 'Testeo'; }
   var app = document.getElementById('app');
   if (!SES && !TEST) { app.innerHTML = vistaIngreso() + notasHTML(); return; }
   if (!E) { app.innerHTML = '<div class="pantalla"><p class="vacio">Cargando el torneo…</p></div>'; return; }
@@ -3240,6 +3272,8 @@ document.addEventListener('click', function (ev) {
   if (a === 'salir') { if (confirm('¿Cerrar sesión en este celular?')) salir(); return; }
   if (a === 'quitar-foto') { accionar({ accion: 'foto', quitar: true }); return; }
   if (a === 'test-entrar') { entrarTest(false); return; }
+  if (a === 'test-toggle') { if (TEST) salirTest(); else entrarTest(false); window.scrollTo(0, 0); return; }
+  if (a === 'reiniciar') { reiniciar(v); return; }
   if (a === 'test-salir') { salirTest(); return; }
   if (a === 'test-regenerar') { if (confirm('Se sortean de nuevo handicaps, tarjetas y partidos. ¿Seguimos?')) entrarTest(true); return; }
   if (a === 'test-yo') { UI.yoTest = v; UI.hoyo = 0; UI.selector = false; guardarUI(); pintar(); return; }

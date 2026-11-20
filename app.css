@@ -517,7 +517,15 @@ table.tc tr.yo .lbl{color:var(--eur);font-weight:800;box-shadow:inset 3px 0 0 va
 
 /* Botón flotante a la info del viaje: en todas las pantallas (vive fuera de #app).
    Deslizado hacia el costado queda plegado como una flechita azul en el borde. */
-.flot-viaje{position:fixed;z-index:44;right:0;bottom:max(16px,env(safe-area-inset-bottom))}
+.flot-viaje{position:fixed;z-index:44;right:0;bottom:max(16px,env(safe-area-inset-bottom));display:flex;flex-direction:column;align-items:flex-end;gap:8px}
+.fv-test{display:flex;align-items:center;gap:6px;margin-right:max(14px,env(safe-area-inset-right));padding:8px 14px 8px 11px;border-radius:999px;
+  background:#fff;color:var(--navy);border:2px solid var(--navy);font:800 14px/1 Archivo,"Helvetica Neue",Arial,sans-serif;
+  box-shadow:0 6px 16px -8px rgba(11,27,46,.5)}
+.fv-test span{font-size:17px;line-height:1}
+.fv-test.on{background:#E8590C;border-color:#E8590C;color:#fff}
+.flot-viaje.plegado .fv-test{display:none}
+.reinicio{display:flex;flex-wrap:wrap;gap:8px;padding:4px 16px 14px}
+.reinicio .btn{flex:1 1 140px}
 .fv-btn{display:flex;align-items:center;gap:8px;margin-right:max(14px,env(safe-area-inset-right));padding:12px 18px 12px 14px;border-radius:999px;
   background:var(--navy);color:#fff;text-decoration:none;border:2px solid var(--oro);transition:transform .2s;
   box-shadow:0 10px 24px -8px rgba(11,27,46,.55),0 2px 6px rgba(11,27,46,.25);

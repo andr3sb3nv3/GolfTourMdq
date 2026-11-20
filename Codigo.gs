@@ -325,7 +325,7 @@ function responder(obj) {
 function despachar(p) {
   try {
     switch (p.accion) {
-      case 'ping':      return { ok: true, version: 76 };
+      case 'ping':      return { ok: true, version: 78 };
       case 'diag':      return diagnostico();
       case 'registrar': return registrar(p);
       case 'precargar': exigir(p.token, true); return precargarPerfiles_();
@@ -351,6 +351,7 @@ function despachar(p) {
       case 'prLista':   return prLista(p);
       case 'prLeer':    return prLeer(p);
       case 'borrar':    return borrarTarjetas(p);
+      case 'reiniciar': return reiniciarDatos_(p);
       case 'avisos':    return avisosPublicos(p);
       case 'pushClave': return pushClave();
       case 'pushAlta':  return pushAlta(p);
@@ -810,11 +811,10 @@ function carpetaFotos() {
   return it.hasNext() ? it.next() : padre.createFolder('Fotos');
 }
 function guardarFoto(p) {
-  // Cada uno sube SU foto. El organizador puede subir (o quitar) la de cualquiera,
+  // Cualquiera con sesión sube (o quita) la foto de cualquier jugador (Andres, 20/11),
   // también la de los perfiles precargados: al reclamarlo, el jugador se la queda.
   var j = exigir(p.token);
   var mat = String(p.matricula || j.matricula).trim();
-  if (mat !== String(j.matricula).trim() && j.rol !== 'admin') return { ok: false, error: 'solo_admin' };
 
   var hoja = SpreadsheetApp.openById(SS_ID).getSheetByName('Jugadores');
   var fila = buscarFila(hoja, function (v) { return String(v[0]).trim() === mat; });
@@ -839,7 +839,7 @@ function guardarFoto(p) {
 }
 
 function guardarCancha(p) {
-  exigir(p.token, true);
+  exigir(p.token);
   var hoja = SpreadsheetApp.openById(SS_ID).getSheetByName('Canchas');
   var fila = buscarFila(hoja, function (v) { return v[0] === p.id; });
   if (!fila) return { ok: false, error: 'no_encontrada' };
@@ -854,7 +854,7 @@ function guardarCancha(p) {
 }
 
 function guardarTorneo(p) {
-  exigir(p.token, true);
+  exigir(p.token);
   if (p.nombre) escribirConfig('torneo', String(p.nombre));
   if (p.sede) escribirConfig('sede', String(p.sede));
   limpiarCache();
@@ -862,15 +862,46 @@ function guardarTorneo(p) {
 }
 
 function guardarEquipos(p) {
-  exigir(p.token, true);
+  exigir(p.token);
   if (p.azul) escribirConfig('equipoAzul', String(p.azul));
   if (p.rojo) escribirConfig('equipoRojo', String(p.rojo));
   limpiarCache();
   return { ok: true, estado: estadoCrudo() };
 }
 
+/* Cualquiera con sesión edita todo lo del juego: canchas, líneas, equipos, capitanes,
+   hcp de scramble y reinicios (Andres, 20/11). Siguen siendo del organizador solo
+   precargar perfiles y ver los códigos de contraseña.
+   Reiniciar a cero: cancha = id o 'todo'. Borra los golpes (Tarjetas) y las tarjetas/salidas
+   de equipo de esa cancha; con lineas:true borra además los partidos (líneas).
+   No toca jugadores, fotos ni canchas. */
+function reiniciarDatos_(p) {
+  var j = exigir(p.token);
+  var cid = String(p.cancha || ''), todo = cid === 'todo';
+  if (!cid) return { ok: false, error: 'faltan_datos' };
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var ss = SpreadsheetApp.openById(SS_ID);
+    var toca = function (c) { return todo || String(c) === cid; };
+    var borrarFilas = function (hoja, quita) {
+      if (!hoja || hoja.getLastRow() < 2) return;
+      var v = hoja.getRange(2, 1, hoja.getLastRow() - 1, hoja.getLastColumn()).getValues();
+      for (var i = v.length - 1; i >= 0; i--) if (quita(v[i])) hoja.deleteRow(i + 2);
+    };
+    var hp = ss.getSheetByName('Partidos'), ids = {};
+    if (hp && hp.getLastRow() > 1)
+      hp.getRange(2, 1, hp.getLastRow() - 1, 2).getValues().forEach(function (r) { if (toca(r[1])) ids[String(r[0])] = 1; });
+    borrarFilas(ss.getSheetByName('Tarjetas'), function (r) { return toca(r[0]); });
+    borrarFilas(ss.getSheetByName('TarjetasEquipo'), function (r) { return !!ids[String(r[0])]; });
+    if (p.lineas) borrarFilas(hp, function (r) { return toca(r[1]); });
+  } finally { lock.releaseLock(); }
+  anotar(j.matricula, 'reiniciar', cid + (p.lineas ? ' (con líneas)' : ''));
+  limpiarCache();
+  return { ok: true, estado: estadoCrudo() };
+}
 function borrarTarjetas(p) {
-  var j = exigir(p.token, true);
+  var j = exigir(p.token);
   var hoja = SpreadsheetApp.openById(SS_ID).getSheetByName('Tarjetas');
   if (hoja.getLastRow() > 1) hoja.deleteRows(2, hoja.getLastRow() - 1);
   anotar(j.matricula, 'borrar', 'borró todas las tarjetas');
@@ -883,7 +914,7 @@ function borrarTarjetas(p) {
  * lista: [{ usa:[mat,mat], eur:[mat,mat] }]  — en singles, un solo jugador por lado.
  */
 function guardarPartidos(p) {
-  var j = exigir(p.token, true);
+  var j = exigir(p.token);
   if (!p.cancha) return { ok: false, error: 'faltan_datos' };
   var lock = LockService.getScriptLock();
   lock.waitLock(20000);
@@ -924,7 +955,7 @@ function capitanDe_(mat) {
   return null;
 }
 function guardarCapitanes(p) {
-  var j = exigir(p.token, true);
+  var j = exigir(p.token);
   if (p.rojo !== undefined) escribirConfig('capitanRojo', String(p.rojo || ''));
   if (p.azul !== undefined) escribirConfig('capitanAzul', String(p.azul || ''));
   anotar(j.matricula, 'capitanes', 'rojo ' + (p.rojo || '-') + ' · azul ' + (p.azul || '-'));
@@ -934,7 +965,6 @@ function guardarCapitanes(p) {
 // El organizador o un capitán pasan a un jugador de equipo.
 function guardarEquipoJugador(p) {
   var j = exigir(p.token);
-  if (j.rol !== 'admin' && !capitanDe_(j.matricula)) return { ok: false, error: 'solo_capitanes' };
   if (p.equipo !== 'rojo' && p.equipo !== 'azul') return { ok: false, error: 'faltan_datos' };
   var hoja = SpreadsheetApp.openById(SS_ID).getSheetByName('Jugadores');
   var fila = buscarFila(hoja, function (v) { return String(v[0]).trim() === String(p.matricula).trim(); });
@@ -1014,7 +1044,7 @@ function hcpONull(v) {
  * p.hcp vacío = vuelve a la fórmula de la app.
  */
 function guardarHcpEquipo(p) {
-  var j = exigir(p.token, true);
+  var j = exigir(p.token);
   if (p.lado !== 'usa' && p.lado !== 'eur') return { ok: false, error: 'faltan_datos' };
   var lock = LockService.getScriptLock();
   lock.waitLock(20000);
