@@ -2,7 +2,7 @@
 (function () {
 'use strict';
 
-var VERSION = 'v88';                     // tiene que coincidir con el CACHE del sw.js
+var VERSION = 'v89';                     // tiene que coincidir con el CACHE del sw.js
 var LS = { ses: 'gtm-sesion', est: 'gtm-estado', cola: 'gtm-cola', ui: 'gtm-ui' };
 var API = (window.GTM_CONFIG && window.GTM_CONFIG.api) || '';
 
@@ -3240,7 +3240,7 @@ function vistaPerfil() {
     (fotoSrc(y, 320) ? '<img src="' + esc(fotoSrc(y, 320)) + '" alt="">' : esc(inicial(y))) + '</div>' +
     '<div><h2 class="' + claseTxt(y).trim() + '">' + esc(y.nombre) + '</h2>' +
     '<div class="lb-meta">Matrícula ' + esc(y.matricula) + ' · HCP ' + esc(y.handicap) +
-    ' · Medal ' + medal + ' · Match ' + match + ' · ' + esc(nombreEquipo(y.equipo)) + '</div>' +
+    ' · ' + esc(nombreEquipo(y.equipo)) + '</div>' +
     '<div class="fotos">' +
     '<label class="subir">🖼️ Galería<input type="file" accept="image/*" data-acc="ed-foto"></label>' +
     '<label class="subir">📷 Cámara<input type="file" accept="image/*" capture="environment" data-acc="ed-foto"></label>' +
@@ -3258,21 +3258,131 @@ function vistaPerfil() {
     '<div class="grid2" style="grid-template-columns:1fr"><div class="campo"><label>Equipo</label>' +
     '<div class="pick-eq"><button class="a" data-acc="mi-equipo" data-v="azul" aria-pressed="' + (y.equipo === 'azul') + '">' + esc(nombreEquipo('azul')) + '</button>' +
     '<button class="r" data-acc="mi-equipo" data-v="rojo" aria-pressed="' + (y.equipo === 'rojo') + '">' + esc(nombreEquipo('rojo')) + '</button></div></div></div>' +
-    nota('<div class="candado"><span>📊</span><span><b>Medal Play Neto:</b> jugás con tu handicap completo, ' +
-    '<b>' + medal + ' golpes</b>. Es el campeonato individual.</span></div>') +
-    nota('<div class="candado"><span>⚔️</span><span><b>Match de la Ryder:</b> jugás con el <b>' +
-    Math.round(ALLOWANCE * 100) + '%</b> de tu handicap, o sea <b>' + match + '</b>. Ojo: en el match no ' +
-    'recibís esos ' + match + ' golpes — recibís la <b>diferencia</b> contra el handicap más bajo de tu línea, ' +
-    'ya reducido al ' + Math.round(ALLOWANCE * 100) + '%. Los golpes caen en los hoyos de menor índice.</span></div>') +
+    nota('<div class="candado"><span>📊</span><span><b>Stableford y medal:</b> cada día jugás con tu <b>handicap de cancha</b> ' +
+    '(el de la tarjeta del club) completo. Si todavía no está cargado, vale el de tu perfil.</span></div>') +
+    nota('<div class="candado"><span>⚔️</span><span><b>Match de la Ryder:</b> el de menor handicap de cancha de la línea juega en 0 ' +
+    'y los demás reciben el <b>' + Math.round(ALLOWANCE * 100) + '% de la diferencia</b>, redondeado. ' +
+    'Los golpes caen en los hoyos de menor índice.</span></div>') +
     '</section>' +
     (TEST ? '' : bloqueAvisos()) +
     '<section class="card"><div class="sec-tit"><h2>Tu acceso</h2></div>' +
     '<div class="grid2"><div class="campo"><label for="p-pass">Cambiar contraseña</label>' +
     '<input id="p-pass" type="password" inputmode="numeric" maxlength="4" placeholder="4 números" data-acc="ed-pass"></div></div>' +
-    nota('<div class="candado" style="border-top:0"><span>🔒</span><span>Editás <b>tu</b> perfil y <b>tu</b> tarjeta.' +
-    (esAdmin() ? ' Como organizador además cargás las canchas y los nombres de los equipos — pero los datos y las tarjetas de los demás tampoco los tocás.' : '') + '</span></div>') +
+    nota('<div class="candado" style="border-top:0"><span>🔒</span><span>Con sesión podés cargar y corregir cualquier línea, ' +
+    'las canchas y los equipos.' + (esAdmin() ? ' Como organizador, además cargás los perfiles y ves los pedidos de contraseña.' : '') + '</span></div>') +
     '<div class="acc"><button class="btn fin" data-acc="salir">Cerrar sesión en este celular</button></div></section>' +
-    (esAdmin() && !TEST ? bloquePedidos() : '') + '</div>';
+    (esAdmin() && !TEST ? bloquePedidos() : '') +
+    '<button class="btn-analisis" data-acc="tab" data-v="analisis"><span>🔍</span><span><b>Análisis de mejoras</b>' +
+    '<small>Todo lo que se puede mejorar de la app, por prioridad</small></span><i>→</i></button></div>';
+}
+
+/* ============ análisis de mejoras ============
+   Lo que se puede mejorar de la app, ordenado por urgencia. Se abre desde el
+   perfil. Revisión del 20/11/2026 sobre la v89, con la planilla real a la vista
+   y probando la app en un celular de 360 px. Para actualizarlo alcanza con
+   tocar esta lista. */
+var ANALISIS_FECHA = '20/11/2026 · v89';
+var ANALISIS = [
+  { grupo: 'Antes del viernes 27', items: [
+    { t: 'Solo 1 de los 12 entró a la app', tam: 'chico',
+      hoy: 'En la planilla real hay 11 perfiles sin reclamar: el único con acceso sos vos. Sin entrar, nadie puede anotar ni ver su línea en vivo.',
+      prop: 'Mandar por WhatsApp el link con los tres pasos (Primera vez → ¿Quién sos? → matrícula y PIN) y pedir que lo hagan antes del jueves. La app puede mostrar al organizador quién falta.' },
+    { t: 'Faltan las líneas y el handicap de cancha de las 4 canchas', tam: 'chico',
+      hoy: 'Hoy hay 0 líneas armadas y 0 handicaps de cancha cargados. Sin el handicap de cancha, la app reparte golpes con el handicap del perfil, que no es el de la tarjeta del club.',
+      prop: 'Cargarlos la noche anterior a cada cancha. Y que Cargar avise en rojo "falta el handicap de cancha de X" en vez de usar el del perfil en silencio.' },
+    { t: 'El botón "Info del viaje" tapa la carga', tam: 'chico',
+      hoy: 'A 360 px el botón flotante queda encima de "Hoyo 2 →" y del + de la última fila. En testeo, los botones de escenario tapan los + de tres jugadores.',
+      prop: 'Esconder los botones flotantes en la pestaña Cargar (o subirlos a la cabecera). Es la pantalla que más se va a usar en la cancha.' },
+    { t: '"Todo a cero" lo puede tocar cualquiera', tam: 'chico',
+      hoy: 'Con un solo "Aceptar", cualquiera con sesión borra los golpes y las líneas de las 4 canchas para todos. No hay forma de volver atrás.',
+      prop: 'Durante el torneo, que borrar todo sea solo del organizador o pida escribir BORRAR. Y antes de borrar, guardar una copia en una hoja Respaldo.' },
+    { t: 'Avisos de birdies: hay 1 solo celular anotado', tam: 'chico',
+      hoy: 'El backend manda bien los avisos, pero solo tu celular los recibe.',
+      prop: 'Incluirlo en el mensaje de WhatsApp: Perfil → Activar avisos. En iPhone hay que agregar la app a la pantalla de inicio primero.' }
+  ]},
+  { grupo: 'Carga de golpes', items: [
+    { t: 'Los botones + y − son chicos para la cancha', tam: 'chico',
+      hoy: 'En Cargar miden 40 px y están a un dedo del número. Con guante, al sol o caminando es fácil errarle o tocar dos veces.',
+      prop: 'Llevarlos a 52 px (como en la tarjeta individual), separarlos un poco más y que el celular vibre en cada toque para confirmar.' },
+    { t: 'Cargar cuatro números con + y − lleva muchos toques', tam: 'mediano',
+      hoy: 'Cada jugador arranca en el par y se sube o se baja de a uno: un 7 en un par 4 son cuatro toques, y en la línea son cuatro jugadores por hoyo.',
+      prop: 'Tocando el número, que se abra una fila con 2 a 9 para elegir de un toque. El + y − quedan para corregir.' },
+    { t: 'Pasar de hoyo es manual', tam: 'chico',
+      hoy: 'Con los cuatro golpes cargados igual hay que tocar "Hoyo 2 →", y ese botón queda abajo, tapado por "Info del viaje".',
+      prop: 'Cuando está toda la línea cargada, pasar solo al hoyo siguiente después de 2 segundos (con un cartel "volver" por si fue sin querer).' },
+    { t: 'Quién puede anotar en cada línea', tam: 'chico',
+      hoy: 'Hoy cualquiera con sesión puede anotar en cualquier línea, no solo en la suya.',
+      prop: 'Si van a anotar solo los de la misma línea, se limita a eso y el resto la ve en vivo sin poder tocarla. Conviene decidirlo cuando lo prueben juntos.' }
+  ]},
+  { grupo: 'Estética y lectura al sol', items: [
+    { t: 'Textos grises y chicos', tam: 'chico',
+      hoy: 'Los rótulos (HCP cancha 14 · recibe 0, PAR, SI, los títulos de cada tarjeta) van en gris claro y entre 10 y 12 px. Al sol casi no se leen.',
+      prop: 'Pasar el gris a uno más oscuro y no bajar de 13 px en nada que haya que leer en la cancha.' },
+    { t: 'En Cargar, lo importante queda abajo', tam: 'mediano',
+      hoy: 'El cartel del estado del match ocupa media pantalla arriba y los jugadores para cargar quedan abajo, cerca de los botones flotantes.',
+      prop: 'Achicar el estado del match a una franja de una línea arriba ("Team USA 2 arriba · hoyo 6") y dejar los cuatro jugadores en el centro de la pantalla.' },
+    { t: 'Cada fila de jugador dice demasiado', tam: 'chico',
+      hoy: 'Nombre, HCP de cancha, cuántos recibe, la etiqueta "un golpe" y el neto: a 360 px la línea de abajo se parte en dos o tres renglones.',
+      prop: 'Dejar nombre y un punto por cada golpe que recibe en el hoyo (● o ●●). El detalle del handicap, en la tarjeta del partido.' }
+  ]},
+  { grupo: 'Reglas y cálculos', items: [
+    { t: 'El perfil explica una regla vieja', tam: 'chico', hecho: true,
+      hoy: 'Decía "Match 14: el 85% de tu handicap" y que nadie toca la tarjeta de otro. La regla de hoy es el 85% de la diferencia de handicaps de cancha, y cualquiera con sesión edita todo.',
+      prop: 'Arreglado en la v89: el perfil muestra la regla actual.' },
+    { t: 'La tabla individual arranca en Medal neto', tam: 'chico',
+      hoy: 'La gira se juega Stableford y la Ryder le da 3 puntos al equipo con más Stableford, pero la pestaña Medal abre en Medal neto.',
+      prop: 'Abrir en Stableford y dejar Medal neto y Bruto como alternativas.' },
+    { t: 'Four-ball: el hoyo se define antes de cargar a los cuatro', tam: 'mediano',
+      hoy: 'Con un jugador cargado por lado el hoyo ya cuenta (sirve para el que levanta). Mientras el anotador carga de a uno, el match se mueve antes de tiempo.',
+      prop: 'Botón "levantó" en cada jugador, y que el hoyo cuente cuando están los cuatro cargados o marcados.' },
+    { t: 'Cambiar una línea con golpes ya cargados', tam: 'chico',
+      hoy: 'En foursome y scramble la tarjeta es de la línea, no de los jugadores. Si se cambian los jugadores de una línea ya empezada, la tarjeta pasa a los nuevos.',
+      prop: 'Si la línea ya tiene golpes, avisar antes de cambiarla.' }
+  ]},
+  { grupo: 'Seguridad y datos', items: [
+    { t: 'El PIN se puede adivinar', tam: 'chico',
+      hoy: 'Son 4 números sin límite de intentos. El repo es público, así que la dirección del backend también. Cualquiera podría probar los 10.000 PIN de alguien.',
+      prop: 'Bloquear 15 minutos después de 8 intentos fallidos, y lo mismo con el código de "me olvidé".' },
+    { t: 'Quién cambió qué', tam: 'mediano',
+      hoy: 'Como cualquiera edita todo, si un golpe aparece cambiado no hay forma de saber quién fue sin abrir la hoja Log.',
+      prop: 'Mostrar en cada tarjeta "último cambio: Fulano 14:32" y una lista de cambios recientes. Resuelve discusiones en el momento.' }
+  ]},
+  { grupo: 'Pantalla', items: [
+    { t: 'Pestañas chicas y pegadas', tam: 'mediano',
+      hoy: 'Son 6 pestañas en letra de 10 px. A 360 px "TARJETAS JUGADORES CANCHAS" quedan pegadas y al sol cuestan.',
+      prop: 'Dejar 4: Cargar, Ryder, Medal y Más (con Tarjetas, Jugadores y Canchas adentro), en letra más grande.' },
+    { t: 'Testeo aparece dos veces', tam: 'chico',
+      hoy: 'Está el chip 🧪 Testeo en la cabecera y además el botón flotante. En el torneo ninguno de los dos hace falta a la vista.',
+      prop: 'Dejar solo uno y pasarlo al perfil cuando arranque la gira.' }
+  ]},
+  { grupo: 'Velocidad', items: [
+    { t: 'Cada golpe relee toda la planilla', tam: 'mediano',
+      hoy: 'Con 12 celulares preguntando cada 12 segundos y cada golpe releyendo todas las hojas, en los picos puede tardar varios segundos en subir o quedar en la cola.',
+      prop: 'Guardar en memoria la configuración y los jugadores, y devolver solo lo que cambió. Igual la cola guarda todo en el celular y no se pierde nada.' }
+  ]},
+  { grupo: 'Para después del torneo', items: [
+    { t: 'Resumen final y premios', tam: 'mediano',
+      hoy: 'Al terminar hay que armar a mano quién ganó qué.',
+      prop: 'Una pantalla final con el resultado de la Ryder, el mejor Stableford de cada cancha, más birdies, el MVP de cada equipo y la descarga de todo en Excel.' }
+  ]}
+];
+function vistaAnalisis() {
+  var n = 0, h = '<div class="pila">' +
+    '<div class="acc" style="padding:0"><button class="btn fin" data-acc="tab" data-v="perfil">← Volver al perfil</button></div>' +
+    '<section class="card"><div class="sec-tit"><h2>Análisis de mejoras</h2><span class="eyebrow">' + esc(ANALISIS_FECHA) + '</span></div>' +
+    '<p class="an-intro">Todo lo que se puede mejorar de la app, de lo más urgente a lo que puede esperar. Revisado con la planilla real y probando la carga en un celular de 360 px.</p></section>';
+  ANALISIS.forEach(function (g) {
+    h += '<section class="card"><div class="sec-tit"><h2>' + esc(g.grupo) + '</h2><span class="eyebrow">' + g.items.length + '</span></div>';
+    g.items.forEach(function (x) {
+      n++;
+      h += '<div class="an-item' + (x.hecho ? ' hecho' : '') + '"><div class="an-cab"><b class="an-n">' + n + '</b><b class="an-t">' + esc(x.t) + '</b>' +
+        '<span class="pin">' + (x.hecho ? '✓ hecho' : esc(x.tam)) + '</span></div>' +
+        '<p><i>Hoy:</i> ' + esc(x.hoy) + '</p><p><i>' + (x.hecho ? 'Listo:' : 'Propuesta:') + '</i> ' + esc(x.prop) + '</p></div>';
+    });
+    h += '</section>';
+  });
+  return h + nota('<div class="candado"><span>🛠️</span><span><b>Chico</b>: menos de una hora. <b>Mediano</b>: unas horas. ' +
+    'Decí cuáles querés y se hacen.</span></div>') + '</div>';
 }
 
 /* ============ armado ============ */
@@ -3340,7 +3450,7 @@ function pintar() {
   var vista = UI.tab === 'cargar' ? vistaCargar() : UI.tab === 'tarjetas' ? vistaTarjetas() :
     UI.tab === 'jugadores' ? vistaJugadores() : UI.tab === 'canchas' ? vistaCanchas() :
     UI.tab === 'ryder' ? vistaRyder() : UI.tab === 'perfil' ? vistaPerfil() :
-    UI.tab === 'testeo' ? vistaTesteo() : UI.tab === 'rapida' ? vistaRapida(false) :
+    UI.tab === 'testeo' ? vistaTesteo() : UI.tab === 'analisis' ? vistaAnalisis() : UI.tab === 'rapida' ? vistaRapida(false) :
     UI.tab === 'rapidaRyder' ? vistaRapida(true) : vistaPosiciones();
   app.innerHTML = barraEstado() + '<div class="topbar"><div class="topbar-in">' +
     '<div class="cab-top">' +
