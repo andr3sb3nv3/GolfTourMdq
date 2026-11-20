@@ -311,7 +311,7 @@ function responder(obj) {
 function despachar(p) {
   try {
     switch (p.accion) {
-      case 'ping':      return { ok: true, version: 68 };
+      case 'ping':      return { ok: true, version: 75 };
       case 'diag':      return diagnostico();
       case 'registrar': return registrar(p);
       case 'precargar': exigir(p.token, true); return precargarPerfiles_();
@@ -796,24 +796,32 @@ function carpetaFotos() {
   return it.hasNext() ? it.next() : padre.createFolder('Fotos');
 }
 function guardarFoto(p) {
+  // Cada uno sube SU foto. El organizador puede subir (o quitar) la de cualquiera,
+  // también la de los perfiles precargados: al reclamarlo, el jugador se la queda.
   var j = exigir(p.token);
-  var m = String(p.foto || '').match(/^data:(image\/[a-z+.-]+);base64,(.+)$/i);
-  if (!m) return { ok: false, error: 'foto_invalida' };
-
-  var blob = Utilities.newBlob(Utilities.base64Decode(m[2]), m[1], 'foto-' + j.matricula + '.jpg');
-  if (blob.getBytes().length > 3000000) return { ok: false, error: 'foto_muy_grande' };
-
-  if (j.fotoId) { try { DriveApp.getFileById(String(j.fotoId)).setTrashed(true); } catch (e) {} }
-  var archivo = carpetaFotos().createFile(blob);
-  try { archivo.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch (e) {}
+  var mat = String(p.matricula || j.matricula).trim();
+  if (mat !== String(j.matricula).trim() && j.rol !== 'admin') return { ok: false, error: 'solo_admin' };
 
   var hoja = SpreadsheetApp.openById(SS_ID).getSheetByName('Jugadores');
-  var fila = buscarFila(hoja, function (v) { return String(v[0]).trim() === String(j.matricula).trim(); });
+  var fila = buscarFila(hoja, function (v) { return String(v[0]).trim() === mat; });
   if (!fila) return { ok: false, error: 'no_encontrado' };
-  hoja.getRange(fila, 8).setValue(archivo.getId());
-  anotar(j.matricula, 'foto', 'subió su foto');
+  var idViejo = String(hoja.getRange(fila, 8).getValue() || '');
+
+  var nuevoId = '';
+  if (!p.quitar) {
+    var m = String(p.foto || '').match(/^data:(image\/[a-z+.-]+);base64,(.+)$/i);
+    if (!m) return { ok: false, error: 'foto_invalida' };
+    var blob = Utilities.newBlob(Utilities.base64Decode(m[2]), m[1], 'foto-' + mat + '.jpg');
+    if (blob.getBytes().length > 3000000) return { ok: false, error: 'foto_muy_grande' };
+    var archivo = carpetaFotos().createFile(blob);
+    try { archivo.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch (e) {}
+    nuevoId = archivo.getId();
+  }
+  if (idViejo) { try { DriveApp.getFileById(idViejo).setTrashed(true); } catch (e) {} }
+  hoja.getRange(fila, 8).setValue(nuevoId);
+  anotar(j.matricula, 'foto', (p.quitar ? 'quitó la foto de ' : 'subió la foto de ') + mat);
   limpiarCache();
-  return { ok: true, fotoId: archivo.getId(), estado: estadoCrudo() };
+  return { ok: true, fotoId: nuevoId, estado: estadoCrudo() };
 }
 
 function guardarCancha(p) {

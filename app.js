@@ -2,7 +2,7 @@
 (function () {
 'use strict';
 
-var VERSION = 'v74';                     // tiene que coincidir con el CACHE del sw.js
+var VERSION = 'v75';                     // tiene que coincidir con el CACHE del sw.js
 var LS = { ses: 'gtm-sesion', est: 'gtm-estado', cola: 'gtm-cola', ui: 'gtm-ui' };
 var API = (window.GTM_CONFIG && window.GTM_CONFIG.api) || '';
 
@@ -131,10 +131,27 @@ function jugadoresDeLinea(m) {
 function nombreEquipo(k) { return (E && E.equipos && E.equipos[k] && E.equipos[k].nombre) || (k === 'azul' ? 'Azul' : 'Rojo'); }
 function claseEq(j) { return j && j.equipo === 'azul' ? ' eq-azul' : (j && j.equipo === 'rojo' ? ' eq-rojo' : ''); }
 function claseTxt(j) { return j && j.equipo === 'azul' ? ' txt-azul' : (j && j.equipo === 'rojo' ? ' txt-rojo' : ''); }
+/* Fotos: viven en el Drive del organizador y en la planilla queda solo el id, así
+   que se ven en todos los celulares. En el testeo los jugadores son inventados:
+   cada uno muestra la foto del jugador REAL con el mismo apodo (o nombre). */
+function sinTildes(t) { return String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase(); }
+function jugadorReal(j) {
+  if (!TEST || !j || !PROD || !PROD.jugadores) return null;
+  var ap = sinTildes(j.apodo), no = sinTildes(j.nombre), i, r;
+  for (i = 0; i < PROD.jugadores.length; i++) { r = PROD.jugadores[i]; if (ap && sinTildes(r.apodo) === ap) return r; }
+  for (i = 0; i < PROD.jugadores.length; i++) { r = PROD.jugadores[i]; if (no && sinTildes(r.nombre) === no) return r; }
+  return null;
+}
+function fotoSrc(j, tam) {
+  if (!j) return '';
+  if (j.foto) return j.foto;
+  var id = j.fotoId;
+  if (!id && TEST) { var r = jugadorReal(j); id = r && r.fotoId; }
+  return id ? 'https://drive.google.com/thumbnail?id=' + encodeURIComponent(id) + '&sz=w' + tam : '';
+}
 function avatar(j, extra) {
-  var c = 'av' + claseEq(j) + (extra ? ' ' + extra : '');
-  if (j && j.foto) return '<img class="' + c + '" src="' + j.foto + '" alt="">';
-  if (j && j.fotoId) return '<img class="' + c + '" src="https://drive.google.com/thumbnail?id=' + esc(j.fotoId) + '&sz=w160" alt="">';
+  var c = 'av' + claseEq(j) + (extra ? ' ' + extra : ''), src = fotoSrc(j, 160);
+  if (src) return '<img class="' + c + '" src="' + esc(src) + '" alt="">';
   return '<span class="' + c + '">' + esc(inicial(j)) + '</span>';
 }
 function inicial(j) {
@@ -358,15 +375,48 @@ function sincronizar() {
     pintar();
   });
 }
+/* En el testeo la foto NO queda en los datos de prueba (se borran cada vez que se
+   regenera el testeo): si estás con tu sesión, se sube de verdad al jugador real
+   con el mismo apodo (la tuya siempre; la de cualquiera si sos el organizador). */
+function fotoEnTest(c) {
+  var y = yo(), r = jugadorReal(y), quitar = !!c.quitar;
+  if (quitar) { delete y.foto; y.fotoId = ''; } else y.foto = c.foto;
+  guardarTest(); pintar();
+  if (!r || !SES) {
+    alert('Esta foto queda solo en este celular y se pierde al regenerar el testeo. ' +
+      'Para que quede guardada, entrá con tu matrícula y PIN.');
+    return Promise.resolve({ ok: true });
+  }
+  return pedir({ accion: 'foto', token: SES.token, matricula: r.matricula, foto: c.foto, quitar: quitar })
+    .then(function (res) {
+      if (res && res.ok) {
+        r.fotoId = res.fotoId || '';
+        if (res.estado) { PROD = res.estado; PROD.canchas = ordenarCanchas(PROD.canchas); guardarLS(LS.est, PROD); }
+        delete y.foto; guardarTest(); pintar();
+      } else alert('La foto no se pudo guardar en la planilla (' + textoError((res && res.error) || 'fallo') +
+        '). Por ahora quedó solo en este celular.');
+      return res;
+    }, function () { alert('Sin conexión: la foto quedó solo en este celular. Probá de nuevo con señal.'); });
+}
+/* Mientras estás en testeo, trae el estado real para mostrar las fotos que
+   subieron los demás desde sus celulares. */
+function refrescarProd() {
+  if (!TEST || !SES || !navigator.onLine) return;
+  pedir({ accion: 'estado', token: SES.token }).then(function (res) {
+    if (res && res.ok && res.estado && TEST) {
+      PROD = res.estado; PROD.canchas = ordenarCanchas(PROD.canchas); guardarLS(LS.est, PROD); pintar();
+    }
+  }, function () {});
+}
 function accionarTest(c) {
+  if (c.accion === 'foto') return fotoEnTest(c);
   var y = yo();
   if (c.accion === 'perfil') {
     ['nombre', 'apodo', 'club'].forEach(function (k) { if (c[k] !== undefined) y[k] = c[k]; });
     if (c.handicap !== undefined) y.handicap = Number(c.handicap) || 0;
     if (c.equipo) y.equipo = c.equipo;
     if (c.fotoId === '') { delete y.foto; y.fotoId = ''; }
-  } else if (c.accion === 'foto') { y.foto = c.foto; }
-  else if (c.accion === 'cancha') {
+  } else if (c.accion === 'cancha') {
     var cc = cancha(c.id);
     if (cc) {
       if (c.nombre) cc.nombre = c.nombre;
@@ -1463,7 +1513,7 @@ function entrarTest(regenerar) {
   UI.yoTest = (E.jugadores.filter(function (j) { return j.rol === 'admin'; })[0] || E.jugadores[0]).matricula;
   UI.cancha = E.canchas[0].id; UI.canchaLb = 'general'; UI.canchaRyder = 'general'; UI.lineas = {};
   UI.tab = 'posiciones'; UI.hoyo = 0;
-  guardarUI(); pintar();
+  guardarUI(); pintar(); refrescarProd();
 }
 function salirTest() {
   TEST = false; guardarLS('gtm-test-on', false);
@@ -2499,9 +2549,9 @@ function selectorModalidad(c, admin) {
 }
 
 function filaJugadorMatch(j, lado) {
-  var foto = j.foto ? '<img class="m-foto ' + lado + '" src="' + j.foto + '" alt="">'
-    : (j.fotoId ? '<img class="m-foto ' + lado + '" src="https://drive.google.com/thumbnail?id=' + esc(j.fotoId) + '&sz=w120" alt="">'
-                : '<span class="m-foto ' + lado + '">' + esc(inicial(j)) + '</span>');
+  var src = fotoSrc(j, 120);
+  var foto = src ? '<img class="m-foto ' + lado + '" src="' + esc(src) + '" alt="">'
+                 : '<span class="m-foto ' + lado + '">' + esc(inicial(j)) + '</span>';
   return '<div class="m-jug">' + foto +
     '<span class="m-nom">' + esc(nombreCorto(j.nombre)) + '</span>' +
     '<span class="m-hcp">' + esc(j.handicap) + '</span></div>';
@@ -3057,16 +3107,14 @@ function vistaPerfil() {
   var match = ph(y);                // Match de la Ryder: el 85% de la casa
   return '<div class="pila">' + bloqueInstalar() + '<section class="card">' +
     '<div class="perfil-cab"><div class="perfil-foto' + claseEq(y) + '">' +
-    (y.foto ? '<img src="' + y.foto + '" alt="">'
-            : (y.fotoId ? '<img src="https://drive.google.com/thumbnail?id=' + esc(y.fotoId) + '&sz=w320" alt="">'
-                        : esc(inicial(y)))) + '</div>' +
+    (fotoSrc(y, 320) ? '<img src="' + esc(fotoSrc(y, 320)) + '" alt="">' : esc(inicial(y))) + '</div>' +
     '<div><h2 class="' + claseTxt(y).trim() + '">' + esc(y.nombre) + '</h2>' +
     '<div class="lb-meta">Matrícula ' + esc(y.matricula) + ' · HCP ' + esc(y.handicap) +
     ' · Medal ' + medal + ' · Match ' + match + ' · ' + esc(nombreEquipo(y.equipo)) + '</div>' +
     '<div class="fotos">' +
     '<label class="subir">🖼️ Galería<input type="file" accept="image/*" data-acc="ed-foto"></label>' +
     '<label class="subir">📷 Cámara<input type="file" accept="image/*" capture="environment" data-acc="ed-foto"></label>' +
-    ((y.foto || y.fotoId) ? '<button class="btn fin" data-acc="quitar-foto">Quitar</button>' : '') +
+    (fotoSrc(y, 320) ? '<button class="btn fin" data-acc="quitar-foto">Quitar</button>' : '') +
     '</div></div></div>' +
     '<div class="escudo-eq' + claseEq(y) + '">' +
     '<img src="' + esc(ESCUDOS[y.equipo === 'azul' ? 'azul' : 'rojo']) + '" alt="' +
@@ -3190,7 +3238,7 @@ document.addEventListener('click', function (ev) {
   if (a === 'ver-pedidos') { verPedidos(b); return; }
   if (a === 'entrar' || a === 'registrar') { ingresar(a === 'registrar'); return; }
   if (a === 'salir') { if (confirm('¿Cerrar sesión en este celular?')) salir(); return; }
-  if (a === 'quitar-foto') { accionar({ accion: 'perfil', fotoId: '' }); return; }
+  if (a === 'quitar-foto') { accionar({ accion: 'foto', quitar: true }); return; }
   if (a === 'test-entrar') { entrarTest(false); return; }
   if (a === 'test-salir') { salirTest(); return; }
   if (a === 'test-regenerar') { if (confirm('Se sortean de nuevo handicaps, tarjetas y partidos. ¿Seguimos?')) entrarTest(true); return; }
@@ -3789,6 +3837,7 @@ if (TEST) {
   PROD = E;
   E = leerLS('gtm-test-v69', null) || generarTest();
   if (!UI.yoTest) UI.yoTest = (E.jugadores.filter(function (j) { return j.rol === 'admin'; })[0] || E.jugadores[0]).matricula;
+  refrescarProd();
 }
 if (E && E.canchas) E.canchas = ordenarCanchas(E.canchas);
 pintar();
