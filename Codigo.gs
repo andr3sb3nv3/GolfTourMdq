@@ -133,7 +133,7 @@ function borrarTodoYEmpezarDeNuevo() {
    mañana (four-ball, igual que Acantilados) y Marayui a la tarde (scramble) · dom 29 La Catedral (individuales). */
 var DIAS_GIRA_ = { acantilados: 1, miramar: 2, marayui: 2, catedral: 3 };
 var FORMATO_GIRA_ = { acantilados: 'fourball', miramar: 'fourball', marayui: 'scramble', catedral: 'singles' };
-var VERSION_GIRA_ = '3';   // 3: Miramar pasa a four-ball, igual que Acantilados (18/11 noche)
+var VERSION_GIRA_ = '4';   // 4: tarjetas oficiales de Acantilados (Azul: Merlo + Medio) y Miramar (20/11)   // 3: Miramar pasa a four-ball, igual que Acantilados (18/11 noche)
 /* Equipos del draft del 18/11: se aplican una sola vez (Config gira_equipos=1).
    Pone a cada uno en su equipo (por apodo) y nombra capitanes a Mati (USA) y Sebas (Europe). */
 var EQUIPOS_DRAFT_ = { Sebas: 'azul', Benve: 'azul', Toba: 'azul', Bauti: 'azul', Fran: 'azul', Vibu: 'azul',
@@ -157,6 +157,13 @@ function equiposDraft_() {
   limpiarCache();
 }
 // Se aplica una sola vez (queda anotado en Config): días y modalidades de la gira.
+/* Tarjetas oficiales que se cargan solas (pares e índices de hombres). */
+var TARJETAS_GIRA_ = {
+  acantilados: { nombre: 'Acantilados Golf · Azul',
+    par: [4,4,5,4,3,5,3,4,4, 5,3,4,4,4,5,3,4,4], si: [3,9,7,1,17,5,15,13,11, 12,16,10,14,4,2,18,8,6] },
+  miramar: { nombre: 'Miramar Links',
+    par: [4,3,4,4,5,5,3,4,4, 5,4,3,4,4,5,3,4,4], si: [1,13,17,11,7,9,15,3,5, 18,10,14,12,6,2,16,8,4] }
+};
 function giraV2_() {
   var cfg = config();
   if (String(cfg.gira || '') === VERSION_GIRA_) return;
@@ -166,6 +173,13 @@ function giraV2_() {
     var id = String(v[i][0]);
     if (DIAS_GIRA_[id] && Number(v[i][1]) !== DIAS_GIRA_[id]) hoja.getRange(i + 1, 2).setValue(DIAS_GIRA_[id]);
     if (FORMATO_GIRA_[id] && String(v[i][4] || '') !== FORMATO_GIRA_[id]) hoja.getRange(i + 1, 5).setValue(FORMATO_GIRA_[id]);
+    var t = TARJETAS_GIRA_[id];
+    if (t) {
+      hoja.getRange(i + 1, 3).setValue(t.nombre);
+      hoja.getRange(i + 1, 4).setValue(true);
+      hoja.getRange(i + 1, 6, 1, 18).setValues([t.par]);
+      hoja.getRange(i + 1, 24, 1, 18).setValues([t.si]);
+    }
   }
   escribirConfig('gira', VERSION_GIRA_);
   limpiarCache();
