@@ -2,7 +2,7 @@
 (function () {
 'use strict';
 
-var VERSION = 'v79';                     // tiene que coincidir con el CACHE del sw.js
+var VERSION = 'v80';                     // tiene que coincidir con el CACHE del sw.js
 var LS = { ses: 'gtm-sesion', est: 'gtm-estado', cola: 'gtm-cola', ui: 'gtm-ui' };
 var API = (window.GTM_CONFIG && window.GTM_CONFIG.api) || '';
 

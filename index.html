@@ -22,29 +22,44 @@
 <div class="flot-viaje" id="flot-viaje">
   <button class="fv-test" id="fv-test" type="button" data-acc="test-toggle" aria-label="Entrar o salir del modo testeo"><span aria-hidden="true">🧪</span><b>Testeo</b></button>
   <a class="fv-btn" href="gira/" aria-label="Info del viaje: agenda, reservas, pagos y autos"><span aria-hidden="true">🧳</span><b>Info del viaje</b></a>
-  <button class="fv-tab" type="button" aria-label="Mostrar el botón Info del viaje">‹</button>
+  <button class="fv-tab" type="button" aria-label="Mostrar los botones Testeo e Info del viaje">‹</button>
 </div>
 <script>
-/* Botón Info del viaje: siempre visible. Deslizándolo hacia el costado queda
-   plegado como una flechita azul en el borde; tocándola vuelve a aparecer. */
+/* Botones flotantes (Testeo e Info del viaje): arrastrando cualquiera de los dos hacia
+   el borde derecho (o fuera de la pantalla) quedan plegados como una flechita azul;
+   tocándola vuelven a su lugar. Anda con el dedo y con el mouse. */
 (function () {
-  var el = document.getElementById('flot-viaje'), x0 = null, y0 = 0, dx = 0;
+  var el = document.getElementById('flot-viaje'), x0 = null, y0 = 0, dx = 0, movio = false;
+  var bs = [el.querySelector('.fv-btn'), el.querySelector('.fv-test')];
   function set(p) { el.classList.toggle('plegado', p); try { localStorage.setItem('gtm-fv-plegado', p ? '1' : ''); } catch (e) {} }
+  function mover(px) { bs.forEach(function (b) { b.style.transform = px ? 'translateX(' + px + 'px)' : ''; }); }
   try { if (localStorage.getItem('gtm-fv-plegado')) el.classList.add('plegado'); } catch (e) {}
   el.querySelector('.fv-tab').addEventListener('click', function () { set(false); });
-  var b = el.querySelector('.fv-btn');
-  b.addEventListener('touchstart', function (e) { x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; dx = 0; }, { passive: true });
-  b.addEventListener('touchmove', function (e) {
-    if (x0 === null) return;
-    dx = e.touches[0].clientX - x0;
-    if (Math.abs(dx) > Math.abs(e.touches[0].clientY - y0) && dx > 0) b.style.transform = 'translateX(' + dx + 'px)';
-  }, { passive: true });
-  b.addEventListener('touchend', function () {
-    b.style.transform = '';
-    if (dx > 50) set(true);
-    x0 = null;
+  bs.forEach(function (b) {
+    b.style.touchAction = 'pan-y';
+    b.addEventListener('pointerdown', function (e) { x0 = e.clientX; y0 = e.clientY; dx = 0; movio = false; });
+    b.addEventListener('pointermove', function (e) {
+      if (x0 === null) return;
+      dx = e.clientX - x0;
+      if (Math.abs(dx) > 8 && Math.abs(dx) > Math.abs(e.clientY - y0)) {
+        movio = true;
+        try { b.setPointerCapture(e.pointerId); } catch (er) {}
+        mover(Math.max(0, dx));
+      }
+    });
+    var fin = function () {
+      if (x0 === null) return;
+      mover(0);
+      if (movio && dx > 50) set(true);
+      x0 = null;
+    };
+    b.addEventListener('pointerup', fin);
+    b.addEventListener('pointercancel', fin);
   });
-  b.addEventListener('click', function (e) { if (dx > 10) { e.preventDefault(); dx = 0; } });
+  // si fue un arrastre, no cuenta como toque (ni abre el viaje ni cambia el testeo)
+  el.addEventListener('click', function (e) {
+    if (movio && !e.target.closest('.fv-tab')) { e.preventDefault(); e.stopPropagation(); movio = false; }
+  }, true);
 })();
 </script>
 <script src="config.js"></script>
