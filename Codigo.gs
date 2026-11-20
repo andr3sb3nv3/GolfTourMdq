@@ -325,7 +325,7 @@ function responder(obj) {
 function despachar(p) {
   try {
     switch (p.accion) {
-      case 'ping':      return { ok: true, version: 76 };
+      case 'ping':      return { ok: true, version: 77 };
       case 'diag':      return diagnostico();
       case 'registrar': return registrar(p);
       case 'precargar': exigir(p.token, true); return precargarPerfiles_();
@@ -810,11 +810,10 @@ function carpetaFotos() {
   return it.hasNext() ? it.next() : padre.createFolder('Fotos');
 }
 function guardarFoto(p) {
-  // Cada uno sube SU foto. El organizador puede subir (o quitar) la de cualquiera,
+  // Cualquiera con sesión sube (o quita) la foto de cualquier jugador (Andres, 20/11),
   // también la de los perfiles precargados: al reclamarlo, el jugador se la queda.
   var j = exigir(p.token);
   var mat = String(p.matricula || j.matricula).trim();
-  if (mat !== String(j.matricula).trim() && j.rol !== 'admin') return { ok: false, error: 'solo_admin' };
 
   var hoja = SpreadsheetApp.openById(SS_ID).getSheetByName('Jugadores');
   var fila = buscarFila(hoja, function (v) { return String(v[0]).trim() === mat; });
