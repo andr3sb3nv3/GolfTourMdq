@@ -2,7 +2,7 @@
 (function () {
 'use strict';
 
-var VERSION = 'v90';                     // tiene que coincidir con el CACHE del sw.js
+var VERSION = 'v91';                     // tiene que coincidir con el CACHE del sw.js
 var LS = { ses: 'gtm-sesion', est: 'gtm-estado', cola: 'gtm-cola', ui: 'gtm-ui' };
 var API = (window.GTM_CONFIG && window.GTM_CONFIG.api) || '';
 
@@ -3297,19 +3297,19 @@ function vistaPerfil() {
    perfil. Revisión del 20/11/2026 sobre la v89, con la planilla real a la vista
    y probando la app en un celular de 360 px. Para actualizarlo alcanza con
    tocar esta lista. */
-var ANALISIS_FECHA = '20/11/2026 · v89';
+var ANALISIS_FECHA = '20/11/2026 · v91';
 var ANALISIS = [
   { grupo: 'Antes del viernes 27', items: [
     { t: 'Solo 1 de los 12 entró a la app', tam: 'chico',
       hoy: 'En la planilla real hay 11 perfiles sin reclamar: el único con acceso sos vos. Sin entrar, nadie puede anotar ni ver su línea en vivo.',
-      prop: 'Mandar por WhatsApp el link con los tres pasos (Primera vez → ¿Quién sos? → matrícula y PIN) y pedir que lo hagan antes del jueves. La app puede mostrar al organizador quién falta.' },
+      prop: 'Mandar por WhatsApp el link con la matrícula de cada uno y el código del viaje, y pedir que entren antes del jueves. La app puede mostrarle al organizador quién falta.' },
     { t: 'Faltan las líneas y el handicap de cancha de las 4 canchas', tam: 'chico',
       hoy: 'Hoy hay 0 líneas armadas y 0 handicaps de cancha cargados. Sin el handicap de cancha, la app reparte golpes con el handicap del perfil, que no es el de la tarjeta del club.',
       prop: 'Cargarlos la noche anterior a cada cancha. Y que Cargar avise en rojo "falta el handicap de cancha de X" en vez de usar el del perfil en silencio.' },
-    { t: 'El botón "Info del viaje" tapa la carga', tam: 'chico',
+    { t: 'El botón "Info del viaje" tapa la carga', demo: 'tapa', tam: 'chico',
       hoy: 'A 360 px el botón flotante queda encima de "Hoyo 2 →" y del + de la última fila. En testeo, los botones de escenario tapan los + de tres jugadores.',
       prop: 'Esconder los botones flotantes en la pestaña Cargar (o subirlos a la cabecera). Es la pantalla que más se va a usar en la cancha.' },
-    { t: '"Todo a cero" lo puede tocar cualquiera', tam: 'chico',
+    { t: '"Todo a cero" lo puede tocar cualquiera', demo: 'cero', tam: 'chico',
       hoy: 'Con un solo "Aceptar", cualquiera con sesión borra los golpes y las líneas de las 4 canchas para todos. No hay forma de volver atrás.',
       prop: 'Durante el torneo, que borrar todo sea solo del organizador o pida escribir BORRAR. Y antes de borrar, guardar una copia en una hoja Respaldo.' },
     { t: 'Avisos de birdies: hay 1 solo celular anotado', tam: 'chico',
@@ -3317,13 +3317,13 @@ var ANALISIS = [
       prop: 'Incluirlo en el mensaje de WhatsApp: Perfil → Activar avisos. En iPhone hay que agregar la app a la pantalla de inicio primero.' }
   ]},
   { grupo: 'Carga de golpes', items: [
-    { t: 'Los botones + y − son chicos para la cancha', tam: 'chico',
+    { t: 'Los botones + y − son chicos para la cancha', demo: 'botones', tam: 'chico',
       hoy: 'En Cargar miden 40 px y están a un dedo del número. Con guante, al sol o caminando es fácil errarle o tocar dos veces.',
       prop: 'Llevarlos a 52 px (como en la tarjeta individual), separarlos un poco más y que el celular vibre en cada toque para confirmar.' },
-    { t: 'Cargar cuatro números con + y − lleva muchos toques', tam: 'mediano',
+    { t: 'Cargar cuatro números con + y − lleva muchos toques', demo: 'teclado', tam: 'mediano',
       hoy: 'Cada jugador arranca en el par y se sube o se baja de a uno: un 7 en un par 4 son cuatro toques, y en la línea son cuatro jugadores por hoyo.',
       prop: 'Tocando el número, que se abra una fila con 2 a 9 para elegir de un toque. El + y − quedan para corregir.' },
-    { t: 'Pasar de hoyo es manual', tam: 'chico',
+    { t: 'Pasar de hoyo es manual', demo: 'auto', tam: 'chico',
       hoy: 'Con los cuatro golpes cargados igual hay que tocar "Hoyo 2 →", y ese botón queda abajo, tapado por "Info del viaje".',
       prop: 'Cuando está toda la línea cargada, pasar solo al hoyo siguiente después de 2 segundos (con un cartel "volver" por si fue sin querer).' },
     { t: 'Quién puede anotar en cada línea', tam: 'chico',
@@ -3331,13 +3331,13 @@ var ANALISIS = [
       prop: 'Si van a anotar solo los de la misma línea, se limita a eso y el resto la ve en vivo sin poder tocarla. Conviene decidirlo cuando lo prueben juntos.' }
   ]},
   { grupo: 'Estética y lectura al sol', items: [
-    { t: 'Textos grises y chicos', tam: 'chico',
+    { t: 'Textos grises y chicos', demo: 'contraste', tam: 'chico',
       hoy: 'Los rótulos (HCP cancha 14 · recibe 0, PAR, SI, los títulos de cada tarjeta) van en gris claro y entre 10 y 12 px. Al sol casi no se leen.',
       prop: 'Pasar el gris a uno más oscuro y no bajar de 13 px en nada que haya que leer en la cancha.' },
-    { t: 'En Cargar, lo importante queda abajo', tam: 'mediano',
+    { t: 'En Cargar, lo importante queda abajo', demo: 'arriba', tam: 'mediano',
       hoy: 'El cartel del estado del match ocupa media pantalla arriba y los jugadores para cargar quedan abajo, cerca de los botones flotantes.',
       prop: 'Achicar el estado del match a una franja de una línea arriba ("Team USA 2 arriba · hoyo 6") y dejar los cuatro jugadores en el centro de la pantalla.' },
-    { t: 'Cada fila de jugador dice demasiado', tam: 'chico',
+    { t: 'Cada fila de jugador dice demasiado', demo: 'fila', tam: 'chico',
       hoy: 'Nombre, HCP de cancha, cuántos recibe, la etiqueta "un golpe" y el neto: a 360 px la línea de abajo se parte en dos o tres renglones.',
       prop: 'Dejar nombre y un punto por cada golpe que recibe en el hoyo (● o ●●). El detalle del handicap, en la tarjeta del partido.' }
   ]},
@@ -3345,10 +3345,10 @@ var ANALISIS = [
     { t: 'El perfil explica una regla vieja', tam: 'chico', hecho: true,
       hoy: 'Decía "Match 14: el 85% de tu handicap" y que nadie toca la tarjeta de otro. La regla de hoy es el 85% de la diferencia de handicaps de cancha, y cualquiera con sesión edita todo.',
       prop: 'Arreglado en la v89: el perfil muestra la regla actual.' },
-    { t: 'La tabla individual arranca en Medal neto', tam: 'chico',
+    { t: 'La tabla individual arranca en Medal neto', demo: 'medal', tam: 'chico',
       hoy: 'La gira se juega Stableford y la Ryder le da 3 puntos al equipo con más Stableford, pero la pestaña Medal abre en Medal neto.',
       prop: 'Abrir en Stableford y dejar Medal neto y Bruto como alternativas.' },
-    { t: 'Four-ball: el hoyo se define antes de cargar a los cuatro', tam: 'mediano',
+    { t: 'Four-ball: el hoyo se define antes de cargar a los cuatro', demo: 'levanto', tam: 'mediano',
       hoy: 'Con un jugador cargado por lado el hoyo ya cuenta (sirve para el que levanta). Mientras el anotador carga de a uno, el match se mueve antes de tiempo.',
       prop: 'Botón "levantó" en cada jugador, y que el hoyo cuente cuando están los cuatro cargados o marcados.' },
     { t: 'Cambiar una línea con golpes ya cargados', tam: 'chico',
@@ -3356,15 +3356,15 @@ var ANALISIS = [
       prop: 'Si la línea ya tiene golpes, avisar antes de cambiarla.' }
   ]},
   { grupo: 'Seguridad y datos', items: [
-    { t: 'El PIN se puede adivinar', tam: 'chico',
-      hoy: 'Son 4 números sin límite de intentos. El repo es público, así que la dirección del backend también. Cualquiera podría probar los 10.000 PIN de alguien.',
-      prop: 'Bloquear 15 minutos después de 8 intentos fallidos, y lo mismo con el código de "me olvidé".' },
-    { t: 'Quién cambió qué', tam: 'mediano',
+    { t: 'Con el código del viaje se puede entrar como otro', tam: 'chico',
+      hoy: 'Se entra con la matrícula y un código igual para todos. Las matrículas se pueden leer sin entrar y el repo es público: el que tenga el código puede entrar como cualquiera.',
+      prop: 'No mandar las matrículas en el estado que se lee sin sesión, y limitar los intentos fallidos por celular.' },
+    { t: 'Quién cambió qué', demo: 'quien', tam: 'mediano',
       hoy: 'Como cualquiera edita todo, si un golpe aparece cambiado no hay forma de saber quién fue sin abrir la hoja Log.',
       prop: 'Mostrar en cada tarjeta "último cambio: Fulano 14:32" y una lista de cambios recientes. Resuelve discusiones en el momento.' }
   ]},
   { grupo: 'Pantalla', items: [
-    { t: 'Pestañas chicas y pegadas', tam: 'mediano',
+    { t: 'Pestañas chicas y pegadas', demo: 'pestanas', tam: 'mediano',
       hoy: 'Son 6 pestañas en letra de 10 px. A 360 px "TARJETAS JUGADORES CANCHAS" quedan pegadas y al sol cuestan.',
       prop: 'Dejar 4: Cargar, Ryder, Medal y Más (con Tarjetas, Jugadores y Canchas adentro), en letra más grande.' },
     { t: 'Testeo aparece dos veces', tam: 'chico',
@@ -3377,28 +3377,136 @@ var ANALISIS = [
       prop: 'Guardar en memoria la configuración y los jugadores, y devolver solo lo que cambió. Igual la cola guarda todo en el celular y no se pierde nada.' }
   ]},
   { grupo: 'Para después del torneo', items: [
-    { t: 'Resumen final y premios', tam: 'mediano',
+    { t: 'Resumen final y premios', demo: 'premios', tam: 'mediano',
       hoy: 'Al terminar hay que armar a mano quién ganó qué.',
       prop: 'Una pantalla final con el resultado de la Ryder, el mejor Stableford de cada cancha, más birdies, el MVP de cada equipo y la descarga de todo en Excel.' }
   ]}
 ];
+/* Ejemplos de antes y después para el análisis: maquetas en HTML, solo para mirar
+   (no tienen data-acc, así que tocarlas no hace nada). */
+function mkFila(nombre, cls, sub, num, grande, golpes) {
+  return '<div class="mk-fila' + (grande ? ' g' : '') + '"><div class="mk-q"><b class="' + cls + '">' + nombre + '</b>' +
+    (sub ? '<i>' + sub + '</i>' : '') + '</div>' + (golpes ? '<span class="mk-pts">' + golpes + '</span>' : '') +
+    '<span class="mk-rd">−</span><span class="mk-num">' + num + '</span><span class="mk-rd">+</span></div>';
+}
+function mkTel(cuerpo, extra) { return '<div class="mk-tel' + (extra ? ' ' + extra : '') + '">' + cuerpo + '</div>'; }
+var DEMOS = {
+  tapa: function () {
+    var filas = mkFila('Lucas', 'txt-rojo', 'HCP 14 · recibe 0', 4) + mkFila('Tobías', 'txt-azul', 'HCP 30 · recibe 14', 5);
+    return [mkTel(filas + '<div class="mk-nav"><span>← Hoyo 1</span><span class="pri">Hoyo 2 →</span></div>' +
+      '<div class="mk-flota">🧳 Info del viaje</div>'),
+      mkTel(filas + '<div class="mk-nav"><span>← Hoyo 1</span><span class="pri">Hoyo 2 →</span></div>' +
+      '<div class="mk-flota chica">🧳</div>')];
+  },
+  cero: function () {
+    return [mkTel('<div class="mk-dlg"><p>Se borran los golpes y las líneas de las 4 canchas, para todos. ¿Seguimos?</p>' +
+      '<div class="mk-dlg-b"><span>Cancelar</span><span class="pri">Aceptar</span></div></div>'),
+      mkTel('<div class="mk-dlg"><p><b>Esto borra el torneo entero.</b> Queda una copia en la hoja Respaldo.</p>' +
+      '<p class="mk-chico">Escribí BORRAR para seguir</p><div class="mk-inp">BORR|</div>' +
+      '<div class="mk-dlg-b"><span>Cancelar</span><span class="off">Borrar todo</span></div></div>')];
+  },
+  botones: function () {
+    return [mkTel(mkFila('Santiago', 'txt-rojo', 'HCP 32 · recibe 15', 6) + mkFila('Andrés', 'txt-azul', 'HCP 17 · recibe 3', 5)),
+            mkTel(mkFila('Santiago', 'txt-rojo', '', 6, true, '●') + mkFila('Andrés', 'txt-azul', '', 5, true, ''), 'mk-vibra')];
+  },
+  teclado: function () {
+    var nums = '';
+    for (var k = 2; k <= 9; k++) nums += '<span class="' + (k === 7 ? 'sel' : '') + '">' + k + '</span>';
+    return [mkTel(mkFila('Santiago', 'txt-rojo', 'par 4 → 7: cuatro toques en el +', 4) +
+      '<div class="mk-toques">＋ ＋ ＋ ＋ <small>y el riesgo de pasarse</small></div>'),
+      mkTel(mkFila('Santiago', 'txt-rojo', 'tocás el número…', 7, true) + '<div class="mk-tecla">' + nums + '</div>' +
+      '<div class="mk-toques ok">… y elegís. Un toque.</div>')];
+  },
+  auto: function () {
+    var filas = mkFila('Lucas', 'txt-rojo', '', 4, true) + mkFila('Santiago', 'txt-rojo', '', 6, true) +
+      mkFila('Andrés', 'txt-azul', '', 5, true) + mkFila('Tobías', 'txt-azul', '', 5, true);
+    return [mkTel(filas + '<div class="mk-nav"><span>← Hoyo 1</span><span class="pri">Hoyo 2 →</span></div>'),
+            mkTel(filas + '<div class="mk-toast">✓ Línea completa · pasando al hoyo 3 <u>volver</u></div>')];
+  },
+  contraste: function () {
+    return [mkTel('<div class="mk-sol"><span class="mk-eb gris">Línea 2 · Acantilados</span><b>1</b>' +
+      '<span class="mk-eb gris">Par 4 · SI 3</span><span class="mk-eb gris">HCP cancha 14 · recibe 0</span></div>', 'mk-brillo'),
+      mkTel('<div class="mk-sol"><span class="mk-eb osc">Línea 2 · Acantilados</span><b>1</b>' +
+      '<span class="mk-eb osc">Par 4 · SI 3</span><span class="mk-eb osc">Recibe 0</span></div>', 'mk-brillo')];
+  },
+  arriba: function () {
+    var filas = mkFila('Lucas', 'txt-rojo', '', 4, true) + mkFila('Santiago', 'txt-rojo', '', 6, true);
+    return [mkTel('<div class="mk-match"><small>TEAM USA</small><b>2 arriba</b><small>hoyo 6 · quedan 12</small></div>' +
+      '<div class="mk-hoyo">7</div>' + filas),
+      mkTel('<div class="mk-franja">Team USA <b>2 arriba</b> · hoyo 6</div><div class="mk-hoyo">7 <small>Par 4 · SI 3</small></div>' +
+      filas + mkFila('Andrés', 'txt-azul', '', 5, true) + mkFila('Tobías', 'txt-azul', '', 5, true))];
+  },
+  fila: function () {
+    return [mkTel(mkFila('Santiago', 'txt-rojo', 'HCP cancha 32 · recibe 15 · <span class="mk-pill">un golpe</span> · neto 5', 6)),
+            mkTel(mkFila('Santiago', 'txt-rojo', '', 6, true, '●') + '<p class="mk-chico">● = recibe un golpe en este hoyo</p>')];
+  },
+  medal: function () {
+    var chips = function (sel) {
+      return '<div class="mk-chips">' + ['Medal neto', 'Bruto', 'Stableford'].map(function (x) {
+        return '<span class="' + (x === sel ? 'sel' : '') + '">' + x + '</span>'; }).join('') + '</div>';
+    };
+    return [mkTel(chips('Medal neto') + '<div class="mk-lb"><span>1 Viboud</span><b>211</b></div><div class="mk-lb"><span>2 Arizu</span><b>212</b></div>'),
+            mkTel(chips('Stableford') + '<div class="mk-lb"><span>1 Arizu</span><b>38 pts</b></div><div class="mk-lb"><span>2 Viboud</span><b>36 pts</b></div>')];
+  },
+  levanto: function () {
+    return [mkTel(mkFila('Lucas', 'txt-rojo', '', 4, true) + mkFila('Santiago', 'txt-rojo', '', '–', true) +
+      mkFila('Andrés', 'txt-azul', '', 5, true) + mkFila('Tobías', 'txt-azul', '', '–', true) +
+      '<div class="mk-toast mal">Hoyo ya decidido: gana Team USA</div>'),
+      mkTel(mkFila('Lucas', 'txt-rojo', '', 4, true) + '<div class="mk-fila g"><div class="mk-q"><b class="txt-rojo">Santiago</b></div>' +
+      '<span class="mk-lev">levantó</span></div>' + mkFila('Andrés', 'txt-azul', '', 5, true) + mkFila('Tobías', 'txt-azul', '', '–', true) +
+      '<div class="mk-toast">Falta Tobías para cerrar el hoyo</div>')];
+  },
+  quien: function () {
+    return [mkTel(mkFila('Lucas', 'txt-rojo', '', 5, true) + '<p class="mk-chico">¿Quién puso el 5? Hay que abrir la planilla.</p>'),
+            mkTel(mkFila('Lucas', 'txt-rojo', '', 5, true) + '<p class="mk-chico">✎ Cargó <b>Ini</b> a las 14:32 · antes decía 4</p>')];
+  },
+  pestanas: function () {
+    var t = function (xs, g) { return '<div class="mk-tabs' + (g ? ' g' : '') + '">' + xs.map(function (x, k) {
+      return '<span class="' + (k === 0 ? 'sel' : '') + '">' + x + '</span>'; }).join('') + '</div>'; };
+    return [mkTel(t(['CARGAR', 'RYDER', 'MEDAL', 'TARJETAS', 'JUGADORES', 'CANCHAS'])),
+            mkTel(t(['Cargar', 'Ryder', 'Medal', 'Más ▾'], true))];
+  },
+  premios: function () {
+    return [mkTel('<p class="mk-chico">Al terminar: planilla, calculadora y WhatsApp.</p>'),
+      mkTel('<div class="mk-premio"><small>RYDER MDQ 2026</small><b>Team Europe 15½ – 12½</b>' +
+      '<span>🏆 Mejor Stableford: Arizu · 38</span><span>🐦 Más birdies: Viboud · 5</span><span>⭐ MVP USA: Luqui · 3 pts</span></div>')];
+  }
+};
+function demoHTML(k) {
+  var d = DEMOS[k] && DEMOS[k]();
+  if (!d) return '';
+  return '<div class="mk-par"><div><span class="mk-tag antes">Hoy</span>' + d[0] + '</div>' +
+    '<div><span class="mk-tag despues">Propuesta</span>' + d[1] + '</div></div>';
+}
 function vistaAnalisis() {
-  var n = 0, h = '<div class="pila">' +
+  var todos = [], n = 0;
+  ANALISIS.forEach(function (g) { g.items.forEach(function (x) { todos.push(x); }); });
+  var cuenta = function (f) { return todos.filter(f).length; };
+  var h = '<div class="pila">' +
     '<div class="acc" style="padding:0"><button class="btn fin" data-acc="tab" data-v="perfil">← Volver al perfil</button></div>' +
-    '<section class="card"><div class="sec-tit"><h2>Análisis de mejoras</h2><span class="eyebrow">' + esc(ANALISIS_FECHA) + '</span></div>' +
-    '<p class="an-intro">Todo lo que se puede mejorar de la app, de lo más urgente a lo que puede esperar. Revisado con la planilla real y probando la carga en un celular de 360 px.</p></section>';
-  ANALISIS.forEach(function (g) {
-    h += '<section class="card"><div class="sec-tit"><h2>' + esc(g.grupo) + '</h2><span class="eyebrow">' + g.items.length + '</span></div>';
+    '<section class="card an-portada"><small>' + esc(ANALISIS_FECHA) + '</small><h2>Análisis de mejoras</h2>' +
+    '<p>Lo que se puede mejorar de la app, de lo más urgente a lo que puede esperar. Las principales tienen un ejemplo: ' +
+    'a la izquierda cómo se ve hoy, a la derecha la propuesta.</p>' +
+    '<div class="an-kpi"><div><b>' + todos.length + '</b><span>mejoras</span></div>' +
+    '<div class="urg"><b>' + ANALISIS[0].items.length + '</b><span>antes del 27</span></div>' +
+    '<div><b>' + cuenta(function (x) { return x.demo; }) + '</b><span>con ejemplo</span></div>' +
+    '<div class="ok"><b>' + cuenta(function (x) { return x.hecho; }) + '</b><span>hechas</span></div></div>' +
+    '<div class="an-indice">' + ANALISIS.map(function (g, k) {
+      return '<span class="' + (k === 0 ? 'urg' : '') + '">' + esc(g.grupo) + ' · ' + g.items.length + '</span>';
+    }).join('') + '</div></section>';
+  ANALISIS.forEach(function (g, gk) {
+    h += '<section class="card' + (gk === 0 ? ' an-urgente' : '') + '"><div class="sec-tit"><h2>' + esc(g.grupo) + '</h2><span class="eyebrow">' + g.items.length + '</span></div>';
     g.items.forEach(function (x) {
       n++;
       h += '<div class="an-item' + (x.hecho ? ' hecho' : '') + '"><div class="an-cab"><b class="an-n">' + n + '</b><b class="an-t">' + esc(x.t) + '</b>' +
-        '<span class="pin">' + (x.hecho ? '✓ hecho' : esc(x.tam)) + '</span></div>' +
-        '<p><i>Hoy:</i> ' + esc(x.hoy) + '</p><p><i>' + (x.hecho ? 'Listo:' : 'Propuesta:') + '</i> ' + esc(x.prop) + '</p></div>';
+        '<span class="pin an-tam ' + (x.hecho ? 'h' : esc(x.tam)) + '">' + (x.hecho ? '✓ hecho' : esc(x.tam)) + '</span></div>' +
+        '<p><i>Hoy:</i> ' + esc(x.hoy) + '</p><p><i>' + (x.hecho ? 'Listo:' : 'Propuesta:') + '</i> ' + esc(x.prop) + '</p>' +
+        (x.demo ? demoHTML(x.demo) : '') + '</div>';
     });
     h += '</section>';
   });
   return h + nota('<div class="candado"><span>🛠️</span><span><b>Chico</b>: menos de una hora. <b>Mediano</b>: unas horas. ' +
-    'Decí cuáles querés y se hacen.</span></div>') + '</div>';
+    'Los ejemplos son maquetas para mirar: tocarlos no cambia nada. Decí cuáles querés y se hacen.</span></div>') + '</div>';
 }
 
 /* ============ armado ============ */
