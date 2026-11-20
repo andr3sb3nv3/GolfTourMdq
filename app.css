@@ -524,6 +524,12 @@ table.tc tr.yo .lbl{color:var(--eur);font-weight:800;box-shadow:inset 3px 0 0 va
 .fv-test span{font-size:17px;line-height:1}
 .fv-test.on{background:#E8590C;border-color:#E8590C;color:#fff}
 .flot-viaje.plegado .fv-test{display:none}
+.flot-viaje.plegado .fv-esc{display:none}
+.fv-esc{display:flex;flex-direction:column;align-items:flex-end;gap:6px;margin-right:max(14px,env(safe-area-inset-right))}
+.fv-esc[hidden]{display:none}
+.fv-esc button{padding:7px 12px;border-radius:999px;border:2px solid #E8590C;background:#fff;color:#B8440A;
+  font:800 13px/1 Archivo,"Helvetica Neue",Arial,sans-serif;box-shadow:0 4px 12px -6px rgba(11,27,46,.45)}
+.fv-esc button[aria-pressed="true"]{background:#E8590C;color:#fff}
 .reinicio{display:flex;flex-wrap:wrap;gap:8px;padding:4px 16px 14px}
 .reinicio .btn{flex:1 1 140px}
 .fv-btn{display:flex;align-items:center;gap:8px;margin-right:max(14px,env(safe-area-inset-right));padding:12px 18px 12px 14px;border-radius:999px;

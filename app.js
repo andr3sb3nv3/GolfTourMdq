@@ -2,7 +2,7 @@
 (function () {
 'use strict';
 
-var VERSION = 'v83';                     // tiene que coincidir con el CACHE del sw.js
+var VERSION = 'v84';                     // tiene que coincidir con el CACHE del sw.js
 var LS = { ses: 'gtm-sesion', est: 'gtm-estado', cola: 'gtm-cola', ui: 'gtm-ui' };
 var API = (window.GTM_CONFIG && window.GTM_CONFIG.api) || '';
 
@@ -1530,12 +1530,45 @@ function jugador2(lista, mat) {
   for (var i = 0; i < lista.length; i++) if (String(lista[i].matricula) === String(mat)) return lista[i];
   return { handicap: 18 };
 }
+/* Escenarios del testeo (Andres, 20/11), botones abajo a la derecha:
+   completa = torneo terminado; cero = nada jugado ni armado; pre-<cancha> = las canchas
+   anteriores jugadas completas y la de ese día con las líneas y el handicap de cancha
+   listos, sin golpes. Las que vienen después, sin líneas (se arman la noche anterior). */
+var ESCENARIOS = [['completa', 'Ryder completa'], ['cero', 'Ryder a cero'], ['acantilados', 'Pre-Acantilados'],
+                  ['miramar', 'Pre-Miramar'], ['marayui', 'Pre-Marayui'], ['catedral', 'Pre-Catedral']];
+function aplicarEscenario(T, esc) {
+  var k = esc === 'completa' ? 99 : (esc === 'cero' ? -1 : ORDEN_GIRA.indexOf(esc));
+  var pos = function (cid) { var q = ORDEN_GIRA.indexOf(cid); return q < 0 ? 99 : q; };
+  var vivos = {};
+  T.partidos = T.partidos.filter(function (m) {
+    var q = pos(m.cancha), queda = esc !== 'cero' && q <= k;
+    if (queda && q < k) vivos[m.id] = 1;            // jugado: conserva su tarjeta de equipo
+    return queda;
+  });
+  T.tarjetas = T.tarjetas.filter(function (t) { return pos(t.cancha) < k; });
+  T.tarjetasEquipo = T.tarjetasEquipo.filter(function (t) { return vivos[t.partido]; });
+  Object.keys(T.hcpCancha || {}).forEach(function (cid) { if (pos(cid) > k) delete T.hcpCancha[cid]; });
+  T.escenario = esc;
+  return T;
+}
+function escenarioTest(esc) {
+  if (!TEST) PROD = E;
+  E = aplicarEscenario(generarTest(), esc);
+  guardarLS('gtm-test-v82', E);
+  TEST = true; guardarLS('gtm-test-on', true);
+  UI.yoTest = (E.jugadores.filter(function (j) { return j.rol === 'admin'; })[0] || E.jugadores[0]).matricula;
+  UI.lineas = {}; UI.hoyo = 0; UI.armando = null; UI.modoCarga = null;
+  UI.tab = 'ryder'; UI.canchaLb = 'general';
+  UI.canchaRyder = ORDEN_GIRA.indexOf(esc) >= 0 ? esc : 'general';
+  UI.cancha = ORDEN_GIRA.indexOf(esc) >= 0 ? esc : E.canchas[0].id;
+  guardarUI(); pintar(); window.scrollTo(0, 0);
+}
 function guardarTest() { if (TEST) guardarLS('gtm-test-v82', E); }
 
 function entrarTest(regenerar) {
   if (!TEST) PROD = E;
   var guardado = regenerar ? null : leerLS('gtm-test-v82', null);
-  E = guardado || generarTest();
+  E = guardado || aplicarEscenario(generarTest(), 'completa');
   guardarLS('gtm-test-v82', E);
   TEST = true; guardarLS('gtm-test-on', true);
   UI.yoTest = (E.jugadores.filter(function (j) { return j.rol === 'admin'; })[0] || E.jugadores[0]).matricula;
@@ -3280,6 +3313,13 @@ function pintar() {
   NOTAS = [];
   var ft = document.getElementById('fv-test');   // botón flotante: muestra si estás en testeo
   if (ft) { ft.classList.toggle('on', !!TEST); ft.querySelector('b').textContent = TEST ? 'Salir del testeo' : 'Testeo'; }
+  var fe = document.getElementById('fv-esc');
+  if (fe) {
+    fe.hidden = !TEST;
+    fe.innerHTML = TEST ? ESCENARIOS.map(function (x) {
+      return '<button type="button" data-acc="escenario" data-v="' + x[0] + '" aria-pressed="' + ((E && E.escenario) === x[0]) + '">' + x[1] + '</button>';
+    }).join('') : '';
+  }
   var app = document.getElementById('app');
   if (!SES && !TEST) { app.innerHTML = vistaIngreso() + notasHTML(); return; }
   if (!E) { app.innerHTML = '<div class="pantalla"><p class="vacio">Cargando el torneo…</p></div>'; return; }
@@ -3326,6 +3366,7 @@ document.addEventListener('click', function (ev) {
   if (a === 'salir') { if (confirm('¿Cerrar sesión en este celular?')) salir(); return; }
   if (a === 'quitar-foto') { accionar({ accion: 'foto', quitar: true }); return; }
   if (a === 'test-entrar') { entrarTest(false); return; }
+  if (a === 'escenario') { escenarioTest(v); return; }
   if (a === 'test-toggle') { if (TEST) salirTest(); else entrarTest(false); window.scrollTo(0, 0); return; }
   if (a === 'reiniciar') { reiniciar(v); return; }
   if (a === 'test-salir') { salirTest(); return; }
