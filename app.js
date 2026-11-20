@@ -2,7 +2,7 @@
 (function () {
 'use strict';
 
-var VERSION = 'v91';                     // tiene que coincidir con el CACHE del sw.js
+var VERSION = 'v92';                     // tiene que coincidir con el CACHE del sw.js
 var LS = { ses: 'gtm-sesion', est: 'gtm-estado', cola: 'gtm-cola', ui: 'gtm-ui' };
 var API = (window.GTM_CONFIG && window.GTM_CONFIG.api) || '';
 
@@ -1721,7 +1721,7 @@ function prVistaVuelta(r) {
     '<span class="eyebrow">' + esc(c.nombre) + '</span></div>' +
     '<div class="scroll"><table class="tc"><thead>';
 
-  var enc = '<tr><th class="lbl">Hoyo</th>', fPar = '<tr><th class="lbl">Par</th>', fSi = '<tr><th class="lbl">Hcp hoyo</th>';
+  var enc = '<tr><th class="lbl">Hoyo</th>', fPar = '<tr><th class="lbl">Par</th>', fSi = '<tr><th class="lbl">HCP hoyo</th>';
   var pIda = 0, pVta = 0;
   for (k = 0; k < 18; k++) {
     var pv = Number(c.par[k]) || 4;
@@ -1777,7 +1777,7 @@ function prVistaHoyo(r, rr) {
     (r.sindicatos.length ? ' · ' + r.sindicatos.length + ' sindicato' + (r.sindicatos.length > 1 ? 's' : '') : '')) +
     '</span></div>' +
     '<div class="hoyo" style="padding-bottom:8px"><div class="n">' + (i + 1) + '</div>' +
-    '<div class="datos"><span class="pin">Par ' + par + '</span><span class="pin">SI ' + si + '</span></div></div>' +
+    '<div class="datos"><span class="pin">Par ' + par + '</span><span class="pin">HCP ' + si + '</span></div></div>' +
 
     PR.jugadores.filter(function (_, k) {
       return PR.anoto == null || PR.anoto === k;
@@ -2774,7 +2774,7 @@ function vistaLinea() {
       return (varios ? '<div class="linea-vs">' + esc(vsDe(x)) + '</div>' : '') + estadoMatchHTML(x);
     }).join('') +
     '<div class="hoyo" style="padding-bottom:8px"><div class="n">' + (i + 1) + '</div>' +
-    '<div class="datos"><span class="pin">Par ' + par + '</span><span class="pin">SI ' + si + '</span>' +
+    '<div class="datos"><span class="pin">Par ' + par + '</span><span class="pin">HCP ' + si + '</span>' +
     prs.map(pinGana).join('') + '</div></div>';
 
   // una fila por jugador; en foursomes, una por pareja
@@ -2911,7 +2911,7 @@ function vistaScramble(c, sel) {
     '<span class="p-estado">Scramble de a 3 · ' + N + ' hoyos</span></div>' + estadoMatchHTML(pr) +
     '<div class="hoyo"><div class="eyebrow ' + cls + '">' + esc(nombreEquipo(eq)) + ' · ' + esc(nombres.join(', ')) + '</div>' +
     '<div class="n">' + (i + 1) + '</div>' +
-    '<div class="datos"><span class="pin">Par ' + par + '</span><span class="pin">SI ' + si + '</span></div>' +
+    '<div class="datos"><span class="pin">Par ' + par + '</span><span class="pin">HCP ' + si + '</span></div>' +
 
     '<div class="sal-tit">¿De quién fue la salida?</div><div class="salidas">' +
     st.js.map(function (j) {
@@ -3023,7 +3023,7 @@ function vistaCargar() {
     selectorCarga(c) +
     '<section class="card"><div class="hoyo">' +
     '<div class="eyebrow">' + esc(c.nombre) + '</div><div class="n">' + (i + 1) + '</div>' +
-    '<div class="datos"><span class="pin">Par ' + o.par + '</span><span class="pin">SI ' + o.si + '</span>' +
+    '<div class="datos"><span class="pin">Par ' + o.par + '</span><span class="pin">HCP ' + o.si + '</span>' +
     (fs ? '<span class="pin recibe">golpes de match play</span>'
         : (o.rec !== 0 ? '<span class="pin recibe">' + (o.rec > 0 ? 'recibe ' + o.rec + ' golpe' + (o.rec > 1 ? 's' : '') : 'devuelve ' + (-o.rec)) + '</span>'
                        : '<span class="pin">sin golpe</span>')) + '</div>' +
@@ -3071,7 +3071,7 @@ function vistaTarjetas() {
     if (a === 8) fPar += '<th class="tot">' + so + '</th>';
   }
   fPar += '<th class="tot">' + si + '</th><th class="tot">' + (so + si) + '</th><th class="tot">–</th></tr>';
-  var fSi = '<tr><th class="lbl">Hcp hoyo</th>';
+  var fSi = '<tr><th class="lbl">HCP hoyo</th>';
   for (var b = 0; b < 18; b++) { fSi += '<th>' + (Number(c.si[b]) || (b + 1)) + '</th>'; if (b === 8) fSi += '<th class="tot"></th>'; }
   fSi += '<th class="tot"></th><th class="tot"></th><th class="tot"></th></tr>';
   h += enc + fPar + fSi + '</thead><tbody>';
@@ -3183,7 +3183,7 @@ function vistaCanchas() {
           : 'el botón carga los 18 pares e índices de la tarjeta del club.') + '</span></div>');
     }
     if (abierta) {
-      h += '<div class="hoyo-ed" style="padding-bottom:8px"><span></span><span class="eyebrow">Par</span><span class="eyebrow">Hcp hoyo</span></div>';
+      h += '<div class="hoyo-ed" style="padding-bottom:8px"><span></span><span class="eyebrow">Par</span><span class="eyebrow">HCP hoyo</span></div>';
       for (var i = 0; i < 18; i++) {
         h += '<div class="hoyo-ed"><span>' + (i + 1) + '</span>' +
           '<input type="number" min="3" max="6" value="' + c.par[i] + '" data-acc="ed-par" data-v="' + c.id + '" data-i="' + i + '" aria-label="Par hoyo ' + (i + 1) + '"' + (admin ? '' : ' disabled') + '>' +
@@ -3332,7 +3332,7 @@ var ANALISIS = [
   ]},
   { grupo: 'Estética y lectura al sol', items: [
     { t: 'Textos grises y chicos', demo: 'contraste', tam: 'chico',
-      hoy: 'Los rótulos (HCP cancha 14 · recibe 0, PAR, SI, los títulos de cada tarjeta) van en gris claro y entre 10 y 12 px. Al sol casi no se leen.',
+      hoy: 'Los rótulos (HCP cancha 14 · recibe 0, PAR, HCP, los títulos de cada tarjeta) van en gris claro y entre 10 y 12 px. Al sol casi no se leen.',
       prop: 'Pasar el gris a uno más oscuro y no bajar de 13 px en nada que haya que leer en la cancha.' },
     { t: 'En Cargar, lo importante queda abajo', demo: 'arriba', tam: 'mediano',
       hoy: 'El cartel del estado del match ocupa media pantalla arriba y los jugadores para cargar quedan abajo, cerca de los botones flotantes.',
@@ -3425,15 +3425,15 @@ var DEMOS = {
   },
   contraste: function () {
     return [mkTel('<div class="mk-sol"><span class="mk-eb gris">Línea 2 · Acantilados</span><b>1</b>' +
-      '<span class="mk-eb gris">Par 4 · SI 3</span><span class="mk-eb gris">HCP cancha 14 · recibe 0</span></div>', 'mk-brillo'),
+      '<span class="mk-eb gris">Par 4 · HCP 3</span><span class="mk-eb gris">HCP cancha 14 · recibe 0</span></div>', 'mk-brillo'),
       mkTel('<div class="mk-sol"><span class="mk-eb osc">Línea 2 · Acantilados</span><b>1</b>' +
-      '<span class="mk-eb osc">Par 4 · SI 3</span><span class="mk-eb osc">Recibe 0</span></div>', 'mk-brillo')];
+      '<span class="mk-eb osc">Par 4 · HCP 3</span><span class="mk-eb osc">Recibe 0</span></div>', 'mk-brillo')];
   },
   arriba: function () {
     var filas = mkFila('Lucas', 'txt-rojo', '', 4, true) + mkFila('Santiago', 'txt-rojo', '', 6, true);
     return [mkTel('<div class="mk-match"><small>TEAM USA</small><b>2 arriba</b><small>hoyo 6 · quedan 12</small></div>' +
       '<div class="mk-hoyo">7</div>' + filas),
-      mkTel('<div class="mk-franja">Team USA <b>2 arriba</b> · hoyo 6</div><div class="mk-hoyo">7 <small>Par 4 · SI 3</small></div>' +
+      mkTel('<div class="mk-franja">Team USA <b>2 arriba</b> · hoyo 6</div><div class="mk-hoyo">7 <small>Par 4 · HCP 3</small></div>' +
       filas + mkFila('Andrés', 'txt-azul', '', 5, true) + mkFila('Tobías', 'txt-azul', '', 5, true))];
   },
   fila: function () {
