@@ -326,7 +326,7 @@ function responder(obj) {
 function despachar(p) {
   try {
     switch (p.accion) {
-      case 'ping':      return { ok: true, version: 79 };
+      case 'ping':      return { ok: true, version: 89 };
       case 'diag':      return diagnostico();
       case 'registrar': return registrar(p);
       case 'precargar': exigir(p.token, true); return precargarPerfiles_();
@@ -546,13 +546,19 @@ function cambiarMatricula_(viejo, nuevo) {
   cambiar('Config', ['valor']);          // los capitanes se guardan por matrícula
 }
 
+/* Ingreso (Andres, 20/11): matrícula + el código común del viaje (Config → claveViaje).
+   No hay PIN propio: la matrícula te vincula con tu jugador. */
+function claveViajeOk_(p) {
+  var k = String(config().claveViaje || '').trim();
+  if (!k) return 'falta_clave_viaje';
+  return String(p.password || p.clave || '').trim().toUpperCase() === k.toUpperCase() ? '' : 'clave_incorrecta';
+}
 function registrar(p) {
   var mat = String(p.matricula || '').trim();
-  var pass = String(p.password || '');
   if (!mat) return { ok: false, error: 'falta_matricula' };
-  // Para entrar alcanza con la matrícula y un PIN de cuatro números: ya no hay
-  // clave del viaje. La fila claveViaje de la hoja Config queda sin uso.
-  if (!/^\d{4}$/.test(pass)) return { ok: false, error: 'password_corta' };
+  var mal = claveViajeOk_(p);
+  if (mal) return { ok: false, error: mal };
+  var pass = 'viaje';
   if (esPerfilPrecargado(mat)) return { ok: false, error: 'falta_matricula' };
 
   var lock = LockService.getScriptLock();
@@ -590,8 +596,9 @@ function registrar(p) {
 function login(p) {
   var mat = String(p.matricula || '').trim();
   var j = jugadorPorMatricula(mat);
-  if (!j || !j.hash) return { ok: false, error: 'no_registrado' };
-  if (j.hash !== hashear(mat, String(p.password || ''))) return { ok: false, error: 'password_incorrecta' };
+  var mal = claveViajeOk_(p);
+  if (mal) return { ok: false, error: mal };
+  if (!mat || !j || esPerfilPrecargado(mat)) return { ok: false, error: 'no_registrado' };
   tocarAcceso(mat);
   return { ok: true, token: emitirToken(mat), jugador: sinHash(j), estado: estadoCrudo() };
 }

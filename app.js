@@ -2,7 +2,7 @@
 (function () {
 'use strict';
 
-var VERSION = 'v88';                     // tiene que coincidir con el CACHE del sw.js
+var VERSION = 'v89';                     // tiene que coincidir con el CACHE del sw.js
 var LS = { ses: 'gtm-sesion', est: 'gtm-estado', cola: 'gtm-cola', ui: 'gtm-ui' };
 var API = (window.GTM_CONFIG && window.GTM_CONFIG.api) || '';
 
@@ -664,28 +664,27 @@ function campoPin(id, etiqueta, nuevo) {
     'placeholder="' + PIN_LARGO + ' números"></div>';
 }
 
+/* Ingreso (Andres, 20/11): matrícula + el código del viaje, igual para todos. La matrícula
+   te vincula con tu jugador. Si es la primera vez y tu perfil está precargado, elegís cuál sos. */
 function vistaIngreso() {
-  if (UI.ingreso === 'olvide') return vistaOlvide();
   var alta = UI.ingreso === 'alta';
   var h = '<div class="pantalla">' +
     '<div class="marca-app"><img class="escudo-grande" src="escudo.png" alt="Ryder MDQ">' +
-    '<p>Mar del Plata · 3 canchas</p></div>';
+    '<p>Mar del Plata · Ryder MDQ 2026</p></div>';
   if (!API) h += '<div class="error">La app todavía no está conectada a la planilla. ' +
     'Falta pegar la URL del Apps Script en <b>config.js</b>.</div>';
   h += bloqueInstalar();
-  h += '<section class="card"><div class="tabsdos">' +
-    '<button data-acc="modo" data-v="entrar" aria-pressed="' + (!alta) + '">Entrar</button>' +
-    '<button data-acc="modo" data-v="alta" aria-pressed="' + alta + '">Primera vez</button></div>' +
-    '<div class="form">' +
+  h += '<section class="card"><div class="form">' +
     (ultimoError ? '<div class="error">' + esc(textoError(ultimoError)) + '</div>' : '') +
     '<div class="campo"><label for="i-mat">Matrícula</label>' +
-    '<input id="i-mat" type="text" inputmode="numeric" autocomplete="username" placeholder="tu número de matrícula"></div>' +
-    campoPin('i-pass', alta ? 'Elegí tu PIN' : 'PIN', alta);
+    '<input id="i-mat" type="text" inputmode="numeric" autocomplete="username" placeholder="tu número de matrícula" value="' + esc(UI.matIngreso || '') + '"></div>' +
+    '<div class="campo"><label for="i-pass">Código del viaje</label>' +
+    '<input id="i-pass" type="text" autocapitalize="characters" autocomplete="current-password" placeholder="el mismo para todos" value="' + esc(UI.claveIngreso || '') + '"></div>';
   if (alta) traerPerfilesLibres();
   var libres = alta ? (PERFILES_LIBRES || []) : [];
   var elegido = libres.filter(function (j) { return j.matricula === UI.perfilAlta; })[0] || null;
-  if (alta && libres.length) {
-    h += '<div class="campo"><label>¿Quién sos?</label><div class="perfiles-alta">' +
+  if (alta) {
+    h += '<div class="campo"><label>Primera vez con esta matrícula: ¿quién sos?</label><div class="perfiles-alta">' +
       libres.map(function (j) {
         return '<button type="button" data-acc="perfil-alta" data-v="' + esc(j.matricula) + '" aria-pressed="' +
           (elegido === j) + '"><b class="' + claseTxt(j).trim() + '">' + esc(j.apodo || nombreCorto(j.nombre)) + '</b>' +
@@ -693,24 +692,15 @@ function vistaIngreso() {
       }).join('') +
       '<button type="button" data-acc="perfil-alta" data-v="" aria-pressed="' + (!elegido) + '"><b>No estoy en la lista</b>' +
       '<i>cargo mis datos a mano</i></button></div></div>';
-  }
-  if (alta && elegido) {
-    h += '<div class="campo"><label for="i-hcp">Handicap</label>' +
-      '<input id="i-hcp" type="text" inputmode="decimal" placeholder="' + esc(elegido.handicap) + ' (el que ya está cargado)"></div>' +
-      nota('<div class="candado"><span>👤</span><span>Elegiste el perfil de <b>' + esc(elegido.nombre) + '</b>: ya tiene el ' +
-      'handicap y el equipo. Poné tu matrícula y elegí tu PIN. El handicap sólo si cambió.</span></div>');
-  } else if (alta) {
-    h += '<div class="campo"><label for="i-nom">Nombre y apellido</label>' +
+    if (!elegido) h += '<div class="campo"><label for="i-nom">Nombre y apellido</label>' +
       '<input id="i-nom" type="text" autocomplete="name"></div>' +
       '<div class="campo"><label for="i-hcp">Handicap</label>' +
       '<input id="i-hcp" type="text" inputmode="decimal" placeholder="ej: 14,3"></div>';
   }
-  h += '<button class="btn pri" data-acc="' + (alta ? 'registrar' : 'entrar') + '">' +
-    (alta ? 'Crear mi acceso' : 'Entrar') + '</button>' +
-    (alta ? '' : '<button class="btn fin" data-acc="modo" data-v="olvide">Me olvidé la contraseña</button>') +
-    nota('<div class="candado"><span>📱</span><span>Se guarda la sesión en este celular: entrás una vez y listo.</span></div>') +
+  h += '<button class="btn pri" data-acc="' + (alta ? 'registrar' : 'entrar') + '">Entrar</button>' +
+    (alta ? '<button class="btn fin" data-acc="modo" data-v="entrar">← Otra matrícula</button>' : '') +
+    nota('<div class="candado"><span>📱</span><span>Entrás con tu matrícula y el código del viaje. Se guarda la sesión en este celular: entrás una vez y listo.</span></div>') +
     '<button class="btn fin" data-acc="probar">Probar la conexión con la planilla</button>' +
-    '<button class="btn fin" data-acc="test-entrar">🧪 Entrar en modo testeo (datos de prueba)</button>' +
     '</div></section>' +
     '</div>';
   return h;
@@ -767,9 +757,12 @@ function textoError(e) {
       'miralo en el editor de Apps Script, en Ejecuciones.',
     jugadores_invalidos: 'La partida rápida es de 2 a 4 jugadores.',
     partida_inexistente: 'No se encontró esa partida en la planilla.',
-    no_registrado: 'Esa matrícula todavía no está registrada. Entrá por "Primera vez".',
+    no_registrado: 'Esa matrícula todavía no está vinculada a ningún jugador.',
+    clave_incorrecta: 'El código del viaje no es ese. Es el mismo para todos: pedíselo al organizador.',
+    falta_clave: 'Falta el código del viaje.',
+    falta_clave_viaje: 'Falta cargar el código del viaje en la planilla (Config → claveViaje).',
     password_incorrecta: 'La contraseña no coincide.',
-    ya_registrado: 'Esa matrícula ya tiene acceso. Entrá con tu contraseña.',
+    ya_registrado: 'Esa matrícula ya está vinculada a un jugador. Tocá «Otra matrícula» y entrá de nuevo.',
     perfil_tomado: 'Ese perfil ya lo reclamó otro. Si sos vos, entrá con tu matrícula; si no, avisale al organizador.',
     no_es_tu_linea: 'Esa tarjeta no es de nadie que juegue un partido en esta cancha.',
     pin_invalido: 'El PIN son 4 números.',
@@ -3114,7 +3107,7 @@ function vistaJugadores() {
   if (!E.jugadores.length) h += '<p class="vacio">Todavía no se registró nadie.</p>';
   E.jugadores.forEach(function (j) {
     var t = acumulado('general').filter(function (a) { return String(a.jug.matricula) === String(j.matricula); })[0];
-    h += '<div class="jug">' + avatar(j) +
+    h += '<div class="jug toca" data-acc="ver-jug" data-v="' + esc(j.matricula) + '">' + avatar(j) +
       '<span><span class="lb-nom' + claseTxt(j) + '">' + esc(j.nombre) +
       (SES && String(SES.matricula) === String(j.matricula) ? ' <span class="eyebrow">· vos</span>' : '') + '</span>' +
       '<span class="lb-meta">' + (esPrecargado(j) ? 'Sin reclamar' : 'Mat. ' + esc(j.matricula)) + ' · HCP ' + esc(j.handicap) + ' · ' + esc(nombreEquipo(j.equipo)) +
@@ -3128,11 +3121,34 @@ function vistaJugadores() {
   if (esAdmin()) h += '<div class="acc"><button class="btn" data-acc="precargar">Cargar los perfiles de la gira</button></div>';
   h += '</section>' + bloqueConduccion();
   if (pre) h += nota('<div class="candado"><span>👤</span><span><b>Sin reclamar</b>: perfil precargado con el handicap y el equipo ' +
-    'de la planilla de la gira. Cada uno lo hace suyo en <b>Primera vez</b>, eligiéndose de la lista y poniendo su matrícula y su PIN.</span></div>');
+    'de la planilla de la gira. Cada uno lo hace suyo la primera vez que entra con su matrícula y el código del viaje, eligiéndose de la lista.</span></div>');
   if (esAdmin()) h += nota('<div class="candado"><span>🧾</span><span><b>Cargar los perfiles de la gira</b> crea a los 12 con su ' +
     'handicap y su equipo. Si ya están, les actualiza handicap y equipo sin duplicar a nadie.</span></div>');
-  return h + nota('<div class="candado"><span>🎯</span><span>Cada uno entra con su matrícula y su PIN y aparece acá automáticamente. ' +
-    'Fuera de tu propio partido nadie edita los datos ni la tarjeta de otro, el organizador tampoco.</span></div>') + '</div>';
+  return h + nota('<div class="candado"><span>👆</span><span>Tocá a cualquiera para ver su perfil: handicap, equipo y cómo viene en cada cancha. ' +
+    'Cada uno entra con su matrícula y el código del viaje.</span></div>') + '</div>';
+}
+/* Perfil de otro jugador, solo para mirar (Andres, 20/11). */
+function vistaJugador() {
+  var j = jugador(UI.verJug);
+  if (!j) { UI.tab = 'jugadores'; return vistaJugadores(); }
+  var src = fotoSrc(j, 320), h = '<div class="pila"><section class="card">' +
+    '<div class="perfil-cab"><div class="perfil-foto' + claseEq(j) + '">' +
+    (src ? '<img src="' + esc(src) + '" alt="">' : esc(inicial(j))) + '</div>' +
+    '<div><h2 class="' + claseTxt(j).trim() + '">' + esc(j.nombre) + '</h2>' +
+    '<div class="lb-meta">' + (j.apodo ? esc(j.apodo) + ' · ' : '') + 'HCP ' + esc(j.handicap) + ' · ' + esc(nombreEquipo(j.equipo)) +
+    (E.equipos && E.equipos[j.equipo] && String(E.equipos[j.equipo].capitan) === String(j.matricula) ? ' · capitán' : '') + '</div></div></div>' +
+    '<div class="escudo-eq' + claseEq(j) + '"><img src="' + esc(ESCUDOS[j.equipo === 'azul' ? 'azul' : 'rojo']) + '" alt="" loading="lazy">' +
+    '<span>' + esc(nombreEquipo(j.equipo)) + '</span></div></section>' +
+    '<section class="card"><div class="sec-tit"><h2>Cancha por cancha</h2><span class="eyebrow">Stableford</span></div>';
+  E.canchas.forEach(function (c) {
+    if (c.formato === 'scramble') return;
+    var r = calc(c, j), hc = hcpCanchaCargado(c.id, j) ? fmtNum(hcpCancha(c.id, j)) : '–';
+    h += '<div class="jug"><span class="av">' + esc(etiquetaCancha(c).charAt(0)) + '</span>' +
+      '<span><span class="lb-nom">' + esc(etiquetaCancha(c)) + '</span><span class="lb-meta">HCP de cancha ' + hc +
+      (r.thru ? ' · ' + r.thru + ' hoyos · bruto ' + r.bruto : ' · sin jugar') + '</span></span>' +
+      '<span class="lb-val"><b>' + (r.thru ? r.pts : '–') + '</b><span>puntos</span></span></div>';
+  });
+  return h + '</section><div class="acc"><button class="btn" data-acc="tab" data-v="jugadores">← Todos los jugadores</button></div></div>';
 }
 
 function vistaCanchas() {
@@ -3339,7 +3355,7 @@ function pintar() {
   var y = yo();
   var vista = UI.tab === 'cargar' ? vistaCargar() : UI.tab === 'tarjetas' ? vistaTarjetas() :
     UI.tab === 'jugadores' ? vistaJugadores() : UI.tab === 'canchas' ? vistaCanchas() :
-    UI.tab === 'ryder' ? vistaRyder() : UI.tab === 'perfil' ? vistaPerfil() :
+    UI.tab === 'ryder' ? vistaRyder() : UI.tab === 'perfil' ? vistaPerfil() : UI.tab === 'jugador' ? vistaJugador() :
     UI.tab === 'testeo' ? vistaTesteo() : UI.tab === 'rapida' ? vistaRapida(false) :
     UI.tab === 'rapidaRyder' ? vistaRapida(true) : vistaPosiciones();
   app.innerHTML = barraEstado() + '<div class="topbar"><div class="topbar-in">' +
@@ -3409,6 +3425,13 @@ document.addEventListener('click', function (ev) {
   if (a === 'tab') {
     UI.tab = v; UI.editando = null;
     if ((v === 'cargar' || v === 'ryder') && SES && !TEST) traerEstado().then(pintar, function () {});
+  }
+  else if (a === 'ver-jug') {
+    if (ev.target.closest('label, button, input')) return;
+    var yoA = yo();
+    if (yoA && String(yoA.matricula) === String(v) && !TEST) UI.tab = 'perfil';
+    else { UI.verJug = v; UI.tab = 'jugador'; }
+    window.scrollTo(0, 0);
   }
   else if (a === 'ir-perfil') {
     if (TEST) { UI.selector = !UI.selector; guardarUI(); pintar(); return; }
@@ -3528,8 +3551,10 @@ document.addEventListener('change', function (ev) {
 
 function ingresar(alta) {
   var mat = (document.getElementById('i-mat') || {}).value || '';
-  var pass = (document.getElementById('i-pass') || {}).value || '';
-  if (!esPin(pass)) { ultimoError = 'pin_invalido'; pintar(); return; }
+  var pass = ((document.getElementById('i-pass') || {}).value || '').trim();
+  if (!mat.trim()) { ultimoError = 'falta_matricula'; pintar(); return; }
+  if (!pass) { ultimoError = 'falta_clave'; pintar(); return; }
+  UI.matIngreso = mat.trim(); UI.claveIngreso = pass;
   var cuerpo = { accion: alta ? 'registrar' : 'login', matricula: mat.trim(), password: pass };
   if (alta && UI.perfilAlta) {
     cuerpo.perfil = UI.perfilAlta;
@@ -3542,11 +3567,13 @@ function ingresar(alta) {
   pedir(cuerpo).then(function (res) {
     if (res && res.ok) {
       SES = { token: res.token, matricula: res.jugador.matricula };
-      UI.perfilAlta = null; PERFILES_LIBRES = null;
+      UI.perfilAlta = null; PERFILES_LIBRES = null; UI.ingreso = 'entrar'; UI.matIngreso = ''; UI.claveIngreso = '';
       guardarLS(LS.ses, SES);
       adoptar(res.estado);
-      UI.tab = 'posiciones';
+      UI.tab = 'cargar';
       guardarUI(); pintar(); arrancarReloj();
+    } else if (res && res.error === 'no_registrado' && !alta) {
+      UI.ingreso = 'alta'; UI.perfilAlta = null; ultimoError = ''; pintar();   // primera vez: elegir quién es
     } else { ultimoError = (res && res.error) || 'fallo'; pintar(); }
   }, function (err) { ultimoError = (err && err.message) || 'sin_conexion'; pintar(); });
 }
