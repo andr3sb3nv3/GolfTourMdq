@@ -640,3 +640,4 @@ body{padding-bottom:calc(84px + env(safe-area-inset-bottom))}
 .gen-jug{display:flex;justify-content:space-between;align-items:center;font-size:14px;gap:4px}
 .gen-jug i{font-style:normal;color:var(--tinta-2);font-size:12px}
 .gen-jug .btn.fin{padding:2px 10px;font-size:16px}
+.subir.chico{padding:6px 10px;font-size:18px}

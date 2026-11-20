@@ -377,9 +377,9 @@ function sincronizar() {
 }
 /* En el testeo la foto NO queda en los datos de prueba (se borran cada vez que se
    regenera el testeo): si estás con tu sesión, se sube de verdad al jugador real
-   con el mismo apodo (la tuya siempre; la de cualquiera si sos el organizador). */
+   con el mismo apodo. Cualquiera puede cargar la foto de cualquiera. */
 function fotoEnTest(c) {
-  var y = yo(), r = jugadorReal(y), quitar = !!c.quitar;
+  var y = (c.matricula && jugador(c.matricula)) || yo(), r = jugadorReal(y), quitar = !!c.quitar;
   if (quitar) { delete y.foto; y.fotoId = ''; } else y.foto = c.foto;
   guardarTest(); pintar();
   if (!r || !SES) {
@@ -3033,7 +3033,8 @@ function vistaJugadores() {
       (j.rol === 'admin' ? ' · organizador' : '') + (t && t.thru ? ' · ' + t.pts + ' pts' : '') + '</span></span>' +
       (yo() && String(yo().matricula) === String(j.matricula)
         ? '<button class="btn fin" data-acc="ir-perfil">Editar</button>'
-        : '<span class="eyebrow" title="Solo lo edita su dueño">🔒</span>') +
+        : ((SES || TEST) ? '<label class="subir chico" title="Cambiar la foto">📷<input type="file" accept="image/*" data-acc="ed-foto" data-mat="' +
+            esc(j.matricula) + '"></label>' : '')) +
       '</div>';
   });
   if (esAdmin()) h += '<div class="acc"><button class="btn" data-acc="precargar">Cargar los perfiles de la gira</button></div>';
@@ -3380,7 +3381,7 @@ document.addEventListener('change', function (ev) {
   }
   if (!E) return;
   var a = acc, v = el.getAttribute('data-v'), i = Number(el.getAttribute('data-i'));
-  if (a === 'ed-foto') { if (el.files && el.files[0]) subirFoto(el.files[0]); el.value = ''; return; }
+  if (a === 'ed-foto') { if (el.files && el.files[0]) subirFoto(el.files[0], el.getAttribute('data-mat')); el.value = ''; return; }
   else if (a === 'ed-perfil') {
     var p = { accion: 'perfil' };
     if (v === 'handicap') {
@@ -3810,7 +3811,7 @@ function exportar() {
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
 }
 
-function subirFoto(file) {
+function subirFoto(file, mat) {
   if (!file || !/^image\//.test(file.type)) { alert('Elegí una imagen.'); return; }
   var fr = new FileReader();
   fr.onload = function () {
@@ -3821,7 +3822,9 @@ function subirFoto(file) {
         var ctx = cv.getContext('2d'), lado = Math.min(img.width, img.height);
         ctx.drawImage(img, (img.width - lado) / 2, (img.height - lado) / 2, lado, lado, 0, 0, L, L);
         var datos = cv.toDataURL('image/jpeg', 0.75);
-        accionar({ accion: 'foto', foto: datos });
+        var c = { accion: 'foto', foto: datos };
+        if (mat) c.matricula = mat;     // la foto de otro jugador: cualquiera puede cargarla
+        accionar(c);
       } catch (e) { alert('No se pudo procesar esa imagen. Probá con otra.'); }
     };
     img.onerror = function () { alert('No se pudo abrir esa imagen. Probá con otra.'); };
