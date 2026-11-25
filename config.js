@@ -3,5 +3,5 @@
    Versión: Nueva versión". Si se elige "Nueva implementación", Google crea otra
    URL distinta y hay que actualizar este archivo. */
 window.GTM_CONFIG = {
-  api: 'https://script.google.com/macros/s/AKfycbwZq8TH25nzsnrf2FPuAqVifojvxXDLA2odiOaQs6ZcaHbaTr-sgpK5VZzGcOwaE-UTQg/exec'
+  api: 'https://script.google.com/macros/s/AKfycbzMgTPgCoKjhFoTQRWXfksEQZ6LEKabnYnEHccPlKKL4W37eCiaPBnYXUWw81Ca3SufGA/exec'
 };
