@@ -821,3 +821,43 @@ body{padding-bottom:calc(84px + env(safe-area-inset-bottom))}
 /* Cerrar sesión arriba de todo en el perfil (Andres no lo encontraba, 25/11) */
 .sesion-cab{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px}
 .sesion-cab span{font-size:15px}
+
+/* ===== Tarjetas versión 2 (v95): una tarjeta por jugador, agrupada por equipo ===== */
+.tc-ver button{font-weight:800}
+.tc2-cab{padding-bottom:4px}
+.tc2-eq{display:flex;align-items:baseline;justify-content:space-between;margin:6px 2px -2px;padding:8px 12px;border-radius:10px;
+  color:#fff;font-family:Archivo,sans-serif;font-weight:800;font-size:15px;letter-spacing:.02em;text-transform:uppercase}
+.tc2-eq i{font-style:normal;font-weight:700;font-size:11.5px;opacity:.85;text-transform:none;letter-spacing:0}
+.tc2-eq.eq-azul{background:var(--eur)} .tc2-eq.eq-rojo{background:var(--usa)} .tc2-eq.eq-no{background:var(--tinta-2)}
+.card.tc2{padding:12px 10px 10px;border-left:5px solid var(--linea-2)}
+.card.tc2.eq-azul{border-left-color:var(--eur)} .card.tc2.eq-rojo{border-left-color:var(--usa)}
+.tc2-top{display:flex;justify-content:space-between;gap:8px;align-items:flex-start;margin-bottom:8px}
+.tc2-nom{min-width:0}
+.tc2-nom b{font-family:Archivo,sans-serif;font-size:16px;color:var(--tinta)}
+.tc2-nom em{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:999px;background:var(--oro-suave);color:#7A5B12;
+  font-style:normal;font-size:11px;font-weight:800;vertical-align:2px}
+.tc2-nom span{display:block;font-size:12.5px;color:var(--tinta-2);font-weight:700}
+.tc2-num{display:flex;gap:4px;flex:none}
+.tc2-num div{min-width:44px;text-align:center;background:var(--panel-2);border-radius:8px;padding:3px 2px}
+.tc2-num div.pt{background:var(--navy);color:#fff}
+.tc2-num b{display:block;font-family:Archivo,sans-serif;font-size:18px;line-height:1.1;color:inherit}
+.tc2-num span{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;opacity:.8}
+table.tc2-t{width:100%;border-collapse:collapse;table-layout:fixed;font-family:"IBM Plex Mono",monospace;margin-top:4px}
+table.tc2-t th{width:40px;text-align:left;font:700 10.5px Karla,sans-serif;color:var(--tenue);text-transform:uppercase}
+table.tc2-t td{text-align:center;padding:1px 0}
+table.tc2-t td.t{width:38px;background:var(--panel-2);font-size:12px;font-weight:700}
+table.tc2-t tr.n td{font-size:11px;color:var(--tinta-2);font-weight:700;position:relative;padding-top:7px}
+table.tc2-t tr.n td i{position:absolute;top:-2px;left:0;right:0;font-style:normal;font-size:10px;line-height:1;color:var(--navy-3);letter-spacing:-1px}
+table.tc2-t tr.par td{font-size:11px;color:var(--tenue)}
+table.tc2-t tr.g td{padding:2px 1px}
+.h{display:inline-grid;place-items:center;width:100%;max-width:30px;height:28px;border-radius:6px;font-weight:700;font-size:15px;
+  background:#fff;color:#000;border:1px solid var(--linea)}
+.h.v{background:var(--panel-2);border-style:dashed}
+.h.e{background:#B8860B;color:#fff;border-color:#B8860B}
+.h.b{background:var(--usa);color:#fff;border-color:var(--usa)}
+.h.p{background:#fff;color:#000}
+.h.o{background:#D6E2F5;color:#000;border-color:#B5C8E8}
+.h.d{background:var(--eur-osc);color:#fff;border-color:var(--eur-osc)}
+.tc2-pie{margin-top:6px;text-align:right;font-size:12.5px;color:var(--tinta-2);font-weight:700}
+.tc2-pie b{color:var(--tinta);font-size:14px}
+.tc2-ley .h{width:24px;height:20px;font-size:11px;vertical-align:middle}

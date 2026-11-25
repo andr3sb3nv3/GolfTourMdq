@@ -3198,14 +3198,54 @@ function vistaCargar() {
   return h;
 }
 
+/* Orden de las tarjetas (Andres, 25/11): Team Europe arriba, su capitán primero y
+   el resto por handicap; después Team USA igual, con su capitán primero. Si el
+   organizador no nombró capitán, se busca por apodo (Sebas / Mati). */
+function capitanEq(eq, js) {
+  var m = E.equipos && E.equipos[eq] && E.equipos[eq].capitan;
+  if (m && js.some(function (j) { return String(j.matricula) === String(m); })) return String(m);
+  var clave = eq === 'azul' ? 'sebas' : 'mati';
+  for (var i = 0; i < js.length; i++) {
+    var ap = sinTildes(js[i].apodo), no = sinTildes(js[i].nombre);
+    if (ap.indexOf(clave) === 0 || no.indexOf(clave) === 0) return String(js[i].matricula);
+  }
+  return null;
+}
+function gruposTarjetas(c) {
+  function hc(j) { var o = E.hcpCancha && E.hcpCancha[c.id], v = o && o[String(j.matricula)];
+    if (v != null && v !== '') return Number(v); var n = numeroHcp(j.handicap); return n == null ? 999 : n; }
+  var grupos = [];
+  [['azul', 'Team Europe'], ['rojo', 'Team USA'], ['', 'Sin equipo']].forEach(function (g) {
+    var js = E.jugadores.filter(function (j) { return g[0] ? j.equipo === g[0] : (j.equipo !== 'azul' && j.equipo !== 'rojo'); });
+    if (!js.length) return;
+    var cap = g[0] ? capitanEq(g[0], js) : null;
+    js.sort(function (a, b) {
+      var ca = String(a.matricula) === cap, cb = String(b.matricula) === cap;
+      if (ca !== cb) return ca ? -1 : 1;
+      return (hc(a) - hc(b)) || String(a.nombre).localeCompare(String(b.nombre));
+    });
+    var nom = (g[0] && E.equipos && E.equipos[g[0]] && E.equipos[g[0]].nombre) || g[1];
+    grupos.push({ eq: g[0], nombre: nom, cap: cap, js: js });
+  });
+  return grupos;
+}
+
 function vistaTarjetas() {
-  var c = canchaActual(), modo = UI.vistaTc;
-  var h = '<div class="pila">' + chipsCancha(c.id, 'sel-cancha', false) +
+  var c = canchaActual(), modo = UI.vistaTc, ver = UI.tcVer === 2 ? 2 : 1;
+  var h = '<div class="pila">' +
+    '<div class="seg tc-ver" role="group" aria-label="Diseño">' +
+    '<button data-acc="tc-ver" data-v="1" aria-pressed="' + (ver === 1) + '">Versión 1</button>' +
+    '<button data-acc="tc-ver" data-v="2" aria-pressed="' + (ver === 2) + '">Versión 2</button></div>' +
+    chipsCancha(c.id, 'sel-cancha', false) +
     '<div class="seg" role="group">' +
     '<button data-acc="vista-tc" data-v="bruto" aria-pressed="' + (modo === 'bruto') + '">Bruto</button>' +
     '<button data-acc="vista-tc" data-v="neto" aria-pressed="' + (modo === 'neto') + '">Neto</button>' +
-    '<button data-acc="vista-tc" data-v="pts" aria-pressed="' + (modo === 'pts') + '">Puntos</button></div>' +
-    '<section class="card"><div class="sec-tit"><h2>' + esc(c.nombre) + '</h2><span class="eyebrow">' + esc(fechaCancha(c)) + '</span></div>' +
+    '<button data-acc="vista-tc" data-v="pts" aria-pressed="' + (modo === 'pts') + '">Puntos</button></div>';
+  return h + (ver === 2 ? tarjetasV2(c, modo) : tarjetasV1(c, modo)) + '</div>';
+}
+
+function tarjetasV1(c, modo) {
+  var h = '<section class="card"><div class="sec-tit"><h2>' + esc(c.nombre) + '</h2><span class="eyebrow">' + esc(fechaCancha(c)) + '</span></div>' +
     '<div class="scroll"><table class="tc"><thead>';
   var enc = '<tr><th class="lbl">Hoyo</th>';
   for (var k = 0; k < 18; k++) { enc += '<th>' + (k + 1) + '</th>'; if (k === 8) enc += '<th class="tot">Ida</th>'; }
@@ -3222,9 +3262,9 @@ function vistaTarjetas() {
   fSi += '<th class="tot"></th><th class="tot"></th><th class="tot"></th></tr>';
   h += enc + fPar + fSi + '</thead><tbody>';
 
-  E.jugadores.forEach(function (j) {
+  gruposTarjetas(c).forEach(function (g) { g.js.forEach(function (j) {
     var r = calc(c, j), o = 0, n = 0, t = 0;
-    var fila = '<tr><td class="lbl' + claseTxt(j) + '">' + esc(nombreCorto(j.nombre)) + '</td>';
+    var fila = '<tr><td class="lbl' + claseTxt(j) + '">' + esc(nombreCorto(j.nombre)) + (String(j.matricula) === g.cap ? ' <small>(C)</small>' : '') + '</td>';
     r.hoyos.forEach(function (x, k) {
       var val = '·', cls = '';
       if (x.g != null) {
@@ -3240,10 +3280,57 @@ function vistaTarjetas() {
       if (k === 8) fila += '<td class="tot">' + (o || '·') + '</td>';
     });
     h += fila + '<td class="tot">' + (n || '·') + '</td><td class="tot">' + (t || '·') + '</td><td class="tot">' + r.pts + '</td></tr>';
-  });
+  }); });
   return h + '</tbody></table></div></section>' +
     nota('<div class="candado"><span>⛳</span><span>Círculo rojo: bajo par. Cuadrado azul: sobre par. ' +
-    'Doble marco: eagle o doble bogey.</span></div>') + '</div>';
+    'Doble marco: eagle o doble bogey.</span></div>');
+}
+
+/* Versión 2: una tarjeta por jugador, ida y vuelta en dos filas de 9 para que entre
+   en el celular sin correr de costado. Cada hoyo pintado según cómo le fue. */
+function tarjetasV2(c, modo) {
+  var h = '<section class="card tc2-cab"><div class="sec-tit"><h2>' + esc(c.nombre) + '</h2><span class="eyebrow">' + esc(fechaCancha(c)) +
+    ' · ' + (modo === 'bruto' ? 'golpes brutos' : (modo === 'neto' ? 'golpes netos' : 'puntos Stableford')) + '</span></div></section>';
+  function clase(x) {
+    if (x.g == null) return 'v';
+    if (modo === 'pts') return x.pts >= 4 ? 'e' : (x.pts === 3 ? 'b' : (x.pts === 2 ? 'p' : (x.pts === 1 ? 'o' : 'd')));
+    var ref = (modo === 'bruto' ? x.g : x.neto) - x.par;
+    return ref <= -2 ? 'e' : (ref === -1 ? 'b' : (ref === 0 ? 'p' : (ref === 1 ? 'o' : 'd')));
+  }
+  function valor(x) { return x.g == null ? '' : (modo === 'bruto' ? x.g : (modo === 'neto' ? x.neto : x.pts)); }
+  function media(r, desde, lbl) {
+    var f1 = '<tr class="n"><th>' + lbl + '</th>', f2 = '<tr class="par"><th>Par</th>', f3 = '<tr class="g"><th></th>', tp = 0, tv = 0, hay = false;
+    for (var i = desde; i < desde + 9; i++) {
+      var x = r.hoyos[i], pts = x.rec > 0 ? '<i>' + new Array(Math.min(x.rec, 3) + 1).join('•') + '</i>' : '';
+      f1 += '<td>' + (i + 1) + pts + '</td>';
+      f2 += '<td>' + x.par + '</td>'; tp += x.par;
+      f3 += '<td><span class="h ' + clase(x) + '">' + valor(x) + '</span></td>';
+      if (x.g != null) { hay = true; tv += Number(valor(x)); }
+    }
+    return f1 + '<td class="t">' + (desde ? 'Vta' : 'Ida') + '</td></tr>' + f2 + '<td class="t">' + tp + '</td></tr>' +
+      f3 + '<td class="t"><b>' + (hay ? tv : '') + '</b></td></tr>';
+  }
+  gruposTarjetas(c).forEach(function (g) {
+    h += '<div class="tc2-eq eq-' + (g.eq || 'no') + '"><span>' + esc(g.nombre) + '</span><i>' + g.js.length + ' jugadores</i></div>';
+    g.js.forEach(function (j) {
+      var r = calc(c, j), cap = String(j.matricula) === g.cap, p = Math.round(hcpCancha(c.id, j));
+      var tot = modo === 'bruto' ? r.bruto : (modo === 'neto' ? r.neto : r.pts);
+      h += '<section class="card tc2 eq-' + (g.eq || 'no') + '"><div class="tc2-top">' +
+        '<div class="tc2-nom"><b>' + esc(j.nombre) + '</b>' + (cap ? '<em>Capitán</em>' : '') +
+        '<span>Hcp ' + p + (r.thru ? ' · ' + r.thru + (r.thru === 1 ? ' hoyo' : ' hoyos') : ' · sin empezar') + '</span></div>' +
+        '<div class="tc2-num"><div><b>' + (r.thru ? r.bruto : '–') + '</b><span>Bruto</span></div>' +
+        '<div><b>' + (r.thru ? r.neto : '–') + '</b><span>Neto</span></div>' +
+        '<div class="pt"><b>' + (r.thru ? r.pts : '–') + '</b><span>Puntos</span></div></div></div>';
+      if (r.thru) h += '<table class="tc2-t">' + media(r, 0, 'Hoyo') + '</table><table class="tc2-t">' + media(r, 9, 'Hoyo') + '</table>' +
+        '<div class="tc2-pie">' + (modo === 'pts' ? 'Total puntos' : 'Total ' + modo) + ' <b>' + tot + '</b>' +
+        (modo !== 'pts' && r.thru ? ' · ' + signo(modo === 'bruto' ? r.vsPar : r.vsParNeto) + ' vs par' : '') + '</div>';
+      h += '</section>';
+    });
+  });
+  var ley = modo === 'pts'
+    ? '<span class="h e">4+</span> 4 o más · <span class="h b">3</span> 3 pts · <span class="h p">2</span> 2 pts · <span class="h o">1</span> 1 pt · <span class="h d">0</span> 0 pts'
+    : '<span class="h e">E</span> eagle o mejor · <span class="h b">B</span> birdie · <span class="h p">P</span> par · <span class="h o">+1</span> bogey · <span class="h d">+2</span> doble o peor';
+  return h + nota('<div class="candado tc2-ley"><span>⛳</span><span>' + ley + '. Los puntitos arriba del número de hoyo son los golpes que recibe ese jugador.</span></div>');
 }
 
 function vistaJugadores() {
@@ -3960,6 +4047,7 @@ document.addEventListener('click', function (ev) {
   else if (a === 'metrica') { UI.metrica = v; }
   else if (a === 'sel-cancha') { UI.cancha = v; UI.hoyo = primerLibre(); }
   else if (a === 'vista-tc') { UI.vistaTc = v; }
+  else if (a === 'tc-ver') { UI.tcVer = Number(v) === 2 ? 2 : 1; }
   else if (a === 'ver-jug') { UI.canchaLb = UI.canchaLb; }
   else if (a === 'ir-hoyo') { UI.hoyo = Number(v); }
   else if (a === 'hoyo-prev') { UI.hoyo = Math.max(0, UI.hoyo - 1); }
