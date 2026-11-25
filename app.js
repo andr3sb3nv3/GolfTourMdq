@@ -2,7 +2,7 @@
 (function () {
 'use strict';
 
-var VERSION = 'v93';                     // tiene que coincidir con el CACHE del sw.js
+var VERSION = 'v94';                     // tiene que coincidir con el CACHE del sw.js
 var LS = { ses: 'gtm-sesion', est: 'gtm-estado', cola: 'gtm-cola', ui: 'gtm-ui' };
 var API = (window.GTM_CONFIG && window.GTM_CONFIG.api) || '';
 
@@ -411,7 +411,17 @@ function refrescarProd() {
 }
 function accionarTest(c) {
   if (c.accion === 'foto') return fotoEnTest(c);
-  var y = yo();
+  var op = { c: JSON.parse(JSON.stringify(c)), yo: UI.yoTest };
+  delete op.c.token;
+  mutarTest(op.c, op.yo);
+  E.sello = new Date().toISOString();
+  testCambio(op); pintar();
+  return Promise.resolve({ ok: true });
+}
+/* Aplica una acción del testeo sobre E. La usan este dispositivo y, después,
+   todos los demás cuando les llega el cambio: tiene que dar lo mismo en todos. */
+function mutarTest(c, yoMat) {
+  var y = jugador(yoMat) || {};
   if (c.accion === 'perfil') {
     ['nombre', 'apodo', 'club'].forEach(function (k) { if (c[k] !== undefined) y[k] = c[k]; });
     if (c.handicap !== undefined) y.handicap = Number(c.handicap) || 0;
@@ -464,9 +474,6 @@ function accionarTest(c) {
     E.tarjetasEquipo = (E.tarjetasEquipo || []).filter(function (t) { return !deCancha[t.partido]; });
     if (c.lineas) E.partidos = (E.partidos || []).filter(function (m) { return !toca(m.cancha); });
   }
-  E.sello = new Date().toISOString();
-  guardarTest(); pintar();
-  return Promise.resolve({ ok: true });
 }
 function accionar(cuerpo) {
   if (TEST) return accionarTest(cuerpo);
@@ -1559,6 +1566,8 @@ function escenarioTest(esc) {
   E = aplicarEscenario(generarTest(), esc);
   guardarLS('gtm-test-v82', E);
   TEST = true; guardarLS('gtm-test-on', true);
+  TPEND = []; testGuardarSync(); testNuevo(E);     // el escenario nuevo vale para todos los dispositivos
+  arrancarReloj();
   UI.yoTest = (E.jugadores.filter(function (j) { return j.rol === 'admin'; })[0] || E.jugadores[0]).matricula;
   UI.lineas = {}; UI.hoyo = 0; UI.armando = null; UI.modoCarga = null;
   UI.tab = 'cargar'; UI.canchaLb = 'general';
@@ -1568,12 +1577,149 @@ function escenarioTest(esc) {
 }
 function guardarTest() { if (TEST) guardarLS('gtm-test-v82', E); }
 
+/* ============ testeo compartido entre dispositivos (25/11) ============
+   Antes el testeo vivía solo en cada celular: lo que se anotaba en el teléfono
+   no aparecía en el iPad. Ahora el servidor guarda el testeo y la lista de
+   cambios (golpes, líneas, perfiles…); cada dispositivo aplica esa lista en el
+   mismo orden, así todos ven lo mismo en pocos segundos.
+   TC = lo confirmado por el servidor ({ rev, estado }); TPEND = cambios de este
+   dispositivo que todavía no subieron. Lo que se ve es TC + TPEND. */
+var TC = leerLS('gtm-test-conf', null);
+var TPEND = leerLS('gtm-test-pend', []);
+var TSYNC = '';                  // '' | 'ok' | 'local' (planilla sin actualizar) | 'error'
+var tEnVuelo = false, tProx = null;
+function clonar(o) { return JSON.parse(JSON.stringify(o)); }
+function sinFotos(S) { var c = clonar(S); (c.jugadores || []).forEach(function (j) { delete j.foto; }); return c; }
+function ponerGolpe(x) {
+  var k = Number(x.hoyo) - 1, t = null, i;
+  if (!(k >= 0 && k < 18) || !E) return;
+  if (x.partido) {
+    E.tarjetasEquipo = E.tarjetasEquipo || [];
+    for (i = 0; i < E.tarjetasEquipo.length; i++)
+      if (E.tarjetasEquipo[i].partido === x.partido && E.tarjetasEquipo[i].lado === x.lado) { t = E.tarjetasEquipo[i]; break; }
+    if (!t) { t = { partido: x.partido, lado: x.lado, hoyos: new Array(18).fill(null) }; E.tarjetasEquipo.push(t); }
+    if (x.salida !== undefined) { if (!t.salidas) t.salidas = new Array(18).fill(null); t.salidas[k] = x.salida || null; }
+  } else {
+    E.tarjetas = E.tarjetas || [];
+    for (i = 0; i < E.tarjetas.length; i++)
+      if (E.tarjetas[i].cancha === x.cancha && String(E.tarjetas[i].matricula) === String(x.matricula)) { t = E.tarjetas[i]; break; }
+    if (!t) { t = { cancha: x.cancha, matricula: String(x.matricula), hoyos: new Array(18).fill(null) }; E.tarjetas.push(t); }
+  }
+  t.hoyos[k] = x.golpes == null ? null : x.golpes;
+}
+function aplicarOpsTest(S, ops) {
+  var antes = E;
+  E = S;
+  try {
+    ops.forEach(function (op) {
+      try { if (op.g) ponerGolpe(op); else if (op.c) mutarTest(op.c, op.yo); } catch (e) {}
+    });
+  } finally { E = antes; }
+  return S;
+}
+/* Rearma lo que se ve: lo confirmado + lo pendiente. Las fotos que quedaron
+   solo en este dispositivo se conservan. */
+function testRehacer() {
+  if (!TC || !TC.estado) return;
+  var fotos = {};
+  ((E && E.jugadores) || []).forEach(function (j) { if (j.foto) fotos[j.matricula] = j.foto; });
+  var S = aplicarOpsTest(clonar(TC.estado), TPEND);
+  S.esTest = true;
+  (S.jugadores || []).forEach(function (j) { if (fotos[j.matricula]) j.foto = fotos[j.matricula]; });
+  if (S.canchas) S.canchas = ordenarCanchas(S.canchas);
+  if (TEST) { E = S; guardarTest(); }
+}
+function testGuardarSync() { guardarLS('gtm-test-conf', TC); guardarLS('gtm-test-pend', TPEND); }
+/* Un cambio hecho acá (ya aplicado sobre E): se guarda y se sube enseguida. */
+function testCambio(op) {
+  TPEND.push(op);
+  guardarTest(); testGuardarSync();
+  clearTimeout(tProx);
+  tProx = setTimeout(testSubir, 250);
+}
+/* Lo que contestó el servidor: foto nueva (si hace falta) y los cambios en orden. */
+function testRecibir(res) {
+  if (res.snap) TC = { rev: res.snapRev, estado: res.snap };
+  if (!TC) return false;
+  var antes = TC.rev;
+  (res.ops || []).forEach(function (x) {
+    if (x.r <= TC.rev) return;
+    aplicarOpsTest(TC.estado, [x.op]);
+    TC.rev = x.r;
+  });
+  testGuardarSync();
+  testRehacer();
+  // la lista de cambios creció mucho: este dispositivo, que está al día, la resume
+  if (res.largo > 300 && !TPEND.length && !tEnVuelo)
+    pedir({ accion: 'testCompactar', rev: TC.rev, estado: TC.estado }).catch(function () {});
+  return !!res.snap || TC.rev !== antes;
+}
+function testFallo(res) {
+  var e = res && res.error;
+  TSYNC = (e === 'accion_desconocida') ? 'local' : 'error';
+  pintar();
+}
+/* Empieza un testeo nuevo PARA TODOS con el estado S (regenerar o escenario). */
+function testNuevo(S) {
+  if (!navigator.onLine) { TSYNC = 'error'; return; }
+  var foto = sinFotos(S), hay = TPEND.length;
+  tEnVuelo = true;
+  pedir({ accion: 'testOps', snap: foto, ops: [] }).then(function (res) {
+    tEnVuelo = false;
+    if (!res || !res.ok) return testFallo(res);
+    TC = { rev: res.rev, estado: foto };
+    TPEND = TPEND.slice(hay);
+    TSYNC = 'ok';
+    testRecibir(res); pintar();
+    if (TPEND.length) testSubir();
+  }, function () { tEnVuelo = false; TSYNC = 'error'; pintar(); });
+}
+function testSubir() {
+  if (!TEST || tEnVuelo || !navigator.onLine) return;
+  if (!TC) return testTraer();
+  if (!TPEND.length) return testTraer();
+  var lote = TPEND.slice(0, 100);
+  tEnVuelo = true;
+  pedir({ accion: 'testOps', ops: lote, desde: TC.rev }).then(function (res) {
+    tEnVuelo = false;
+    if (res && res.ok) {
+      TPEND = TPEND.slice(lote.length);
+      TSYNC = 'ok';
+      testRecibir(res); pintar();
+      if (TPEND.length) testSubir();
+    } else if (res && res.error === 'sin_testeo') {
+      testNuevo(E);                               // el servidor no tiene testeo: arranca con el de acá
+    } else if (res && res.error === 'testeo_lleno') {
+      pedir({ accion: 'testCompactar', rev: TC.rev, estado: TC.estado })
+        .then(function () { setTimeout(testSubir, 500); }, function () {});
+    } else testFallo(res);
+  }, function () { tEnVuelo = false; TSYNC = 'error'; pintar(); });
+}
+function testTraer() {
+  if (!TEST || tEnVuelo || !navigator.onLine) return;
+  if (TPEND.length && TC) return testSubir();
+  tEnVuelo = true;
+  pedir({ accion: 'testLeer', desde: TC ? TC.rev : -1 }).then(function (res) {
+    tEnVuelo = false;
+    if (!res || !res.ok) return testFallo(res);
+    if (res.vacio) { TC = null; return testNuevo(E); }   // nadie empezó el testeo todavía: va el de acá
+    TSYNC = 'ok';
+    if (TPEND.length && !TC) TPEND = [];          // cambios sobre un testeo que no es el del servidor
+    if (testRecibir(res)) pintar();
+    if (TPEND.length) testSubir();
+  }, function () { tEnVuelo = false; TSYNC = 'error'; pintar(); });
+}
+
 function entrarTest(regenerar) {
   if (!TEST) PROD = E;
   var guardado = regenerar ? null : leerLS('gtm-test-v82', null);
   E = guardado || aplicarEscenario(generarTest(), 'completa');
   guardarLS('gtm-test-v82', E);
   TEST = true; guardarLS('gtm-test-on', true);
+  // Regenerar arranca un testeo nuevo para todos; si no, se trae el que ya está en el servidor.
+  if (regenerar) { TPEND = []; testGuardarSync(); testNuevo(E); }
+  else { testRehacer(); testTraer(); }
+  arrancarReloj();
   UI.yoTest = (E.jugadores.filter(function (j) { return j.rol === 'admin'; })[0] || E.jugadores[0]).matricula;
   UI.cancha = E.canchas[0].id; UI.canchaLb = 'general'; UI.canchaRyder = 'general'; UI.lineas = {};
   UI.tab = 'cargar'; UI.hoyo = 0; UI.armando = null; UI.modoCarga = null;
@@ -3662,7 +3808,12 @@ function desplegableJugadores() {
 }
 
 function barraEstado() {
-  if (TEST) return '<div class="barra-estado test">🧪 Modo testeo · datos inventados, no tocan la planilla' +
+  if (TEST) return '<div class="barra-estado test">🧪 Testeo · ' +
+    (TSYNC === 'local' ? 'solo en este dispositivo: falta actualizar el código de la planilla'
+     : !navigator.onLine ? 'sin señal, ' + (TPEND.length ? TPEND.length + ' cambio(s) esperando' : 'se sincroniza al volver')
+     : TPEND.length ? 'subiendo ' + TPEND.length + ' cambio(s)…'
+     : TSYNC === 'error' ? 'no se pudo sincronizar, reintenta solo'
+     : 'compartido: todos los dispositivos ven lo mismo') +
     ' · <button class="btn fin" data-acc="test-salir">salir</button></div>';
   if (COLA.length && !navigator.onLine)
     return '<div class="barra-estado">📴 Sin señal · ' + COLA.length + ' golpe' + (COLA.length > 1 ? 's' : '') + ' esperando para subir</div>';
@@ -3749,7 +3900,7 @@ document.addEventListener('click', function (ev) {
   if (a === 'test-toggle') { if (TEST) salirTest(); else entrarTest(false); window.scrollTo(0, 0); return; }
   if (a === 'reiniciar') { reiniciar(v); return; }
   if (a === 'test-salir') { salirTest(); return; }
-  if (a === 'test-regenerar') { if (confirm('Se sortean de nuevo handicaps, tarjetas y partidos. ¿Seguimos?')) entrarTest(true); return; }
+  if (a === 'test-regenerar') { if (confirm('Se sortean de nuevo handicaps, tarjetas y partidos, y se borra lo anotado en el testeo de TODOS los dispositivos. ¿Seguimos?')) entrarTest(true); return; }
   if (a === 'test-yo') { UI.yoTest = v; UI.hoyo = 0; UI.selector = false; guardarUI(); pintar(); return; }
   if (a === 'rapida') { UI.tab = 'rapida'; guardarUI(); pintar(); return; }
   if (a === 'copa') { if (TEST) salirTest(); UI.tab = 'cargar'; UI.canchaRyder = 'general'; guardarUI(); pintar(); window.scrollTo(0, 0); return; }
@@ -4183,7 +4334,11 @@ function anotarLinea(a, destino) {
   }
   t.hoyos[UI.hoyo] = nuevo;
 
-  if (TEST) { guardarTest(); guardarUI(); pintar(); return; }
+  if (TEST) {
+    testCambio(Object.assign({ g: 1, hoyo: UI.hoyo + 1, golpes: nuevo },
+      esLado ? { partido: m.id, lado: clave } : { cancha: c.id, matricula: String(clave) }));
+    guardarUI(); pintar(); return;
+  }
   guardarLS(LS.est, E);
 
   var item = esLado ? { partido: m.id, lado: clave } : { cancha: c.id, matricula: String(clave) };
@@ -4224,7 +4379,8 @@ function anotarGolpe(a, v) {
   }
   t.hoyos[UI.hoyo] = nuevo;
   if (TEST) {
-    guardarTest();
+    testCambio(Object.assign({ g: 1, hoyo: UI.hoyo + 1, golpes: nuevo },
+      fs ? { partido: fs.m.id, lado: fs.lado } : { cancha: c.id, matricula: String(y.matricula) }));
     if (a === 'set' && UI.hoyo < 17) UI.hoyo++;
     guardarUI(); pintar();
     return;
@@ -4271,7 +4427,10 @@ function anotarScramble(op, v) {
   else t.hoyos[i] = (act == null ? par : Math.max(1, act - 1));
   if (avanzar && i < hoyosCancha(c) - 1) UI.hoyo++;
 
-  if (TEST) { guardarTest(); guardarUI(); pintar(); return; }
+  if (TEST) {
+    testCambio({ g: 1, partido: m.id, lado: lado, hoyo: i + 1, golpes: t.hoyos[i], salida: t.salidas[i] || '' });
+    guardarUI(); pintar(); return;
+  }
   guardarLS(LS.est, E);
   COLA = COLA.filter(function (x) { return !(x.partido === m.id && (x.lado || '') === lado && x.hoyo === i + 1); });
   COLA.push({ partido: m.id, lado: lado, hoyo: i + 1, golpes: t.hoyos[i], salida: t.salidas[i] || '' });
@@ -4343,17 +4502,31 @@ function arrancarReloj() {
      así todos ven en vivo lo que anota cualquiera; en el resto, cada 30 s. */
   var ultimo = Date.now();
   reloj = setInterval(function () {
-    if (TEST || document.hidden || !navigator.onLine || !SES) return;
-    var cada = (UI.tab === 'cargar' || UI.tab === 'ryder' || UI.tab === 'posiciones') ? 12000 : 30000;
-    if (Date.now() - ultimo < cada) return;
+    if (document.hidden || !navigator.onLine) return;
+    var vivo = (UI.tab === 'cargar' || UI.tab === 'ryder' || UI.tab === 'posiciones');
+    if (TEST) {
+      if (Date.now() - ultimo < (vivo ? 6000 : 20000)) return;
+      ultimo = Date.now(); testSubir(); return;
+    }
+    if (!SES) return;
+    if (Date.now() - ultimo < (vivo ? 10000 : 30000)) return;
     ultimo = Date.now();
-    if (COLA.length) sincronizar(); else traerEstado().then(pintar, function () {});
-  }, 3000);
+    // Antes, si quedaba un golpe trabado en la cola, este dispositivo dejaba de
+    // traer lo que cargaban los demás. Ahora primero sube y después trae siempre.
+    var subir = COLA.length ? sincronizar() : Promise.resolve();
+    subir.then(function () { return traerEstado(); }).then(pintar, function () {});
+  }, 2000);
 }
-window.addEventListener('online', function () { pintar(); sincronizar().then(traerEstado).then(pintar, function () {}); });
+window.addEventListener('online', function () {
+  pintar();
+  if (TEST) { testSubir(); return; }
+  sincronizar().then(traerEstado).then(pintar, function () {});
+});
 window.addEventListener('offline', pintar);
 document.addEventListener('visibilitychange', function () {
-  if (!document.hidden && SES && navigator.onLine) { sincronizar(); traerEstado().then(pintar, function () {}); }
+  if (document.hidden || !navigator.onLine) return;
+  if (TEST) { testSubir(); return; }
+  if (SES) sincronizar().then(function () { return traerEstado(); }).then(pintar, function () {});
 });
 
 /* Al abrir, la app arranca en la copa (datos reales, pestaña Ryder → General), no en el

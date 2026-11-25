@@ -326,7 +326,7 @@ function responder(obj) {
 function despachar(p) {
   try {
     switch (p.accion) {
-      case 'ping':      return { ok: true, version: 90 };
+      case 'ping':      return { ok: true, version: 94 };
       case 'diag':      return diagnostico();
       case 'registrar': return registrar(p);
       case 'precargar': exigir(p.token, true); return precargarPerfiles_();
@@ -359,6 +359,9 @@ function despachar(p) {
       case 'pushAlta':  return pushAlta(p);
       case 'pushBaja':  return pushBaja(p);
       case 'pushPrueba': return pushPrueba(p);
+      case 'testLeer':  return testLeer_(p);
+      case 'testOps':   return testOps_(p);
+      case 'testCompactar': return testCompactar_(p);
       default:          return { ok: false, error: 'accion_desconocida' };
     }
   } catch (err) {
@@ -1606,3 +1609,76 @@ function anotar(mat, accion, detalle) {
   try { SpreadsheetApp.openById(SS_ID).getSheetByName('Log').appendRow([new Date(), mat, accion, detalle]); } catch (e) {}
 }
 function limpiarCache() { try { CacheService.getScriptCache().remove('estado'); } catch (e) {} }
+
+/* ============================================================
+   TESTEO COMPARTIDO (25/11)
+   Antes el testeo vivía solo en cada celular: lo que se anotaba en el teléfono
+   no aparecía en el iPad. Ahora todos los dispositivos comparten el mismo
+   testeo. El servidor guarda una foto del testeo (snap) y la lista de cambios
+   que se hicieron después (log); cada app aplica esos cambios en orden, así que
+   el backend no necesita saber nada de reglas. Vive en las Propiedades del
+   script (no toca la planilla). Son datos inventados: no hace falta sesión.
+   ============================================================ */
+var TEST_TROZO = 4000;   // caracteres por propiedad (el límite de Google es 9 KB)
+var TEST_MAX_LOG = 1500; // cambios guardados antes de pedir que se compacte
+
+function testCargar_() {
+  var todo = PropertiesService.getScriptProperties().getProperties();
+  var n = Number(todo.test_n || 0);
+  if (!n) return null;
+  var s = '';
+  for (var i = 0; i < n; i++) s += todo['test_' + i] || '';
+  try { return JSON.parse(s); } catch (e) { return null; }
+}
+function testGuardar_(T) {
+  var pr = PropertiesService.getScriptProperties();
+  // \u para los acentos: así cada trozo pesa lo mismo en bytes que en letras
+  var s = JSON.stringify(T).replace(/[\u0080-\uffff]/g, function (c) {
+    return '\\u' + ('0000' + c.charCodeAt(0).toString(16)).slice(-4);
+  });
+  var n = Math.max(1, Math.ceil(s.length / TEST_TROZO)), viejo = Number(pr.getProperty('test_n') || 0), o = {};
+  for (var i = 0; i < n; i++) o['test_' + i] = s.slice(i * TEST_TROZO, (i + 1) * TEST_TROZO);
+  o.test_n = String(n);
+  pr.setProperties(o, false);
+  for (var k = n; k < viejo; k++) pr.deleteProperty('test_' + k);
+}
+/* Lo que le falta a una app que ya tiene todo hasta "desde". */
+function testRespuesta_(T, desde) {
+  if (!T) return { ok: true, vacio: true, rev: 0 };
+  desde = Number(desde);
+  if (!(desde >= T.snapRev)) return { ok: true, rev: T.rev, snapRev: T.snapRev, snap: T.snap, ops: T.log, largo: T.log.length };
+  return { ok: true, rev: T.rev, ops: T.log.filter(function (x) { return x.r > desde; }), largo: T.log.length };
+}
+function testLeer_(p) { return testRespuesta_(testCargar_(), p.desde); }
+
+/* p.ops: cambios en orden. p.snap (opcional): empieza un testeo nuevo con ese estado. */
+function testOps_(p) {
+  var ops = p.ops || [];
+  if (ops.length > 200) return { ok: false, error: 'faltan_datos' };
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var T = testCargar_();
+    if (p.snap) { var r0 = (T && T.rev) || 0; T = { rev: r0 + 1, snapRev: r0 + 1, snap: p.snap, log: [] }; }
+    if (!T) return { ok: false, error: 'sin_testeo' };
+    if (T.log.length + ops.length > TEST_MAX_LOG) return { ok: false, error: 'testeo_lleno' };
+    ops.forEach(function (op) { T.rev++; T.log.push({ r: T.rev, op: op }); });
+    testGuardar_(T);
+    return testRespuesta_(T, p.snap ? T.snapRev : p.desde);
+  } finally { lock.releaseLock(); }
+}
+/* Una app al día manda el estado al que llegó en la revisión "rev": esa pasa a
+   ser la foto y se borran los cambios ya incluidos. */
+function testCompactar_(p) {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var T = testCargar_(), r = Number(p.rev);
+    if (!T || !p.estado || !(r >= T.snapRev && r <= T.rev)) return { ok: false, error: 'faltan_datos' };
+    T.snap = p.estado; T.snapRev = r;
+    T.log = T.log.filter(function (x) { return x.r > r; });
+    testGuardar_(T);
+    return { ok: true, rev: T.rev };
+  } finally { lock.releaseLock(); }
+}
+
