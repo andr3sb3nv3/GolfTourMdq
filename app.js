@@ -2,7 +2,7 @@
 (function () {
 'use strict';
 
-var VERSION = 'v95';                     // tiene que coincidir con el CACHE del sw.js
+var VERSION = 'v97';                     // tiene que coincidir con el CACHE del sw.js
 var LS = { ses: 'gtm-sesion', est: 'gtm-estado', cola: 'gtm-cola', ui: 'gtm-ui' };
 var API = (window.GTM_CONFIG && window.GTM_CONFIG.api) || '';
 
@@ -3389,9 +3389,9 @@ function bloquePedidos() {
     'Se lo pasás y con eso él pone uno nuevo.</span></div>');
 }
 
-/* Escudo debajo de la foto: el escudo de la Ryder MDQ 2026 (Andres, 18/11), el mismo
-   para los dos equipos; el marco y el nombre van del color del equipo. */
-var ESCUDOS = { azul: 'escudo.png', rojo: 'escudo.png' };
+/* Escudo debajo de la foto: cada equipo con el suyo (Andres, 25/11):
+   azul = Europe 2026, rojo = USA 2026. El marco y el nombre van del color del equipo. */
+var ESCUDOS = { azul: 'escudo-europe.webp', rojo: 'escudo-usa.webp' };
 function vistaPerfil() {
   var y = yo();
   if (!y) return '<p class="vacio">Cargando…</p>';
