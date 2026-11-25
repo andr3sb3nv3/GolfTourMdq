@@ -2,7 +2,7 @@
 (function () {
 'use strict';
 
-var VERSION = 'v94';                     // tiene que coincidir con el CACHE del sw.js
+var VERSION = 'v95';                     // tiene que coincidir con el CACHE del sw.js
 var LS = { ses: 'gtm-sesion', est: 'gtm-estado', cola: 'gtm-cola', ui: 'gtm-ui' };
 var API = (window.GTM_CONFIG && window.GTM_CONFIG.api) || '';
 
@@ -3397,7 +3397,12 @@ function vistaPerfil() {
   if (!y) return '<p class="vacio">Cargando…</p>';
   var medal = hcpJuego(y);          // Medal Play Neto: handicap completo
   var match = ph(y);                // Match de la Ryder: el 85% de la casa
-  return '<div class="pila">' + bloqueInstalar() + '<section class="card">' +
+  var real = SES ? jugador(SES.matricula) || (PROD && (PROD.jugadores || []).filter(function (j) {
+    return String(j.matricula) === String(SES.matricula); })[0]) : null;
+  var sesion = SES ? '<section class="card sesion-cab"><span>Sesión iniciada' +
+    (real ? ' como <b>' + esc(nombreCorto(real.nombre)) + '</b>' : '') + '</span>' +
+    '<button class="btn" data-acc="salir">Cerrar sesión</button></section>' : '';
+  return '<div class="pila">' + sesion + bloqueInstalar() + '<section class="card">' +
     '<div class="perfil-cab"><div class="perfil-foto' + claseEq(y) + '">' +
     (fotoSrc(y, 320) ? '<img src="' + esc(fotoSrc(y, 320)) + '" alt="">' : esc(inicial(y))) + '</div>' +
     '<div><h2 class="' + claseTxt(y).trim() + '">' + esc(y.nombre) + '</h2>' +
@@ -3432,7 +3437,7 @@ function vistaPerfil() {
     '<input id="p-pass" type="password" inputmode="numeric" maxlength="4" placeholder="4 números" data-acc="ed-pass"></div></div>' +
     nota('<div class="candado" style="border-top:0"><span>🔒</span><span>Con sesión podés cargar y corregir cualquier línea, ' +
     'las canchas y los equipos.' + (esAdmin() ? ' Como organizador, además cargás los perfiles y ves los pedidos de contraseña.' : '') + '</span></div>') +
-    '<div class="acc"><button class="btn fin" data-acc="salir">Cerrar sesión en este celular</button></div></section>' +
+    '<div class="acc"><button class="btn" data-acc="salir">Cerrar sesión en este celular</button></div></section>' +
     (esAdmin() && !TEST ? bloquePedidos() : '') +
     '<button class="btn-analisis" data-acc="tab" data-v="analisis"><span>🔍</span><span><b>Análisis de mejoras</b>' +
     '<small>Todo lo que se puede mejorar de la app, por prioridad</small></span><i>→</i></button></div>';

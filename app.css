@@ -818,3 +818,6 @@ body{padding-bottom:calc(84px + env(safe-area-inset-bottom))}
 .mk-match.azul{border-color:var(--eur);background:#EFF4FD;color:var(--eur)}
 .mk-wsp{margin-top:6px;background:#25D366;color:#fff;font-weight:800;text-align:center;border-radius:8px;padding:6px;font-size:10.5px}
 @media (max-width:380px){ .an-barra{grid-template-columns:80px 1fr} }
+/* Cerrar sesión arriba de todo en el perfil (Andres no lo encontraba, 25/11) */
+.sesion-cab{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px}
+.sesion-cab span{font-size:15px}
