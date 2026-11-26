@@ -2,7 +2,7 @@
 (function () {
 'use strict';
 
-var VERSION = 'v97';                     // tiene que coincidir con el CACHE del sw.js
+var VERSION = 'v98';                     // tiene que coincidir con el CACHE del sw.js
 var LS = { ses: 'gtm-sesion', est: 'gtm-estado', cola: 'gtm-cola', ui: 'gtm-ui' };
 var API = (window.GTM_CONFIG && window.GTM_CONFIG.api) || '';
 
@@ -1121,7 +1121,7 @@ var PR_PTS = { fourball: 1, foursome: 1, scramble: 1, singles: 2 };
 
 function prNuevaRyder() {
   var p = prNueva();
-  p.ryder = true; p.cancha = 'jockey-azul'; p.pareja = null; p.segunda = false;
+  p.ryder = true; p.cancha = 'jockey-azul'; p.pareja = null; p.segunda = true;
   p.jugadores = RYDER_PR.map(function (j) { return { nombre: j.nombre, hcp: j.hcp, hoyos: nulos() }; });
   return p;
 }
@@ -1144,12 +1144,16 @@ function rySingles(l) {
 }
 function ryNombres(lado) { return lado.map(function (k) { return nombreCorto(PR.jugadores[k].nombre); }).join(' y '); }
 
-/* Match play genérico sobre dos tiras de netos (null = hoyo sin cargar). */
-function ryMatch(na, nb) {
+/* Match play genérico sobre dos tiras de netos (null = hoyo sin cargar).
+   na2/nb2 (opcional, four-ball): la segunda bola de cada lado desempata el hoyo. */
+function ryMatch(na, nb, na2, nb2) {
   var N = 18, hoyos = [], i, arriba = 0, jugados = 0, cerradoEn = 0;
   for (i = 0; i < N; i++) {
-    var a = na[i], b = nb[i];
-    hoyos.push({ a: a, b: b, gana: (a == null || b == null) ? null : (a < b ? 'a' : (b < a ? 'b' : '')) });
+    var a = na[i], b = nb[i], gana = (a == null || b == null) ? null : (a < b ? 'a' : (b < a ? 'b' : '')), por = gana ? 'primera' : '';
+    if (gana === '' && na2 && nb2 && na2[i] != null && nb2[i] != null && na2[i] !== nb2[i]) {
+      gana = na2[i] < nb2[i] ? 'a' : 'b'; por = 'segunda';
+    }
+    hoyos.push({ a: a, b: b, a2: na2 ? na2[i] : null, b2: nb2 ? nb2[i] : null, gana: gana, por: por });
   }
   for (i = 0; i < N; i++) {
     if (hoyos[i].gana === null) break;
@@ -1181,16 +1185,18 @@ function prRyder() {
 
   // Four-ball: mejor bola neta, todos contra el más bajo de los cuatro
   var g4 = [0, 1, 2, 3].map(function (k) { return golpesPR(k, [0, 1, 2, 3]); });
-  var fbNeto = function (lado) {
+  // Si las mejores empatan, desempata la segunda bola (Andres, 26/11).
+  var fbNeto = function (lado, pos) {
     var t = [];
     for (i = 0; i < 18; i++) {
       var gs = ryGolpes(lado, i);
-      t.push(gs ? Math.min.apply(null, gs.map(function (g, x) { return g - golpesDif(g4[lado[x]], siDe(i)); })) : null);
+      t.push(gs ? gs.map(function (g, x) { return g - golpesDif(g4[lado[x]], siDe(i)); })
+        .sort(function (p, q) { return p - q; })[pos] : null);
     }
     return t;
   };
-  var fb = ryMatch(fbNeto(l.a), fbNeto(l.b));
-  fb.clave = 'fourball'; fb.nombre = 'Four-ball'; fb.como = 'mejor bola neta';
+  var fb = ryMatch(fbNeto(l.a, 0), fbNeto(l.b, 0), fbNeto(l.a, 1), fbNeto(l.b, 1));
+  fb.clave = 'fourball'; fb.nombre = 'Four-ball'; fb.como = 'mejor bola neta, desempata la segunda';
   r.mods.push(fb);
 
   // Foursome: una pelota por pareja (acá, el promedio de los dos). Handicap del
@@ -1358,7 +1364,8 @@ function ryHoyoDetalle(rr, i) {
   rr.mods.forEach(function (m) {
     var x = m.hoyos[i], fuera = m.cerradoEn && i >= m.cerradoEn;
     h += fila(m.nombre + (fuera ? ' (ya cerrado)' : ''), fuera ? { gana: null } : x, nA, nB,
-      x.a == null ? '' : num(x.a) + '–' + num(x.b) + (m.medal ? ' golpes' : ' netos'));
+      x.a == null ? '' : num(x.a) + '–' + num(x.b) + (m.medal ? ' golpes' : ' netos') +
+        (x.por === 'segunda' ? ' · 2ª bola ' + num(x.a2) + '–' + num(x.b2) : ''));
   });
   rr.singles.forEach(function (m) {
     var x = m.hoyos[i], a = nombreCorto(PR.jugadores[m.ka].nombre), b = nombreCorto(PR.jugadores[m.kb].nombre);
@@ -1406,7 +1413,8 @@ function ryResumen(rr) {
   });
   h += '</section>';
 
-  h += nota('<div class="candado"><span>🧮</span><span><b>Four-ball:</b> mejor bola neta de cada pareja; el más bajo de los cuatro va ' +
+  h += nota('<div class="candado"><span>🧮</span><span><b>Four-ball:</b> mejor bola neta de cada pareja; si empatan, desempata la ' +
+    '<b>segunda bola</b> (la peor de cada pareja) y si también empatan, hoyo empatado. El más bajo de los cuatro va ' +
     'scratch. <b>Foursome:</b> se juega con una pelota por pareja; acá se estima con el <b>promedio</b> de los dos, y la pareja ' +
     'de handicap más alto recibe la diferencia entre los promedios. <b>Scramble:</b> medal neto con el <b>mejor golpe de los dos</b> ' +
     'en cada hoyo; handicap del equipo 35% del más bajo + 15% del más alto. <b>Individual:</b> match play, cada uno contra el ' +
@@ -2024,7 +2032,7 @@ function prTiraMatch(m) {
     h += '<tr><td class="lbl">' + esc(f[0]) + '</td>';
     for (k = 0; k < m.jugados; k++) {
       var v = m.hoyos[k][f[1]], gana = m.hoyos[k].gana === f[1];
-      h += '<td>' + (v == null ? '·' : (gana ? '<span class="marca c">' + v + '</span>' : v)) + '</td>';
+      h += '<td>' + (v == null ? '·' : (gana ? '<span class="marca c">' + v + (m.hoyos[k].por === 'segunda' ? '*' : '') + '</span>' : v)) + '</td>';
     }
     h += '</tr>';
   });
@@ -2377,19 +2385,32 @@ function calcularPartido(m) {
     for (i = 0; i < 18; i++) {
       var idx = Number(c.si[i]) || (i + 1);
       // Se anota el gross de cada uno; el golpe de handicap (85%) lo pone la app.
+      // Four-ball (Andres, 26/11): primero se comparan las mejores bolas netas; si
+      // empatan, desempata la segunda bola (la peor neta de cada pareja). Si también
+      // empatan, hoyo empatado. Quien no tiene golpe cargado en el hoyo levantó:
+      // con la primera empatada, pierde contra una segunda bola que sí terminó.
       var lado = function (equipo) {
-        var mejor = null, gross = null;
+        var bs = [];
         equipo.forEach(function (j) {
           var g = hoyosDe(c.id, j.matricula)[i];
           if (g == null) return;
-          var neto = g - golpesDif(gm[j.matricula], idx);
-          if (mejor === null || neto < mejor || (neto === mejor && g < gross)) { mejor = neto; gross = g; }   // four-ball: la mejor bola
+          bs.push({ neto: g - golpesDif(gm[j.matricula], idx), gross: g });
         });
-        return { neto: mejor, gross: gross };
+        bs.sort(function (p, q) { return p.neto - q.neto || p.gross - q.gross; });
+        return { neto: bs.length ? bs[0].neto : null, gross: bs.length ? bs[0].gross : null,
+                 neto2: bs.length > 1 ? bs[1].neto : null, gross2: bs.length > 1 ? bs[1].gross : null, n: equipo.length };
       };
-      var la = lado(usa), lb = lado(eur), a = la.neto, b = lb.neto;
-      hoyos.push({ i: i, usa: a, eur: b, gU: la.gross, gE: lb.gross,
-        gana: (a == null || b == null) ? null : (a < b ? 'usa' : (b < a ? 'eur' : null)) });
+      var la = lado(usa), lb = lado(eur), a = la.neto, b = lb.neto, gana = null, por = '';
+      if (a != null && b != null) {
+        if (a !== b) { gana = a < b ? 'usa' : 'eur'; por = 'primera'; }
+        else if (la.n > 1 && lb.n > 1) {
+          var a2 = la.neto2, b2 = lb.neto2;
+          if (a2 != null && (b2 == null || a2 < b2)) { gana = 'usa'; por = 'segunda'; }
+          else if (b2 != null && (a2 == null || b2 < a2)) { gana = 'eur'; por = 'segunda'; }
+        }
+      }
+      hoyos.push({ i: i, usa: a, eur: b, gU: la.gross, gE: lb.gross, usa2: la.neto2, eur2: lb.neto2,
+        gU2: la.gross2, gE2: lb.gross2, gana: gana, por: por });
     }
   }
 
@@ -3000,7 +3021,7 @@ function tiraLinea(pr, titulo) {
     h += '<tr><td class="lbl">' + esc(f[1]) + '</td>';
     for (k = 0; k < pr.jugados; k++) {
       var v = pr.hoyos[k][f[0]], gana = pr.hoyos[k].gana === f[0];
-      h += '<td>' + (v == null ? '·' : (gana ? '<span class="marca c">' + v + '</span>' : v)) + '</td>';
+      h += '<td>' + (v == null ? '·' : (gana ? '<span class="marca c">' + v + (pr.hoyos[k].por === 'segunda' ? '*' : '') + '</span>' : v)) + '</td>';
     }
     h += '</tr>';
   });
@@ -3012,7 +3033,9 @@ function tiraLinea(pr, titulo) {
   }
   return h + '</tr></tbody></table></div>' +
     nota('<div class="candado"><span>🔎</span><span>Son las <b>mejores bolas netas</b> de cada lado, con los golpes ya ' +
-    'descontados. El círculo marca quién ganó el hoyo. <b>Va</b> es cómo va ' + esc(nombreEquipo('rojo')) +
+    'descontados. El círculo marca quién ganó el hoyo' + (pr.fmt === 'fourball' ? '; con un asterisco, lo ganó la <b>segunda bola</b> ' +
+    '(empataron las mejores y desempató la peor de cada pareja; si también empatan, hoyo empatado)' : '') +
+    '. <b>Va</b> es cómo va ' + esc(nombreEquipo('rojo')) +
     '.</span></div>') + '</section>';
 }
 
