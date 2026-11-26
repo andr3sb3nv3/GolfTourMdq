@@ -861,3 +861,20 @@ table.tc2-t tr.g td{padding:2px 1px}
 .tc2-pie{margin-top:6px;text-align:right;font-size:12.5px;color:var(--tinta-2);font-weight:700}
 .tc2-pie b{color:var(--tinta);font-size:14px}
 .tc2-ley .h{width:24px;height:20px;font-size:11px;vertical-align:middle}
+
+/* v99: botón Levantó (10) en la carga por línea */
+.pr-fila .lev{grid-column:1/-1;justify-self:start;margin-top:-2px;padding:5px 10px;border:1px solid var(--linea-2);
+  border-radius:999px;background:transparent;color:var(--tenue);font:inherit;font-size:12px;font-weight:700;cursor:pointer}
+
+/* v99: contador general de Stableford por equipo (Ryder → General) */
+.stb-total{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;padding:6px 14px 0;text-align:center}
+.stb-total b{display:block;font-size:44px;line-height:1;font-variant-numeric:tabular-nums}
+.stb-total span{display:block;font-size:12px;font-weight:700;margin-top:4px}
+.stb-vs{font-size:24px;color:var(--tenue)}
+.stb-frase{margin:8px 14px 4px;text-align:center;font-weight:800;font-size:15px}
+.stb-cols{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:8px 14px 12px}
+.stb-col h3{margin:0 0 4px;font-size:13px}
+.stb-fila{display:flex;justify-content:space-between;align-items:center;gap:6px;padding:5px 0;border-top:1px solid var(--linea);font-size:14px}
+.stb-fila span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.stb-fila i{display:block;font-style:normal;font-size:11px;color:var(--tenue)}
+.stb-fila b{font-variant-numeric:tabular-nums;font-size:16px}

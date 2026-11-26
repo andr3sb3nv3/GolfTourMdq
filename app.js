@@ -2,7 +2,7 @@
 (function () {
 'use strict';
 
-var VERSION = 'v98';                     // tiene que coincidir con el CACHE del sw.js
+var VERSION = 'v99';                     // tiene que coincidir con el CACHE del sw.js
 var LS = { ses: 'gtm-sesion', est: 'gtm-estado', cola: 'gtm-cola', ui: 'gtm-ui' };
 var API = (window.GTM_CONFIG && window.GTM_CONFIG.api) || '';
 
@@ -485,13 +485,18 @@ function accionar(cuerpo) {
     return res;
   }, function (e) { ultimoError = 'sin_conexion'; pintar(); throw e; });
 }
-/* Si se venció la sesión, los golpes que no subieron quedan guardados: suben
-   solos cuando vuelve a entrar. Solo "Cerrar sesión" a mano los descarta. */
-function salir(conservarCola) {
-  SES = null; UI.tab = 'posiciones';
-  if (!conservarCola) COLA = [];
-  try { localStorage.removeItem(LS.ses); if (!conservarCola) localStorage.removeItem(LS.cola); } catch (e) {}
-  pintar();
+/* Los golpes que no subieron NUNCA se borran al salir (Andres, 26/11: cerró sesión
+   para registrar a otro jugador y perdió lo anotado). Cualquiera puede anotar
+   cualquier línea, así que suben con la sesión que entre después. Antes de cerrar
+   a mano se intenta subirlos. */
+function salir(vencida) {
+  var cerrar = function () {
+    SES = null; UI.tab = 'posiciones';
+    try { localStorage.removeItem(LS.ses); } catch (e) {}
+    pintar();
+  };
+  if (!vencida && SES && COLA.length && navigator.onLine && !sincronizando) sincronizar().then(cerrar, cerrar);
+  else cerrar();
 }
 
 /* ============ instalación en el celular ============ */
@@ -2387,8 +2392,8 @@ function calcularPartido(m) {
       // Se anota el gross de cada uno; el golpe de handicap (85%) lo pone la app.
       // Four-ball (Andres, 26/11): primero se comparan las mejores bolas netas; si
       // empatan, desempata la segunda bola (la peor neta de cada pareja). Si también
-      // empatan, hoyo empatado. Quien no tiene golpe cargado en el hoyo levantó:
-      // con la primera empatada, pierde contra una segunda bola que sí terminó.
+      // empatan, hoyo empatado. Como el que levanta se anota con 10, el hoyo cuenta
+      // recién cuando están los golpes de todos los del partido.
       var lado = function (equipo) {
         var bs = [];
         equipo.forEach(function (j) {
@@ -2397,6 +2402,7 @@ function calcularPartido(m) {
           bs.push({ neto: g - golpesDif(gm[j.matricula], idx), gross: g });
         });
         bs.sort(function (p, q) { return p.neto - q.neto || p.gross - q.gross; });
+        if (bs.length < equipo.length) bs = [];      // falta cargar a alguien: el hoyo todavía no cuenta
         return { neto: bs.length ? bs[0].neto : null, gross: bs.length ? bs[0].gross : null,
                  neto2: bs.length > 1 ? bs[1].neto : null, gross2: bs.length > 1 ? bs[1].gross : null, n: equipo.length };
       };
@@ -2456,6 +2462,8 @@ function calcularPartido(m) {
    El que más suma se lleva PTS_STABLEFORD puntos de la Ryder; empate, mitad cada uno.
    Queda definido cuando los 12 terminaron las tres canchas; antes, va como proyectado. */
 var PTS_STABLEFORD = 3;
+// El que ya no suma Stableford levanta y se le anotan 10 golpes (Andres, 26/11): 0 puntos.
+var LEVANTO = 10;
 function stablefordEquipos() {
   var cs = canchasIndividual(), r = { usa: 0, eur: 0, empezado: false, cerrado: cs.length > 0, n: 0 };
   acumulado('general').forEach(function (a) {
@@ -2468,6 +2476,31 @@ function stablefordEquipos() {
   });
   if (!r.n) r.cerrado = false;
   return r;
+}
+/* Contador general de Stableford (Andres, 26/11): el total de cada equipo en grande,
+   quién va arriba y por cuánto, y lo que sumó cada uno de los seis. */
+function contadorStableford(st) {
+  var dif = Math.abs(st.usa - st.eur), lider = st.usa > st.eur ? 'rojo' : (st.eur > st.usa ? 'azul' : null);
+  var estado = st.cerrado ? 'terminado' : (st.empezado ? 'en juego' : 'sin empezar');
+  var frase = !st.empezado ? 'Todavía no hay golpes cargados'
+    : (!lider ? 'Van iguales' : nombreEquipo(lider) + ' +' + dif + (st.cerrado ? ' · se lleva los ' : ' · se llevaría los ') + PTS_STABLEFORD + ' puntos');
+  var lista = acumulado('general').filter(function (a) { return a.jug.equipo === 'rojo' || a.jug.equipo === 'azul'; });
+  var col = function (eq) {
+    var ls = lista.filter(function (a) { return a.jug.equipo === eq; }).sort(function (a, b) { return b.pts - a.pts || b.thru - a.thru; });
+    return '<div class="stb-col"><h3 class="' + (eq === 'rojo' ? 'txt-rojo' : 'txt-azul') + '">' + esc(nombreEquipo(eq)) + '</h3>' +
+      ls.map(function (a) {
+        return '<div class="stb-fila"><span>' + esc(nombreCorto(a.jug.nombre)) + '<i>' + (a.thru ? a.thru + ' hoyos' : 'sin jugar') + '</i></span><b>' + a.pts + '</b></div>';
+      }).join('') + '</div>';
+  };
+  return '<section class="card"><div class="sec-tit"><h2>Stableford por equipo</h2><span class="eyebrow">' + PTS_STABLEFORD + ' pts en juego · ' + estado + '</span></div>' +
+    '<div class="stb-total"><div class="txt-rojo"><b>' + st.usa + '</b><span>' + esc(nombreEquipo('rojo')) + '</span></div>' +
+    '<div class="stb-vs">–</div>' +
+    '<div class="txt-azul"><b>' + st.eur + '</b><span>' + esc(nombreEquipo('azul')) + '</span></div></div>' +
+    '<p class="stb-frase' + (lider ? (lider === 'rojo' ? ' txt-rojo' : ' txt-azul') : '') + '">' + esc(frase) + '</p>' +
+    '<div class="stb-cols">' + col('rojo') + col('azul') + '</div>' +
+    nota('<div class="candado solo"><span>➕</span><span>Suma de los puntos Stableford de los seis de cada equipo en Acantilados, Miramar y La Catedral, ' +
+    'con el handicap de cancha completo. El que levanta se anota con <b>10</b> y no suma. El equipo que más suma se lleva <b>' + PTS_STABLEFORD +
+    ' puntos</b> de la Ryder (empate, mitad cada uno). Se define cuando terminan todos.</span></div>') + '</section>';
 }
 function marcadorRyder(cid) {
   var ms = (cid === 'general') ? (E.partidos || []) : partidosDe(cid);
@@ -2734,12 +2767,7 @@ function vistaRyderGeneral() {
     marcadorHTML(gral) + '</section>';
 
   var st = gral.stb || stablefordEquipos();
-  h += '<section class="card"><div class="sec-tit"><h2>Stableford por equipo</h2><span class="eyebrow">' + PTS_STABLEFORD + ' pts en juego</span></div>' +
-    '<div class="gen-partido"><span class="txt-rojo">' + esc(nombreEquipo('rojo')) + ' <b>' + st.usa + '</b></span>' +
-    '<span>' + (st.cerrado ? 'terminado' : (st.empezado ? 'en juego' : 'sin empezar')) + '</span>' +
-    '<span class="txt-azul"><b>' + st.eur + '</b> ' + esc(nombreEquipo('azul')) + '</span></div>' +
-    nota('<div class="candado solo"><span>➕</span><span>Se suman los puntos Stableford de los seis de cada equipo en Acantilados, Miramar y La Catedral. ' +
-    'El equipo que más suma se lleva <b>' + PTS_STABLEFORD + ' puntos</b> de la Ryder (empate, mitad cada uno). Se define cuando terminan todos.</span></div>') + '</section>';
+  h += contadorStableford(st);
 
   h += '<section class="card"><div class="sec-tit"><h2>Cancha por cancha</h2><span class="eyebrow">puntos</span></div>';
   E.canchas.forEach(function (c) {
@@ -2982,7 +3010,9 @@ function vistaLinea() {
       (puedo ? '<button class="rd chico" data-acc="ln-menos" data-v="' + f.destino + '">−</button>' : '<span></span>') +
       '<span class="pr-golpes' + (f.valor == null ? ' sin' : '') + '">' + (f.valor == null ? '–' : f.valor) + '</span>' +
       (puedo ? '<button class="rd chico" data-acc="ln-mas" data-v="' + f.destino + '">+</button>' : '<span></span>') +
-      '<span class="pr-pts">' + (f.valor == null ? '' : 'neto ' + (f.valor - f.golpes)) + '</span>' +
+      '<span class="pr-pts">' + (f.valor == null ? '' : (f.valor >= LEVANTO ? 'levantó' : 'neto ' + (f.valor - f.golpes))) + '</span>' +
+      (puedo && f.destino.indexOf('jug:') === 0 && f.valor !== LEVANTO
+        ? '<button class="lev" data-acc="ln-lev" data-v="' + f.destino + '">Levantó (10)</button>' : '') +
       '</div>';
   }).join('');
 
@@ -4083,7 +4113,7 @@ document.addEventListener('click', function (ev) {
   }
   else if (a === 'mas' || a === 'menos' || a === 'set' || a === 'borrar') { anotarGolpe(a, v); return; }
   else if (a === 'sc-mas' || a === 'sc-menos' || a === 'sc-set' || a === 'sc-borrar' || a === 'sc-salida') { anotarScramble(a.slice(3), v); return; }
-  else if (a === 'ln-mas' || a === 'ln-menos') { anotarLinea(a === 'ln-mas' ? 'mas' : 'menos', v); return; }
+  else if (a === 'ln-mas' || a === 'ln-menos' || a === 'ln-lev') { anotarLinea(a === 'ln-mas' ? 'mas' : (a === 'ln-lev' ? 'lev' : 'menos'), v); return; }
   else if (a === 'modo-carga') { UI.modoCarga = v; }
   else if (a === 'sel-linea' || a === 'ir-linea') {
     UI.lineas = UI.lineas || {};
@@ -4434,7 +4464,7 @@ function anotarLinea(a, destino) {
 
   var arr = esLado ? tarjetaEquipo(m.id, clave) : hoyosDe(c.id, clave);
   var par = Number(c.par[UI.hoyo]) || 4, act = arr[UI.hoyo];
-  var nuevo = (a === 'mas') ? (act == null ? par : act + 1)
+  var nuevo = (a === 'lev') ? LEVANTO : (a === 'mas') ? (act == null ? par : act + 1)
                             : (act == null ? par : Math.max(1, act - 1));
 
   var t = null, i;
