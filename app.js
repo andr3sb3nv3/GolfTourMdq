@@ -2,7 +2,7 @@
 (function () {
 'use strict';
 
-var VERSION = 'v102';                     // tiene que coincidir con el CACHE del sw.js
+var VERSION = 'v103';                     // tiene que coincidir con el CACHE del sw.js
 var LS = { ses: 'gtm-sesion', est: 'gtm-estado', cola: 'gtm-cola', ui: 'gtm-ui' };
 var API = (window.GTM_CONFIG && window.GTM_CONFIG.api) || '';
 
@@ -4064,14 +4064,16 @@ function notasHTML() {
   return h;
 }
 
-/* Andres (27/11): la Ryder es el modo oficial. Los botones de Partida y Testeo
-   quedan ocultos (no se borran): poner true para que vuelvan a aparecer. */
+/* Andres (27/11): la Ryder es el modo oficial. Los botones de Partida, Testeo e
+   Info del viaje quedan ocultos (no se borran): poner true para que vuelvan a aparecer. */
 var MODOS_EXTRA = false;
 
 function pintar() {
   NOTAS = [];
   if (!MODOS_EXTRA && !TEST && (UI.tab === 'rapida' || UI.tab === 'rapidaRyder' || UI.tab === 'testeo')) UI.tab = 'cargar';
   var ft = document.getElementById('fv-test');   // botón flotante: muestra si estás en testeo
+  var fvv = document.getElementById('flot-viaje');   // Info del viaje también oculto (Andres, 27/11)
+  if (fvv) { fvv.hidden = !MODOS_EXTRA && !TEST; var fb = fvv.querySelector('.fv-btn'); if (fb) fb.hidden = !MODOS_EXTRA; }
   if (ft) { ft.hidden = !MODOS_EXTRA && !TEST; ft.classList.toggle('on', !!TEST); ft.querySelector('b').textContent = TEST ? 'Salir del testeo' : 'Testeo'; }
   var fe = document.getElementById('fv-esc');
   if (fe) {
