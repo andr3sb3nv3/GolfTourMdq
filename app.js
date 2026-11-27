@@ -2,7 +2,7 @@
 (function () {
 'use strict';
 
-var VERSION = 'v100';                     // tiene que coincidir con el CACHE del sw.js
+var VERSION = 'v101';                     // tiene que coincidir con el CACHE del sw.js
 var LS = { ses: 'gtm-sesion', est: 'gtm-estado', cola: 'gtm-cola', ui: 'gtm-ui' };
 var API = (window.GTM_CONFIG && window.GTM_CONFIG.api) || '';
 
@@ -270,7 +270,7 @@ function pedir(cuerpo) {
 function traerEstado() {
   if (TEST || !SES) return Promise.resolve();
   return pedir({ accion: 'estado', token: SES.token }).then(function (res) {
-    if (res && res.ok) { adoptar(res.estado); ultimoError = ''; }
+    if (res && res.ok) { adoptar(res.estado); ultimoError = ''; autoLineasGira(); }
     else if (res && res.error === 'sesion_vencida') salir(true);
     return res;
   });
@@ -2649,6 +2649,33 @@ function lineasGira(cid) {
     var r = { usa: l.usa.map(jugadorGira), eur: l.eur.map(jugadorGira), plan: l };
     r.completa = r.usa.concat(r.eur).every(Boolean);
     return r;
+  });
+}
+/* Andres (27/11): que las líneas queden cargadas solas, sin tocar ningún botón.
+   El primero que abre la app con sesión las guarda en la planilla. Solo si esa
+   cancha todavía no tiene golpes anotados, y una vez por arranque. */
+var autoGiraHecho = {};
+function autoLineasGira() {
+  if (TEST || !SES || !E || !yo()) return;
+  Object.keys(LINEAS_GIRA).forEach(function (cid) {
+    if (autoGiraHecho[cid]) return;
+    var c = cancha(cid), lg = lineasGira(cid);
+    if (!c || !lg || !lg.every(function (l) { return l.completa; })) return;
+    var mats = function (js) { return js.map(function (j) { return String(j.matricula); }); };
+    var clave = function (a) { return a.map(String).sort().join(','); };
+    var ms = partidosDe(cid);
+    var igual = ms.length === lg.length && lg.every(function (l, k) {
+      return clave(ms[k].usa) === clave(mats(l.usa)) && clave(ms[k].eur) === clave(mats(l.eur));
+    });
+    if (igual) { autoGiraHecho[cid] = true; return; }
+    var conGolpes = function (hs) { return (hs || []).some(function (x) { return x != null && x !== ''; }); };
+    var ids = {}; ms.forEach(function (m) { ids[m.id] = 1; });
+    var anotado = (E.tarjetas || []).some(function (t) { return t.cancha === cid && conGolpes(t.hoyos); }) ||
+      (E.tarjetasEquipo || []).some(function (t) { return ids[t.partido] && conGolpes(t.hoyos); });
+    if (anotado) { autoGiraHecho[cid] = true; return; }
+    autoGiraHecho[cid] = true;
+    accionar({ accion: 'partidos', cancha: cid, formato: c.formato || FORMATO_GIRA[cid] || '',
+      lista: lg.map(function (l) { return { usa: mats(l.usa), eur: mats(l.eur) }; }) });
   });
 }
 function nomGira(j, x) { return j ? nomJ(j) : x[1]; }
