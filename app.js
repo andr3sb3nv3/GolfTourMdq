@@ -2,7 +2,7 @@
 (function () {
 'use strict';
 
-var VERSION = 'v99';                     // tiene que coincidir con el CACHE del sw.js
+var VERSION = 'v100';                     // tiene que coincidir con el CACHE del sw.js
 var LS = { ses: 'gtm-sesion', est: 'gtm-estado', cola: 'gtm-cola', ui: 'gtm-ui' };
 var API = (window.GTM_CONFIG && window.GTM_CONFIG.api) || '';
 
@@ -2624,6 +2624,52 @@ function panelEquipos(cid) {
     '<div class="acc" style="padding-top:10px"><button class="btn fin" data-acc="tab" data-v="ryder">Ver los partidos →</button></div></section>';
 }
 
+/* Líneas ya decididas para la gira (Andres, 27/11 a la noche). Se ven en la Ryder
+   antes de cargarlas, con el handicap que tiene cada uno en la app, y se cargan
+   a la planilla con un toque. Cada jugador va como [apellido, apodo]: se busca
+   por el apellido en el nombre y, si no, por el apodo. */
+var LINEAS_GIRA = {
+  acantilados: [
+    { usa: [['Santamarina', 'Luqui'], ['Beccar', 'Nari']], eur: [['Caputo', 'Bauti'], ['Benvenuto', 'Benve']] },
+    { usa: [['Arizu', 'Mati'], ['Boero', 'Boa']],          eur: [['Bergada', 'Sebas'], ['Socas', 'Fran']] },
+    { usa: [['Paz', 'Ini'], ['Urtubey', 'Chino']],         eur: [['Benitez', 'Toba'], ['Viboud', 'Vibu']] }
+  ]
+};
+function normGira(t) { return String(t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim(); }
+function jugadorGira(x) {
+  var js = (E && E.jugadores) || [], ap = normGira(x[0]), apo = normGira(x[1]), i;
+  for (i = 0; i < js.length; i++) if (normGira(js[i].nombre).split(/\s+/).indexOf(ap) >= 0) return js[i];
+  for (i = 0; i < js.length; i++) if (normGira(js[i].apodo) === apo || normGira(nomJ(js[i])) === apo) return js[i];
+  return null;
+}
+function lineasGira(cid) {
+  var plan = LINEAS_GIRA[cid];
+  if (!plan) return null;
+  return plan.map(function (l) {
+    var r = { usa: l.usa.map(jugadorGira), eur: l.eur.map(jugadorGira), plan: l };
+    r.completa = r.usa.concat(r.eur).every(Boolean);
+    return r;
+  });
+}
+function nomGira(j, x) { return j ? nomJ(j) : x[1]; }
+function hcpGira(j) { return j && j.handicap !== '' && j.handicap != null ? ' <i>' + esc(j.handicap) + '</i>' : ''; }
+function lineasGiraHTML(cid) {
+  var lg = lineasGira(cid);
+  if (!lg) return '';
+  var ok = lg.every(function (l) { return l.completa; });
+  var h = '<div class="eyebrow" style="padding:10px 0 4px">Líneas precargadas</div>';
+  lg.forEach(function (l, k) {
+    var lado = function (q) {
+      return l[q].map(function (j, z) { return esc(nomGira(j, l.plan[q][z])) + hcpGira(j); }).join(' · ');
+    };
+    h += '<div class="gen-partido" style="padding:6px 0"><span class="txt-rojo">' + lado('usa') + '</span>' +
+      '<span class="eyebrow">L' + (k + 1) + '</span><span class="txt-azul">' + lado('eur') + '</span></div>';
+  });
+  if (yo() && ok) h += '<div class="acc"><button class="btn pri" data-acc="cargar-lineas-gira" data-v="' + cid + '">Cargar estas líneas y anotar</button></div>';
+  else if (!ok) h += '<p class="vacio">Falta encontrar a algún jugador en la lista: armalas a mano.</p>';
+  return h;
+}
+
 function vistaRyder() {
   var cid = UI.canchaRyder || 'general';
   if (cid === 'general') return vistaRyderGeneral();
@@ -2657,7 +2703,9 @@ function vistaRyder() {
     return h + '</div>';
   }
   if (!ms.length) {
-    h += '<p class="vacio">Todavía no están armadas las líneas de esta cancha. Se arman la noche anterior.</p>' +
+    if (LINEAS_GIRA[cid]) h += lineasGiraHTML(cid);
+    else h += '<p class="vacio">Todavía no están armadas las líneas de esta cancha. Se arman la noche anterior.</p>';
+    h += ''+
       (arma ? '<div class="acc"><button class="btn fin" data-acc="armar-lineas" data-v="' + cid + '">✏️ Armar las líneas a mano</button></div>' : '');
     return h + '</section></div>';
   }
@@ -2776,7 +2824,12 @@ function vistaRyderGeneral() {
     h += '<button class="gen-cancha" data-acc="ryder-cancha" data-v="' + c.id + '">' +
       '<span class="gc-nom"><b>' + esc(etiquetaCancha(c)) + '</b><i>' + esc((FORMATOS[c.formato] || 'sin modalidad') + ' · ' + fechaCancha(c)) + '</i></span>' +
       '<span class="gc-pts"><b class="txt-rojo">' + fmtPunto(r.usa) + '</b><span>–</span><b class="txt-azul">' + fmtPunto(r.eur) + '</b></span>' +
-      '<span class="gc-est">' + (!ms.length ? 'sin líneas' : (r.enJuego ? r.enJuego + ' en juego' : (r.total && (r.usa + r.eur) >= enJuegoPts ? 'terminada' : enJuegoPts + ' pts en juego'))) + '</span></button>';
+      '<span class="gc-est">' + (!ms.length ? (LINEAS_GIRA[c.id] ? 'líneas precargadas, falta cargarlas' : 'sin líneas') : (r.enJuego ? r.enJuego + ' en juego' : (r.total && (r.usa + r.eur) >= enJuegoPts ? 'terminada' : enJuegoPts + ' pts en juego'))) + '</span></button>';
+    if (!ms.length && LINEAS_GIRA[c.id]) lineasGira(c.id).forEach(function (l, k) {
+      var lado = function (q) { return l[q].map(function (j, z) { return nomGira(j, l.plan[q][z]); }).join(' · '); };
+      h += '<div class="gen-partido"><span class="txt-rojo">' + esc(lado('usa')) + '</span><span class="eyebrow">L' + (k + 1) +
+        '</span><span class="txt-azul">' + esc(lado('eur')) + '</span></div>';
+    });
     ms.forEach(function (m, k) {
       var p = calcularPartido(m);
       if (!p) return;
@@ -4089,6 +4142,14 @@ document.addEventListener('click', function (ev) {
   else if (a === 'ryder-cancha') { UI.canchaRyder = v; }
   else if (a === 'armar') { armarPartidos(v); return; }
   else if (a === 'armar-lineas') { UI.armando = v || null; }
+  else if (a === 'cargar-lineas-gira') {
+    var lgC = lineasGira(v), cG = cancha(v);
+    if (!lgC || !cG || partidosDe(v).length) return;
+    var matsG = function (js) { return js.map(function (j) { return String(j.matricula); }); };
+    accionar({ accion: 'partidos', cancha: v, formato: cG.formato || FORMATO_GIRA[v] || '',
+      lista: lgC.map(function (l) { return { usa: matsG(l.usa), eur: matsG(l.eur) }; }) });
+    return;
+  }
   else if (a === 'pasar-equipo') { accionar({ accion: 'equipoJugador', matricula: v, equipo: b.getAttribute('data-i') }); return; }
   else if (a === 'precargar') {
     if (!confirm('Se cargan los 12 de la gira con el handicap y el equipo de la planilla. Los que ya están se actualizan. ¿Seguimos?')) return;
