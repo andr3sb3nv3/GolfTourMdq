@@ -522,6 +522,7 @@ table.tc tr.yo .lbl{color:var(--eur);font-weight:800;box-shadow:inset 3px 0 0 va
   background:#fff;color:var(--navy);border:2px solid var(--navy);font:800 14px/1 Archivo,"Helvetica Neue",Arial,sans-serif;
   box-shadow:0 6px 16px -8px rgba(11,27,46,.5)}
 .fv-test span{font-size:17px;line-height:1}
+.fv-test[hidden]{display:none}
 .fv-test.on{background:#E8590C;border-color:#E8590C;color:#fff}
 .flot-viaje.plegado .fv-test{display:none}
 .flot-viaje.plegado .fv-esc{display:none}

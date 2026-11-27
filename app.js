@@ -2,7 +2,7 @@
 (function () {
 'use strict';
 
-var VERSION = 'v101';                     // tiene que coincidir con el CACHE del sw.js
+var VERSION = 'v102';                     // tiene que coincidir con el CACHE del sw.js
 var LS = { ses: 'gtm-sesion', est: 'gtm-estado', cola: 'gtm-cola', ui: 'gtm-ui' };
 var API = (window.GTM_CONFIG && window.GTM_CONFIG.api) || '';
 
@@ -4064,10 +4064,15 @@ function notasHTML() {
   return h;
 }
 
+/* Andres (27/11): la Ryder es el modo oficial. Los botones de Partida y Testeo
+   quedan ocultos (no se borran): poner true para que vuelvan a aparecer. */
+var MODOS_EXTRA = false;
+
 function pintar() {
   NOTAS = [];
+  if (!MODOS_EXTRA && !TEST && (UI.tab === 'rapida' || UI.tab === 'rapidaRyder' || UI.tab === 'testeo')) UI.tab = 'cargar';
   var ft = document.getElementById('fv-test');   // botón flotante: muestra si estás en testeo
-  if (ft) { ft.classList.toggle('on', !!TEST); ft.querySelector('b').textContent = TEST ? 'Salir del testeo' : 'Testeo'; }
+  if (ft) { ft.hidden = !MODOS_EXTRA && !TEST; ft.classList.toggle('on', !!TEST); ft.querySelector('b').textContent = TEST ? 'Salir del testeo' : 'Testeo'; }
   var fe = document.getElementById('fv-esc');
   if (fe) {
     fe.hidden = !TEST;
@@ -4090,9 +4095,9 @@ function pintar() {
     '<div class="cab-der">' +
     '<button class="chip-estado" data-acc="info"><span class="punto' + (navigator.onLine ? ' vivo' : ' gris') + '"></span>' +
     (navigator.onLine ? 'Vivo' : 'Sin señal') + '</button>' +
-    '<button class="chip-test' + (TEST ? ' on' : '') + '" ' +
-    (TEST ? 'data-acc="tab" data-v="testeo"' : 'data-acc="test-entrar"') + '>🧪 Testeo</button>' +
-    '<button class="chip-test' + (UI.tab === 'rapida' || UI.tab === 'rapidaRyder' ? ' on' : '') + '" data-acc="rapida">⚡ Partida</button>' +
+    (MODOS_EXTRA || TEST ? '<button class="chip-test' + (TEST ? ' on' : '') + '" ' +
+    (TEST ? 'data-acc="tab" data-v="testeo"' : 'data-acc="test-entrar"') + '>🧪 Testeo</button>' : '') +
+    (MODOS_EXTRA ? '<button class="chip-test' + (UI.tab === 'rapida' || UI.tab === 'rapidaRyder' ? ' on' : '') + '" data-acc="rapida">⚡ Partida</button>' : '') +
     '<button class="chip-test' + (!TEST && ['rapida', 'rapidaRyder', 'testeo'].indexOf(UI.tab) < 0 ? ' on' : '') + '" data-acc="copa">🏆 Ryder</button>' +
     '<button class="btn-perfil" data-acc="ir-perfil">' + avatar(y) +
     '<span class="nom">' + esc(nombreCorto(y ? y.nombre : '')) + '</span></button></div></div>' +
