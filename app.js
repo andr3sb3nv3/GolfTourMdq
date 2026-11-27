@@ -2,7 +2,7 @@
 (function () {
 'use strict';
 
-var VERSION = 'v103';                     // tiene que coincidir con el CACHE del sw.js
+var VERSION = 'v104';                     // tiene que coincidir con el CACHE del sw.js
 var LS = { ses: 'gtm-sesion', est: 'gtm-estado', cola: 'gtm-cola', ui: 'gtm-ui' };
 var API = (window.GTM_CONFIG && window.GTM_CONFIG.api) || '';
 
@@ -251,21 +251,30 @@ function valorMetrica(a) {
 /* ============ red ============ */
 function pedir(cuerpo) {
   if (!API) return Promise.reject(new Error('sin_api'));
-  return fetch(API, {
+  /* Con señal floja (Acantilados, 27/11) un pedido podía quedar colgado para siempre:
+     la app se trababa en "Sincronizando…" y no volvía a intentar. Ahora a los 40 s
+     se corta, cuenta como sin conexión y el reloj lo reintenta (los golpes siguen en la cola). */
+  var ctl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+  var corte = null;
+  var espera = new Promise(function (_, rechazar) {
+    corte = setTimeout(function () { if (ctl) ctl.abort(); rechazar(new Error('sin_conexion')); }, 40000);
+  });
+  var ida = fetch(API, {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify(cuerpo)
-  }).then(function (r) {
-    return r.text().then(function (t) {
-      var limpio = String(t || '').trim();
-      if (limpio.charAt(0) === '{') { try { return JSON.parse(limpio); } catch (e) {} }
-      // Google devolvió una página en vez de datos: casi siempre es el login
-      var err = new Error(/accounts\.google|ServiceLogin|iniciar sesión|sign in|autoriza/i.test(limpio)
-        ? 'necesita_login' : 'respuesta_invalida');
-      err.detalle = limpio.slice(0, 180);
-      throw err;
-    });
-  }, function () { throw new Error('sin_conexion'); });
+    body: JSON.stringify(cuerpo),
+    signal: ctl ? ctl.signal : undefined
+  }).then(function (r) { return r.text(); }, function () { throw new Error('sin_conexion'); });
+  return Promise.race([ida, espera]).then(function (t) {
+    clearTimeout(corte);
+    var limpio = String(t || '').trim();
+    if (limpio.charAt(0) === '{') { try { return JSON.parse(limpio); } catch (e) {} }
+    // Google devolvió una página en vez de datos: casi siempre es el login
+    var err = new Error(/accounts\.google|ServiceLogin|iniciar sesión|sign in|autoriza/i.test(limpio)
+      ? 'necesita_login' : 'respuesta_invalida');
+    err.detalle = limpio.slice(0, 180);
+    throw err;
+  }, function () { clearTimeout(corte); throw new Error('sin_conexion'); });
 }
 function traerEstado() {
   if (TEST || !SES) return Promise.resolve();
